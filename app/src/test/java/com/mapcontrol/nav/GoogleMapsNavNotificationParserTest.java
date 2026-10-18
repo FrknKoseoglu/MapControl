@@ -25,7 +25,7 @@ public class GoogleMapsNavNotificationParserTest {
     }
 
     @Test
-    public void convertsFeetAndMilesAndStripsTvs() {
+    public void convertsFeetAndMilesAndStripsClockLabels() {
         GoogleMapsNavSnapshot snap = GoogleMapsNavNotificationParser.parseFields(
                 "500 ft",
                 "Turn left TVS: - Oak",
@@ -39,14 +39,14 @@ public class GoogleMapsNavNotificationParserTest {
     }
 
     @Test
-    public void ignoresSignInAndUpdateTitles() {
+    public void ignoresPromptsWithoutDistanceOrDuration() {
         GoogleMapsNavSnapshot signIn = GoogleMapsNavNotificationParser.parseFields(
                 "Sign in to Google", "Account - prompt", "Open Maps", false);
         assertFalse(signIn.active);
 
-        GoogleMapsNavSnapshot update = GoogleMapsNavNotificationParser.parseFields(
-                "200 m", "Güncelleme gerekli - Store", "3 km · 10 dk", false);
-        assertFalse(update.active);
+        GoogleMapsNavSnapshot store = GoogleMapsNavNotificationParser.parseFields(
+                "Store", "Ready to install - Store", "Open the app", false);
+        assertFalse(store.active);
     }
 
     @Test

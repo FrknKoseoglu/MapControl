@@ -405,7 +405,7 @@
     <string name="onboarding_title">Map Control</string>
     <string name="onboarding_subtitle">Başlamak için dilinizi seçin</string>
     <string name="onboarding_continue">Devam Et</string>
-    <string name="installer_confirm_countdown">%1$d saniye sonra kurulum onaylanır</string>
+    <string name="installer_confirm_countdown">Kurulum onayı %1$d saniye sonra</string>
     <string name="installer_confirm_cancel">İptal</string>
     <string name="settings_permissions_title">İzinleri görüntüle</string>
     <string name="settings_permissions_desc">Her izni canlı dener. Yeşil gerçek çağrı geçti, kırmızı reddedildi veya hata verdi, sarı denenmedi.</string>

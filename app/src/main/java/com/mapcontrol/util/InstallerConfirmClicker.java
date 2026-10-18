@@ -33,13 +33,7 @@ public final class InstallerConfirmClicker {
     private static final long RETRY_MS = 400L;
     private static final long COOLDOWN_MS = 2500L;
     private static final int COUNTDOWN_SECONDS = 5;
-    private static final String[] QUESTION_IDS = {
-            "",
-            "",
-            "",
-            "",
-            ""
-    };
+    private static final String QUESTION_SUFFIX = "install_confirm_question";
     private static final String[] INSTALL_LABELS = {
             "install", "yükle", "yukle", "kur", "update", "güncelle", "guncelle",
             "instalar", "actualizar", "установить", "обновить", "安装", "更新",
@@ -283,12 +277,7 @@ public final class InstallerConfirmClicker {
     }
 
     private static boolean hasQuestion(AccessibilityNodeInfo root) {
-        for (String id : QUESTION_IDS) {
-            if (hasViewId(root, id)) {
-                return true;
-            }
-        }
-        return hasViewIdSuffix(root, "install_confirm_question");
+        return hasViewIdSuffix(root, QUESTION_SUFFIX);
     }
 
     private static boolean hasViewId(AccessibilityNodeInfo root, String id) {

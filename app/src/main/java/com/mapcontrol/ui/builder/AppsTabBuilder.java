@@ -1958,10 +1958,10 @@ public class AppsTabBuilder {
                 return;
             }
 
-            callback.log("Sessiz dex kurulumu olmadı: " + dexResult.message);
-            handler.post(() -> abandonInstallQueue(queueGeneration));
+            callback.log("Standart kurulum yoluna geçiliyor: " + dexResult.message);
             if (activity == null) {
                 handler.post(() -> {
+                    abandonInstallQueue(queueGeneration);
                     Toast.makeText(context,
                             context.getString(R.string.apps_install_start_failed, "Activity"), Toast.LENGTH_LONG).show();
                     if (trackedPackage != null) releaseInstallUi(trackedPackage);
@@ -1972,7 +1972,16 @@ public class AppsTabBuilder {
 
             try {
                 callback.log("PackageInstaller session başlatılıyor: " + apkFile.getAbsolutePath());
-                ApkSessionInstaller.install(activity, apkFile, null);
+                ApkSessionInstaller.install(activity, apkFile, (status, message) -> handler.post(() -> {
+                    if (activity.isDestroyed()) return;
+                    if (status == android.content.pm.PackageInstaller.STATUS_SUCCESS) {
+                        if (trackedPackage != null) releaseInstallUi(trackedPackage);
+                        if (queueGeneration != 0) advanceInstallQueue(queueGeneration);
+                    } else if (status != android.content.pm.PackageInstaller.STATUS_PENDING_USER_ACTION) {
+                        abandonInstallQueue(queueGeneration);
+                        if (trackedPackage != null) releaseInstallUi(trackedPackage);
+                    }
+                }));
                 handler.post(() -> {
                     callback.log("APK session commit edildi: " + apkFile.getName());
                     Toast.makeText(context, R.string.apps_install_started, Toast.LENGTH_SHORT).show();
@@ -1981,6 +1990,7 @@ public class AppsTabBuilder {
             } catch (Exception e) {
                 String detail = e.getMessage() != null ? e.getMessage() : e.getClass().getSimpleName();
                 handler.post(() -> {
+                    abandonInstallQueue(queueGeneration);
                     Toast.makeText(context,
                             context.getString(R.string.apps_install_start_failed, detail), Toast.LENGTH_LONG).show();
                     if (trackedPackage != null) releaseInstallUi(trackedPackage);
@@ -2186,4 +2196,3 @@ public class AppsTabBuilder {
         }).start();
     }
 }
-

@@ -9,20 +9,22 @@ public final class StartupGate {
 
     public final boolean clearWelcome;
     public final boolean showWelcome;
+    public final boolean playWelcome;
     public final boolean launchUi;
 
-    private StartupGate(boolean clearWelcome, boolean showWelcome, boolean launchUi) {
+    private StartupGate(boolean clearWelcome, boolean showWelcome, boolean playWelcome, boolean launchUi) {
         this.clearWelcome = clearWelcome;
         this.showWelcome = showWelcome;
+        this.playWelcome = playWelcome;
         this.launchUi = launchUi;
     }
 
     public static StartupGate decide(int previousMode, int mode, boolean welcomeShown,
             boolean designEnabled, boolean uiPending) {
         if (mode < 1) {
-            return new StartupGate(true, false, false);
+            return new StartupGate(true, false, false, false);
         }
-        boolean show = previousMode < 1 && designEnabled && !welcomeShown;
-        return new StartupGate(false, show, uiPending);
+        boolean welcome = previousMode < 1 && !welcomeShown;
+        return new StartupGate(false, welcome && designEnabled, welcome, uiPending);
     }
 }

@@ -109,7 +109,9 @@ public class MainActivity extends AppCompatActivity {
     private static final int TAB_EQUALIZER = 11;
     private TextView tvLogs;
     private ScrollView scrollView;
-    private final StringBuilder logBuffer = new StringBuilder();
+    private final com.mapcontrol.util.BoundedLogBuffer logBuffer = new com.mapcontrol.util.BoundedLogBuffer(65536);
+    private final java.util.concurrent.atomic.AtomicBoolean logRenderPending = new java.util.concurrent.atomic.AtomicBoolean();
+    private final Runnable renderLogs = this::renderLogBuffer;
     private Handler handler;
     private volatile boolean isNavigationOpen = false; // Navigasyon durumu
     private String targetPackage = ""; // Seçilen uygulama paketi
@@ -451,7 +453,7 @@ public class MainActivity extends AppCompatActivity {
             @Override
             public void onServerStarted(int port, String localIp) {
                 handler.post(() -> {
-                    String serverUrl = "http://" + localIp + ":" + port;
+                    String serverUrl = webServerManager.getAccessUrl(localIp);
                     if (webServerStatusText != null) {
                         webServerStatusText.setText(serverUrl);
                         webServerStatusText.setTextColor(UiStyles.color(MainActivity.this, R.color.accentHighlight));
@@ -461,7 +463,7 @@ public class MainActivity extends AppCompatActivity {
                     }
                     // QR kod oluştur
                     if (fileUploadTabBuilder != null) fileUploadTabBuilder.generateQRCode(serverUrl);
-                    log("Web Server başlatıldı: " + serverUrl);
+                    log("Web Server başlatıldı: http://" + localIp + ":" + port);
                 });
             }
 
@@ -701,7 +703,7 @@ public class MainActivity extends AppCompatActivity {
         logTabBuilder = new LogTabBuilder(this, new LogTabBuilder.LogCallback() {
             @Override
             public void onClearLogs() {
-                logBuffer.setLength(0);
+                logBuffer.clear();
                 if (logTabBuilder != null && logTabBuilder.getLogsTextView() != null) {
                     logTabBuilder.getLogsTextView().setText("");
                 }
@@ -1436,6 +1438,7 @@ public class MainActivity extends AppCompatActivity {
     @Override
     protected void onNewIntent(Intent intent) {
         super.onNewIntent(intent);
+        acknowledgeUiLaunch();
         setIntent(intent);
         if (ApkSessionInstaller.handleSessionResultIntent(this, intent)) {
             return;
@@ -1621,7 +1624,7 @@ public class MainActivity extends AppCompatActivity {
             return;
         }
         boolean show = currentTab == TAB_LAUNCHER;
-        launcherTabBuilder.onTabHidden();
+        launcherTabBuilder.release();
         if (launcherScrollView != null
                 && launcherScrollView.getParent() instanceof android.view.ViewGroup) {
             ((android.view.ViewGroup) launcherScrollView.getParent()).removeView(launcherScrollView);
@@ -1674,7 +1677,9 @@ public class MainActivity extends AppCompatActivity {
                 }
                 if (webServerStatusText != null) {
                     webServerStatusText.setTextColor(UiStyles.color(this, R.color.accentHighlight));
+                    webServerStatusText.setText(webServerManager.getAccessUrl());
                 }
+                fileUploadTabBuilder.generateQRCode(webServerManager.getAccessUrl());
             }
         }
         if (projectionTabBuilder != null) {
@@ -1731,6 +1736,7 @@ public class MainActivity extends AppCompatActivity {
     @Override
     protected void onResume() {
         super.onResume();
+        acknowledgeUiLaunch();
         MapControlVDBusKeyBridge.refreshSubscription(true, true);
         ImmersiveFullscreenHelper.reapplyIfLauncherMode(this);
         sBenchHost = this;
@@ -1759,6 +1765,25 @@ public class MainActivity extends AppCompatActivity {
             welcomeSoundTabBuilder.onHostPause();
         }
         super.onPause();
+    }
+
+    private void acknowledgeUiLaunch() {
+        com.mapcontrol.util.BootSession.markUiLaunched(this);
+        com.mapcontrol.util.BootSession.setUiPending(this, false);
+    }
+
+    @Override
+    protected void onStart() {
+        super.onStart();
+        if (currentTab == TAB_LAUNCHER && launcherTabBuilder != null) launcherTabBuilder.onTabVisible();
+        if (currentTab == 5 && appsTabBuilder != null) appsTabBuilder.onTabVisible();
+    }
+
+    @Override
+    protected void onStop() {
+        if (launcherTabBuilder != null) launcherTabBuilder.onTabHidden();
+        if (appsTabBuilder != null) appsTabBuilder.onTabHidden();
+        super.onStop();
     }
 
     private void registerTargetPackageBroadcastReceiver() {
@@ -1877,7 +1902,12 @@ public class MainActivity extends AppCompatActivity {
 
     @Override
     protected void onDestroy() {
+        if (launcherTabBuilder != null) launcherTabBuilder.release();
+        if (appsTabBuilder != null) appsTabBuilder.onTabHidden();
+        if (clusterDisplayManager != null) clusterDisplayManager.release();
+        if (driveModeTabBuilder != null) driveModeTabBuilder.release();
         ApkSessionInstaller.clearListener(apkSessionListener);
+        ApkSessionInstaller.clearSessionListeners(this);
         if (sBenchHost == this) {
             sBenchHost = null;
         }
@@ -1901,6 +1931,7 @@ public class MainActivity extends AppCompatActivity {
         // WebServerManager'ı durdur
         if (webServerManager != null) {
             webServerManager.stopServer();
+            webServerManager.setListener(null);
         }
         // KeyEvent logcat thread'ini temizle
         keyEventLogcatRunning = false;
@@ -1912,6 +1943,7 @@ public class MainActivity extends AppCompatActivity {
             MapControlVDBusKeyBridge.release(this);
         }
         if (serviceInitializer != null) serviceInitializer.onDestroy();
+        if (handler != null) handler.removeCallbacksAndMessages(null);
     }
 
     private void log(String msg) {
@@ -1933,18 +1965,19 @@ public class MainActivity extends AppCompatActivity {
         }
         
         logBuffer.append(coloredLine);
-        handler.post(() -> {
-            // UI henüz kurulmadan (initializeApp başında) gelen loglar buffer'da kalır
-            if (tvLogs == null) {
-                return;
-            }
-            tvLogs.setText(logBuffer.toString());
-            if (scrollView != null) {
-                scrollView.post(() -> scrollView.fullScroll(View.FOCUS_DOWN));
-            }
-        });
+        if (!isDestroyed() && logRenderPending.compareAndSet(false, true)) {
+            handler.postDelayed(renderLogs, 100L);
+        }
     }
 
+    private void renderLogBuffer() {
+        logRenderPending.set(false);
+        if (isDestroyed() || tvLogs == null) return;
+        tvLogs.setText(logBuffer.toString());
+        if (scrollView != null && currentTab == 4) {
+            scrollView.post(() -> scrollView.fullScroll(View.FOCUS_DOWN));
+        }
+    }
     // App operations moved to `AppsTabBuilder`.
 
     /**

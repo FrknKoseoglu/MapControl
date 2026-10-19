@@ -17,7 +17,7 @@ public class CarInfoProxy implements VDBindListener {
     private IVDBus mAidl = null;
     private final List<IServiceConnectListener> mConnectListeners = new CopyOnWriteArrayList();
     private Context mContext = null;
-    private boolean mIsServiceConnnected = false;
+    private volatile boolean mIsServiceConnnected = false;
 
     public static CarInfoProxy getInstance() {
         if (mInstance == null) {
@@ -39,6 +39,12 @@ public class CarInfoProxy implements VDBindListener {
     }
 
     public int[] getItemValues(int i9, int i10) {
+        int[] values = getItemValuesOrNull(i9, i10);
+        return values != null ? values : new int[]{0};
+    }
+
+    /** Preserves the OEM API above while letting automation distinguish no response from OFF/zero. */
+    public int[] getItemValuesOrNull(int i9, int i10) {
         Bundle payload;
         Bundle bundle = new Bundle();
         bundle.putInt(Constants.CMD_ID, i10);
@@ -46,7 +52,7 @@ public class CarInfoProxy implements VDBindListener {
         if (once != null && (payload = once.getPayload()) != null && payload.getIntArray(Constants.VALUE) != null) {
             return payload.getIntArray(Constants.VALUE);
         }
-        return new int[]{0};
+        return null;
     }
 
     public void init(Context context) {

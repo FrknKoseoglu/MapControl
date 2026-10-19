@@ -13,6 +13,8 @@ public final class GoogleMapsNavSnapshot {
 
     private static final Pattern ARRIVAL_TIME = Pattern.compile(
             "\\b([01]?\\d|2[0-3]):[0-5]\\d\\b");
+    private static final Pattern METRIC_DISTANCE = Pattern.compile(
+            "^\\s*(\\d+(?:[.,]\\d+)?)\\s*(km|m)\\b", Pattern.CASE_INSENSITIVE);
 
     public final boolean active;
     @Nullable public final String maneuverHint;
@@ -93,6 +95,21 @@ public final class GoogleMapsNavSnapshot {
         return splitTitleDistancePart(distanceTitle);
     }
 
+    /** Manevra mesafesini VDBus için metreye çevirir; bilinmeyen mesafe sıfırdır. */
+    public int segmentRemainMeters() {
+        String distance = formatManeuverDistanceLine();
+        if (!active || distance == null) {
+            return 0;
+        }
+        Matcher matcher = METRIC_DISTANCE.matcher(distance);
+        if (!matcher.find()) {
+            return 0;
+        }
+        double amount = Double.parseDouble(matcher.group(1).replace(',', '.'));
+        double meters = "km".equalsIgnoreCase(matcher.group(2)) ? amount * 1000d : amount;
+        return (int) Math.min(Integer.MAX_VALUE, Math.round(meters));
+    }
+
     /** Manevra yönü: başlıktaki talimat veya hedef satırı. */
     @Nullable
     public String formatManeuverDirectionLine() {
@@ -156,7 +173,7 @@ public final class GoogleMapsNavSnapshot {
                 continue;
             }
             String lower = trimmed.toLowerCase(Locale.US);
-            boolean isDistance = lower.contains(" km") || lower.contains(" mi") || lower.contains(" m ");
+            boolean isDistance = METRIC_DISTANCE.matcher(trimmed).find();
             boolean isDuration = lower.contains("min") || lower.contains("dk")
                     || lower.contains("hr") || lower.contains("sa");
             boolean isArrival = ARRIVAL_TIME.matcher(trimmed).find();

@@ -73,4 +73,38 @@ public class GoogleMapsNavNotificationParserTest {
         assertEquals("1 hr 34 min", snap.etaDurationLabel());
         assertEquals("12:26", snap.etaArrivalLabel());
     }
+
+    @Test
+    public void segmentDistanceUsesMetersForVdBus() {
+        GoogleMapsNavSnapshot meters = GoogleMapsNavNotificationParser.parseFields(
+                "80 m - Turn left", null, "2 min", false);
+        GoogleMapsNavSnapshot kilometers = GoogleMapsNavNotificationParser.parseFields(
+                "1,2 km - Continue", null, "3 min", false);
+        GoogleMapsNavSnapshot feet = GoogleMapsNavNotificationParser.parseFields(
+                "500 ft - Turn right", null, "2 min", false);
+        assertEquals(80, meters.segmentRemainMeters());
+        assertEquals(1200, kilometers.segmentRemainMeters());
+        assertEquals(152, feet.segmentRemainMeters());
+    }
+
+    @Test
+    public void missingSegmentDistanceDoesNotInventAManeuverDistance() {
+        assertEquals(0, GoogleMapsNavSnapshot.inactive().segmentRemainMeters());
+        GoogleMapsNavSnapshot withoutDistance = GoogleMapsNavNotificationParser.parseFields(
+                "Continue", null, "2 min", false);
+        assertEquals(0, withoutDistance.segmentRemainMeters());
+    }
+
+    @Test
+    public void oversizedSegmentDistanceDoesNotOverflow() {
+        GoogleMapsNavSnapshot snapshot = GoogleMapsNavNotificationParser.parseFields(
+                "999999999 km", null, "2 min", false);
+        assertEquals(Integer.MAX_VALUE, snapshot.segmentRemainMeters());
+    }
+
+    @Test public void remainingDistanceInMetersIsShownOnTheClusterCard() {
+        GoogleMapsNavSnapshot snapshot = GoogleMapsNavNotificationParser.parseFields(
+                "80 m", null, "500 m · 2 dk · 14:00", false);
+        assertEquals("500 m", snapshot.etaDistanceLabel());
+    }
 }

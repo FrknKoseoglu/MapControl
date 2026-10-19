@@ -245,19 +245,19 @@ public final class VehicleMetricsRepository {
         }
         CarInfoProxy proxy = CarInfoProxy.getInstance();
         for (int id : SUBSCRIBED_READONLY_IDS) {
-            int[] values = proxy.getItemValues(MODULE_READONLY, id);
+            int[] values = proxy.getItemValuesOrNull(MODULE_READONLY, id);
             if (values != null && values.length > 0) {
                 cache.put(MODULE_READONLY, id, values);
             }
         }
         for (int id : SUBSCRIBED_SETTING_IDS) {
-            int[] values = proxy.getItemValues(MODULE_SETTING, id);
+            int[] values = proxy.getItemValuesOrNull(MODULE_SETTING, id);
             if (values != null && values.length > 0) {
                 cache.put(MODULE_SETTING, id, values);
             }
         }
         for (int id : SUBSCRIBED_NEW_ENERGY_IDS) {
-            int[] values = proxy.getItemValues(MODULE_NEW_ENERGY, id);
+            int[] values = proxy.getItemValuesOrNull(MODULE_NEW_ENERGY, id);
             if (values != null && values.length > 0) {
                 cache.put(MODULE_NEW_ENERGY, id, values);
             }

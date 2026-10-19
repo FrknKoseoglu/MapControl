@@ -39,6 +39,7 @@ public class LauncherTabBuilder {
     }
 
     public ScrollView build() {
+        release();
         scrollView = new ScrollView(context);
         scrollView.setBackgroundColor(UiStyles.color(context, R.color.transparent));
         scrollView.setFillViewport(true);
@@ -89,6 +90,10 @@ public class LauncherTabBuilder {
         if (dashboardBuilder != null) {
             dashboardBuilder.stop();
         }
+    }
+
+    public void release() {
+        if (dashboardBuilder != null) dashboardBuilder.release();
     }
 
     /**

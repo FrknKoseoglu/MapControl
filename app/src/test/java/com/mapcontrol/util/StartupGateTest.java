@@ -48,6 +48,7 @@ public class StartupGateTest {
     public void designOffDoesNotShow() {
         StartupGate gate = StartupGate.decide(0, 1, false, false, false);
         assertFalse(gate.showWelcome);
+        assertTrue(gate.playWelcome);
     }
 
     @Test

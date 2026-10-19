@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""PR şablonunu ve manuel mühendislik yüzdesini kontrol eder."""
+"""PR şablonunu, dosya kısıtını ve manuel mühendislik yüzdesini kontrol eder."""
 
 import json
 import os
@@ -20,6 +20,20 @@ PERCENT_LINE = re.compile(
 PERCENT_VALUE = re.compile(r"(\d{1,3})\s*%\s*")
 LABEL_NAME = re.compile(r"^manuel-mühendislik: (\d{1,3})%$")
 COMMENT = re.compile(r"<!--.*?-->", re.DOTALL)
+LOCKED_PATHS = {"install.sh", "uninstall.sh"}
+BLOCKED_NEW_EXTENSIONS = {
+    ".md",
+    ".markdown",
+    ".sh",
+    ".bash",
+    ".zsh",
+    ".ksh",
+    ".bat",
+    ".cmd",
+    ".ps1",
+    ".psm1",
+    ".vbs",
+}
 
 
 def parse_pr(body):
@@ -63,6 +77,44 @@ def parse_pr(body):
     return checked, percent, errors
 
 
+def _path(value):
+    return (value or "").replace("\\", "/").lstrip("./")
+
+
+def _extension(path):
+    name = _path(path).rsplit("/", 1)[-1].lower()
+    dot = name.rfind(".")
+    if dot <= 0:
+        return ""
+    return name[dot:]
+
+
+def review_files(files):
+    """Kilitli dosya değişikliklerini ve yeni betik/markdown eklerini reddeder."""
+    locked = []
+    blocked_new = []
+    for item in files or []:
+        filename = _path(item.get("filename"))
+        previous = _path(item.get("previous_filename"))
+        status = (item.get("status") or "").lower()
+        if filename.lower() in LOCKED_PATHS or previous.lower() in LOCKED_PATHS:
+            locked.append(item.get("filename") or filename)
+            continue
+        extension = _extension(filename)
+        introduced = status in {"added", "copied"} or (
+            status == "renamed" and extension in BLOCKED_NEW_EXTENSIONS and _extension(previous) not in BLOCKED_NEW_EXTENSIONS
+        )
+        if introduced and extension in BLOCKED_NEW_EXTENSIONS:
+            blocked_new.append(item.get("filename") or filename)
+
+    errors = []
+    if locked:
+        errors.append("install.sh ve uninstall.sh değiştirilemez: " + ", ".join(locked))
+    if blocked_new:
+        errors.append("Yeni markdown, shell veya betik dosyası eklenemez: " + ", ".join(blocked_new))
+    return errors
+
+
 def _api(method, path, payload=None):
     token = os.environ["GH_TOKEN"]
     request = urllib.request.Request(
@@ -87,6 +139,25 @@ def _api(method, path, payload=None):
         except json.JSONDecodeError:
             parsed = {"message": raw}
         return error.code, parsed
+
+
+def pull_request_files(repo, pr_number):
+    files = []
+    page = 1
+    while True:
+        status, payload = _api(
+            "GET",
+            f"/repos/{repo}/pulls/{pr_number}/files?per_page=100&page={page}",
+        )
+        if status != 200:
+            message = payload.get("message", status) if isinstance(payload, dict) else status
+            raise RuntimeError(f"PR dosyaları okunamadı ({message}).")
+        if not payload:
+            return files
+        files.extend(payload)
+        if len(payload) < 100:
+            return files
+        page += 1
 
 
 def _label_names(repo, pr_number):
@@ -185,6 +256,10 @@ def main():
     pr_number = os.environ.get("PR_NUMBER", "")
 
     if repo and pr_number and os.environ.get("GH_TOKEN"):
+        try:
+            errors.extend(review_files(pull_request_files(repo, pr_number)))
+        except RuntimeError as error:
+            errors.append(str(error))
         try:
             if percent is None:
                 clear_percent_labels(repo, pr_number)

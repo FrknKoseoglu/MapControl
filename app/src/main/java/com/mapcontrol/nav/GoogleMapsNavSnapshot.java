@@ -2,7 +2,6 @@ package com.mapcontrol.nav;
 
 import androidx.annotation.Nullable;
 
-import java.util.Locale;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -13,8 +12,6 @@ public final class GoogleMapsNavSnapshot {
 
     private static final Pattern ARRIVAL_TIME = Pattern.compile(
             "\\b([01]?\\d|2[0-3]):[0-5]\\d\\b");
-    private static final Pattern METRIC_DISTANCE = Pattern.compile(
-            "^\\s*(\\d+(?:[.,]\\d+)?)\\s*(km|m)\\b", Pattern.CASE_INSENSITIVE);
 
     public final boolean active;
     @Nullable public final String maneuverHint;
@@ -101,13 +98,7 @@ public final class GoogleMapsNavSnapshot {
         if (!active || distance == null) {
             return 0;
         }
-        Matcher matcher = METRIC_DISTANCE.matcher(distance);
-        if (!matcher.find()) {
-            return 0;
-        }
-        double amount = Double.parseDouble(matcher.group(1).replace(',', '.'));
-        double meters = "km".equalsIgnoreCase(matcher.group(2)) ? amount * 1000d : amount;
-        return (int) Math.min(Integer.MAX_VALUE, Math.round(meters));
+        return NavigationQuantities.segmentMeters(distance);
     }
 
     /** Manevra yönü: başlıktaki talimat veya hedef satırı. */
@@ -166,25 +157,24 @@ public final class GoogleMapsNavSnapshot {
         if (routeSummary == null || routeSummary.isEmpty()) {
             return null;
         }
-        String[] parts = routeSummary.split(" · ");
+        String[] parts = routeSummary.split("\\s*[·•|]\\s*");
         for (String part : parts) {
             String trimmed = part.trim();
             if (trimmed.isEmpty()) {
                 continue;
             }
-            String lower = trimmed.toLowerCase(Locale.US);
-            boolean isDistance = METRIC_DISTANCE.matcher(trimmed).find();
-            boolean isDuration = lower.contains("min") || lower.contains("dk")
-                    || lower.contains("hr") || lower.contains("sa");
+            String distance = NavigationQuantities.distanceLabel(trimmed);
+            String duration = NavigationQuantities.durationLabel(trimmed);
             boolean isArrival = ARRIVAL_TIME.matcher(trimmed).find();
-            if (wantDistance && isDistance && !isDuration) {
-                return trimmed;
+            if (wantDistance && distance != null) {
+                return distance;
             }
-            if (wantDuration && isDuration) {
-                return trimmed;
+            if (wantDuration && duration != null) {
+                return duration;
             }
             if (wantArrival && isArrival) {
-                return trimmed;
+                Matcher arrival = ARRIVAL_TIME.matcher(trimmed);
+                if (arrival.find()) return arrival.group();
             }
         }
         if (wantArrival) {

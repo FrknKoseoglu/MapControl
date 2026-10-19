@@ -25,7 +25,7 @@ Bu incelemenin hedefi Android tabanlı Chery/Omoda/JAC/DesaySV ana ünitesidir. 
 
 ## Doğrulama
 
-19 Ekim 2026 yerel sonucu: **40 birim testi ve 8 Android entegrasyon testi başarılı**. Debug APK/test APK derlemesi başarılı; Chromium senaryosunda JavaScript hatası veya enjekte edilen kod çalışması görülmedi.
+19 Ekim 2026 güncel yerel sonucu: **56 birim testi ve 20 Android entegrasyon testi başarılı**. Debug APK/test APK derlemesi başarılı; Chromium senaryosunda JavaScript hatası veya enjekte edilen kod çalışması görülmedi. Ek pencere, STR, navigasyon ve ses düzeltmeleri ile test kapsamı [takip raporunda](ivi-report-followup.md) açıklanmıştır.
 
 - JDK 17, Gradle 8.2, Android SDK/Build Tools 34 ile debug APK ve test APK'sı derlenir. Release imzası veya DSN gerekmez.
 - Birim testleri HTTP başlık/gövde ayrımı, multipart bayt bütünlüğü/yarım yükleme/çakışma/yol kontrolü, oturum anahtarı/Origin, güç örnekleri, konum doğruluğu, cluster görev ayrıştırması, günlük sınırı, başlangıç kararı ve navigasyon mesafesini kapsar.

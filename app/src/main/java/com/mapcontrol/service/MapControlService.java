@@ -79,10 +79,10 @@ public class MapControlService extends Service {
     private ClusterDisplayManager clusterDisplayHelper;
     private int lastPowerMode = -1;
     /** Hoşgeldin: ekran güç alınca bir kez. 1→2 geçişinde tekrar açılmaz. */
-    private int lastWelcomePowerMode = -1;
+    private volatile int lastWelcomePowerMode = -1;
     private int lastAppliedDriveMode = -1; // Son uygulanan sürüş modu (tekrar uygulamayı önlemek için)
-    private int uiLaunchAttempts;
-    private long nextUiLaunchAt;
+    private volatile int uiLaunchAttempts;
+    private volatile long nextUiLaunchAt;
     private CarSystemGestureController carSystemGestureController;
     private SharedPreferences.OnSharedPreferenceChangeListener gesturePrefListener;
     
@@ -480,7 +480,14 @@ public class MapControlService extends Service {
                     mode,
                     BootSession.isWelcomeShown(this),
                     designEnabled,
-                    BootSession.isUiPending(this));
+                    BootSession.isUiPending(this),
+                    getSharedPreferences(BootReceiver.PREFS_NAME, MODE_PRIVATE)
+                            .getBoolean(BootReceiver.KEY_BOOT_AUTO_LAUNCH_UI, true));
+            if (gate.rearmUi) {
+                BootSession.setUiPending(this, true);
+                uiLaunchAttempts = 0;
+                nextUiLaunchAt = 0L;
+            }
             if (gate.clearWelcome) {
                 BootSession.clearWelcomeShown(this);
                 uiLaunchAttempts = 0;
@@ -532,7 +539,7 @@ public class MapControlService extends Service {
     }
 
     private void tryLaunchHome() {
-        if (!BootSession.isUiPending(this)) {
+        if (destroyed || lastWelcomePowerMode < 1 || !BootSession.isUiPending(this)) {
             return;
         }
         SharedPreferences prefs = getSharedPreferences(BootReceiver.PREFS_NAME, MODE_PRIVATE);

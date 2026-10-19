@@ -1,0 +1,4 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="settings_perm_mic_passive">Microphone permission is granted. Hardware recording was not tested, so the vehicle voice assistant keeps its microphone.</string>
+</resources>

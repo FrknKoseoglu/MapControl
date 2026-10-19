@@ -146,7 +146,7 @@ public final class YandexClusterNavOverlay {
             return;
         }
         lastApplied = snapshot;
-        raiseToTopOnMain(false);
+        // Existing window stays attached while text changes. Z-order only changes on window events.
     }
 
     /**

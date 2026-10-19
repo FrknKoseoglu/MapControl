@@ -12,9 +12,6 @@ import android.content.pm.PackageInstaller;
 import android.content.pm.PackageManager;
 import android.location.Location;
 import android.location.LocationManager;
-import android.media.AudioFormat;
-import android.media.AudioRecord;
-import android.media.MediaRecorder;
 import android.net.ConnectivityManager;
 import android.net.Network;
 import android.net.NetworkCapabilities;
@@ -374,40 +371,11 @@ public final class PermissionProbe {
         return fail("WRITE_SECURE_SETTINGS", context.getString(R.string.settings_perm_write_secure_denied));
     }
 
-    private static Result probeMic(Context context) {
+    static Result probeMic(Context context) {
         if (!isGranted(context, Manifest.permission.RECORD_AUDIO)) {
             return fail("RECORD_AUDIO", context.getString(R.string.settings_perm_mic_denied));
         }
-        int min = AudioRecord.getMinBufferSize(
-                16000, AudioFormat.CHANNEL_IN_MONO, AudioFormat.ENCODING_PCM_16BIT);
-        if (min <= 0) {
-            return fail("RECORD_AUDIO", context.getString(R.string.settings_perm_mic_fail, "minBuffer=" + min));
-        }
-        AudioRecord record = null;
-        try {
-            record = new AudioRecord(
-                    MediaRecorder.AudioSource.MIC,
-                    16000,
-                    AudioFormat.CHANNEL_IN_MONO,
-                    AudioFormat.ENCODING_PCM_16BIT,
-                    min);
-            if (record.getState() != AudioRecord.STATE_INITIALIZED) {
-                return fail("RECORD_AUDIO", context.getString(R.string.settings_perm_mic_fail, "STATE_UNINITIALIZED"));
-            }
-            record.startRecording();
-            int state = record.getRecordingState();
-            record.stop();
-            if (state == AudioRecord.RECORDSTATE_RECORDING) {
-                return ok("RECORD_AUDIO", context.getString(R.string.settings_perm_mic_ok));
-            }
-            return fail("RECORD_AUDIO", context.getString(R.string.settings_perm_mic_fail, "recordingState=" + state));
-        } catch (Exception e) {
-            return fail("RECORD_AUDIO", context.getString(R.string.settings_perm_mic_fail, errorText(e)));
-        } finally {
-            if (record != null) {
-                record.release();
-            }
-        }
+        return skip("RECORD_AUDIO", context.getString(R.string.settings_perm_mic_passive));
     }
 
     private static Result probeBluetooth(Context context) {

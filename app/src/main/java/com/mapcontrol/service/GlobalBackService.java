@@ -80,7 +80,8 @@ public class GlobalBackService extends AccessibilityService {
         if (!YandexClusterNavOverlay.isEnabled(this)) {
             return;
         }
-        if (event != null && isYandexOverlayZOrderEvent(event)) {
+        if (event != null && isYandexOverlayZOrderEvent(event)
+                && !getPackageName().contentEquals(event.getPackageName() == null ? "" : event.getPackageName())) {
             YandexClusterNavOverlay.getInstance(this).raiseToTopIfShowing();
         }
         if (event != null && !shouldHandleYandexEvent(event)) {

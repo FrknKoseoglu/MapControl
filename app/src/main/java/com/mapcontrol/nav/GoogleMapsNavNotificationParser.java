@@ -8,8 +8,6 @@ import androidx.annotation.Nullable;
 
 import com.mapcontrol.util.AppLaunchHelper;
 
-import java.util.Locale;
-import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
@@ -20,12 +18,8 @@ public final class GoogleMapsNavNotificationParser {
 
     public static final String PACKAGE_GOOGLE_MAPS = AppLaunchHelper.GOOGLE_MAPS_PACKAGE;
 
-    private static final Pattern IMPERIAL = Pattern.compile(
-            "(\\d+(?:[.,]\\d+)?)\\s*(ft|mi)\\b", Pattern.CASE_INSENSITIVE);
-    private static final Pattern NAV_QUANTITY = Pattern.compile(
-            "\\d+(?:[.,]\\d+)?\\s*(?:ft|mi|km|m|min|dk|hr|sa)\\b", Pattern.CASE_INSENSITIVE);
     private static final Pattern CLOCK_LABEL = Pattern.compile(
-            "(?i)\\s*(?:eta|tvs)\\s*:?");
+            "(?iu)\\b(?:eta|tvs)\\b\\s*:?");
 
     private GoogleMapsNavNotificationParser() {
     }
@@ -103,7 +97,7 @@ public final class GoogleMapsNavNotificationParser {
     }
 
     private static boolean hasQuantity(@Nullable String value) {
-        return value != null && NAV_QUANTITY.matcher(value).find();
+        return NavigationQuantities.hasQuantity(value);
     }
 
     static String maneuverFrom(@Nullable String text) {
@@ -113,7 +107,7 @@ public final class GoogleMapsNavNotificationParser {
         String cleaned = stripClockLabels(text);
         int split = cleaned.indexOf(" - ");
         if (split < 0) {
-            return "";
+            return cleaned;
         }
         return cleaned.substring(0, split).trim();
     }
@@ -127,31 +121,6 @@ public final class GoogleMapsNavNotificationParser {
     }
 
     static String toMetric(@Nullable String value) {
-        if (value == null) {
-            return null;
-        }
-        Matcher matcher = IMPERIAL.matcher(value);
-        StringBuffer out = new StringBuffer();
-        while (matcher.find()) {
-            String replacement = matcher.group();
-            try {
-                double amount = Double.parseDouble(matcher.group(1).replace(',', '.'));
-                double meters = "ft".equalsIgnoreCase(matcher.group(2))
-                        ? amount * 0.3048d
-                        : amount * 1609.344d;
-                replacement = formatMeters(meters);
-            } catch (NumberFormatException ignored) {
-            }
-            matcher.appendReplacement(out, Matcher.quoteReplacement(replacement));
-        }
-        matcher.appendTail(out);
-        return out.toString();
-    }
-
-    private static String formatMeters(double meters) {
-        if (meters < 1000d) {
-            return Math.round(meters) + " m";
-        }
-        return String.format(Locale.GERMANY, "%.1f km", meters / 1000d);
+        return NavigationQuantities.toMetric(value);
     }
 }

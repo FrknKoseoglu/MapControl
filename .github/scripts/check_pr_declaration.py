@@ -89,8 +89,10 @@ def _extension(path):
     return name[dot:]
 
 
-def review_files(files):
+def review_files(files, author="", owner=""):
     """Kilitli dosya değişikliklerini ve yeni betik/markdown eklerini reddeder."""
+    if owner and author.lower() == owner.lower():
+        return []
     locked = []
     blocked_new = []
     for item in files or []:
@@ -257,7 +259,13 @@ def main():
 
     if repo and pr_number and os.environ.get("GH_TOKEN"):
         try:
-            errors.extend(review_files(pull_request_files(repo, pr_number)))
+            errors.extend(
+                review_files(
+                    pull_request_files(repo, pr_number),
+                    os.environ.get("PR_AUTHOR", ""),
+                    os.environ.get("REPO_OWNER", ""),
+                )
+            )
         except RuntimeError as error:
             errors.append(str(error))
         try:

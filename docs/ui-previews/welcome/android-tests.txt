@@ -1,0 +1,9 @@
+
+com.mapcontrol.ui.theme.CompactControlsTest:....
+com.mapcontrol.ui.builder.SharedHeaderTest:....
+
+Time: 0.32
+
+OK (8 tests)
+
+

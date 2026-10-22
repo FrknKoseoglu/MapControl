@@ -99,6 +99,7 @@ import com.mapcontrol.util.TargetPackageStore;
 import com.mapcontrol.vehicle.VehicleMetricsRepository;
 import com.mapcontrol.vehicle.VehicleQuickControls;
 import com.mapcontrol.ui.theme.UiStyles;
+import com.mapcontrol.ui.HeaderStatusMonitor;
 
 public class MainActivity extends AppCompatActivity {
 
@@ -145,7 +146,7 @@ public class MainActivity extends AppCompatActivity {
     private VehicleInfoTabBuilder vehicleInfoTabBuilder;
     private VehicleMetricsRepository vehicleMetricsRepository;
     private ScrollView vehicleInfoScrollView;
-    private ScrollView launcherScrollView; // Araç Launcher Modu "Ana Ekran" karşılama sekmesi
+    private View launcherView; // Araç Launcher Modu "Ana Ekran" karşılama sekmesi
     private LauncherTabBuilder launcherTabBuilder;
     private SettingsTabBuilder settingsTabBuilder;
     private ProfileTabBuilder profileTabBuilder;
@@ -167,7 +168,6 @@ public class MainActivity extends AppCompatActivity {
     private boolean logWelcomeTtsDone;
     private TextToSpeech systemTts;
     private String pendingTtsText;
-    private LinearLayout topBarButtonsContainer; // Üst bar'daki buton container'ı (dinamik)
     private TextView topBarTitle; // Üst bar başlığı (dinamik)
     private ScrollView profileScrollView; // Profil tab ScrollView
     private ProfileApiService profileApiService; // API servisi
@@ -184,6 +184,8 @@ public class MainActivity extends AppCompatActivity {
     private int sidebarWidthPx;
     private int screenWidthPx;
     private TopBarBuilder topBarBuilder;
+    private HeaderStatusMonitor headerStatusMonitor;
+    private boolean activityStarted;
     /** Menü yumuşatması: içerik alfa’sı değil, tema renkli örtü. İptal edilen geçiş burada durur. */
     private final IdentityHashMap<View, ValueAnimator> transitionVeils = new IdentityHashMap<>();
     private ProjectionTabBuilder projectionTabBuilder;
@@ -305,7 +307,6 @@ public class MainActivity extends AppCompatActivity {
             SharedPreferences prefs = getSharedPreferences("MapControlPrefs", MODE_PRIVATE);
             prefs.edit().putBoolean("appManagementDisclaimerAccepted", true).apply();
             switchTab(5);
-            if (topBarTitle != null) topBarTitle.setText(R.string.topbar_app_management);
             if (sideRailBuilder != null) {
                 sideRailBuilder.setSelectionForTabIndex(5);
             }
@@ -341,6 +342,7 @@ public class MainActivity extends AppCompatActivity {
                     public void onNavigationStateChanged(boolean isOpen) {
                         isNavigationOpen = isOpen;
                         ClusterNavigationState.setLastKnownOpen(isOpen);
+                        if (topBarBuilder != null) topBarBuilder.setProjectionActive(isOpen);
                         if (projectionTabBuilder != null) {
                             projectionTabBuilder.refreshProjectionStatusUi();
                         }
@@ -385,9 +387,6 @@ public class MainActivity extends AppCompatActivity {
                     public void onTabSelected(int tabIndex, String title) {
                         crossfadeContent(() -> {
                             switchTab(tabIndex);
-                            if (topBarTitle != null) {
-                                topBarTitle.setText(title);
-                            }
                         });
                     }
 
@@ -412,6 +411,12 @@ public class MainActivity extends AppCompatActivity {
         topBarBuilder = new TopBarBuilder(this,
                 new TopBarBuilder.TopBarCallback() {
                     @Override
+                    public void onStatusSelected(int tabIndex) {
+                        crossfadeContent(() -> switchTab(tabIndex));
+                        if (sideRailBuilder != null) sideRailBuilder.setSelectionForTabIndex(tabIndex);
+                    }
+
+                    @Override
                     public void onLogTabToggle(boolean show) {
                         if (logTabContent != null) {
                             logTabContent.setVisibility(show ? android.view.View.VISIBLE : android.view.View.GONE);
@@ -430,7 +435,6 @@ public class MainActivity extends AppCompatActivity {
                 });
         LinearLayout topBar = topBarBuilder.build();
         topBarTitle = topBarBuilder.getTitleView();
-        topBarButtonsContainer = topBarBuilder.getButtonsContainer();
         topBarBuilder.setLauncherBackButtonListener(v -> returnToLauncherHome());
         
         mainContent.addView(topBar, new LinearLayout.LayoutParams(
@@ -463,6 +467,7 @@ public class MainActivity extends AppCompatActivity {
                     }
                     // QR kod oluştur
                     if (fileUploadTabBuilder != null) fileUploadTabBuilder.generateQRCode(serverUrl);
+                    if (headerStatusMonitor != null) headerStatusMonitor.refresh();
                     log("Web Server başlatıldı: http://" + localIp + ":" + port);
                 });
             }
@@ -480,6 +485,7 @@ public class MainActivity extends AppCompatActivity {
                     if (btnWebServerToggle != null) {
                         btnWebServerToggle.setText(R.string.web_server_start);
                     }
+                    if (headerStatusMonitor != null) headerStatusMonitor.refresh();
                     log("Web Server durduruldu");
                 });
             }
@@ -491,6 +497,7 @@ public class MainActivity extends AppCompatActivity {
                         webServerStatusText.setText(getString(R.string.common_error_prefix, error));
                         webServerStatusText.setTextColor(UiStyles.color(MainActivity.this, R.color.statusErrorBright));
                     }
+                    if (headerStatusMonitor != null) headerStatusMonitor.refresh();
                     log("Web Server hatası: " + error);
                 });
             }
@@ -665,6 +672,9 @@ public class MainActivity extends AppCompatActivity {
                     public void onModeSelected(int modeValue) {
                         savePrefInt("driveModeSetting", modeValue);
                         log("Hafıza modu kaydedildi: " + modeValue);
+                        if (headerStatusMonitor != null) {
+                            headerStatusMonitor.refresh();
+                        }
                     }
 
                     @Override
@@ -733,6 +743,9 @@ public class MainActivity extends AppCompatActivity {
         equalizerTabBuilder = new EqualizerTabBuilder(this);
 
         vehicleMetricsRepository = new VehicleMetricsRepository(getApplicationContext());
+        headerStatusMonitor = new HeaderStatusMonitor(this, topBarBuilder, vehicleMetricsRepository,
+                () -> webServerManager != null && webServerManager.isRunning());
+        if (activityStarted) headerStatusMonitor.start();
 
         vehicleInfoTabBuilder = new VehicleInfoTabBuilder(this, vehicleMetricsRepository,
                 msg -> MainActivity.this.log(msg));
@@ -786,6 +799,11 @@ public class MainActivity extends AppCompatActivity {
                     public void onLocaleChanged() {
                         MainActivity.this.recreate();
                     }
+
+                    @Override
+                    public void onNightModeChanged(int mode) {
+                        MainActivity.this.recreate();
+                    }
                 });
         settingsScrollView = settingsTabBuilder.getScrollView();
         settingsTabContent = settingsTabBuilder.getSettingsTabContent();
@@ -795,9 +813,8 @@ public class MainActivity extends AppCompatActivity {
                 new LauncherTabBuilder.LauncherCallback() {
                     @Override
                     public void onShortcutSelected(int tabIndex, String title) {
-                        crossfadeLauncherTransition(() -> {
+                        crossfadeContent(() -> {
                             switchTab(tabIndex);
-                            if (topBarTitle != null) topBarTitle.setText(title);
                             if (sideRailBuilder != null) sideRailBuilder.setSelectionForTabIndex(tabIndex);
                         });
                     }
@@ -828,7 +845,10 @@ public class MainActivity extends AppCompatActivity {
                         }
                     }
                 });
-        launcherScrollView = launcherTabBuilder.build();
+        launcherView = launcherTabBuilder.build();
+        if (headerStatusMonitor != null && launcherTabBuilder.getDashboardBuilder() != null) {
+            headerStatusMonitor.addSink(launcherTabBuilder.getDashboardBuilder());
+        }
 
         presentMainUi(mainRootContainer);
         lastOrientation = getResources().getConfiguration().orientation;
@@ -1065,14 +1085,9 @@ public class MainActivity extends AppCompatActivity {
 
         currentTab = tabIndex;
 
-        // TopBar buton container'ını temizle
-        if (topBarButtonsContainer != null) {
-            topBarButtonsContainer.removeAllViews();
-        }
-
         // Launcher modu açıkken sol menü her zaman gizli; kapalıyken görünür.
         boolean launcherMode = LauncherModeManager.isEnabled(this);
-        applyLauncherChrome(launcherMode);
+        updateLauncherBackButton(launcherMode);
 
         tabContentArea.removeAllViews();
         attachTabContent(tabIndex);
@@ -1116,8 +1131,8 @@ public class MainActivity extends AppCompatActivity {
         } else if (tabIndex == TAB_EQUALIZER) {
             addTabChild(parent, equalizerTabBuilder.getScrollView(), matchParent);
         } else if (tabIndex == TAB_LAUNCHER) {
-            if (launcherScrollView != null) {
-                addTabChild(parent, launcherScrollView, matchParent);
+            if (launcherView != null) {
+                addTabChild(parent, launcherView, matchParent);
             }
             if (launcherTabBuilder != null) {
                 launcherTabBuilder.onTabVisible();
@@ -1132,53 +1147,44 @@ public class MainActivity extends AppCompatActivity {
         parent.addView(child, lp);
     }
 
+    private int tabTitle(int tabIndex) {
+        switch (tabIndex) {
+            case 0: return R.string.side_rail_wifi;
+            case 1: return R.string.side_rail_web;
+            case 2: return R.string.side_rail_profile;
+            case 3: return R.string.side_rail_projection;
+            case 4: return R.string.topbar_system_logs;
+            case 5: return R.string.side_rail_apps;
+            case 6: return R.string.side_rail_drive_mode;
+            case 7: return R.string.side_rail_settings;
+            case 8: return R.string.side_rail_welcome_sound;
+            case 9: return R.string.side_rail_vehicle_info;
+            case TAB_EQUALIZER: return R.string.side_rail_equalizer;
+            default: return R.string.topbar_vehicle_home;
+        }
+    }
+
     private void applyTabChrome(int tabIndex) {
-        if (tabIndex == 0) {
-            if (topBarTitle != null) topBarTitle.setText(R.string.topbar_wifi_management);
-            if (topBarButtonsContainer != null && wifiTabBuilder != null) {
-                topBarButtonsContainer.addView(wifiTabBuilder.buildTopBarIcon());
+        if (topBarBuilder != null) {
+            boolean notLauncher = (tabIndex != TAB_LAUNCHER);
+            topBarBuilder.setTopBarVisible(notLauncher);
+            boolean sidebarOpen = (sideRailBuilder != null && !sideRailBuilder.isLauncherModeActive());
+            topBarBuilder.setLauncherBackButtonVisible(!sidebarOpen && notLauncher);
+            if (notLauncher) {
+                topBarBuilder.setTitle(tabTitle(tabIndex));
             }
-            if (wifiTabBuilder != null) wifiTabBuilder.updateWifiStatus();
-        } else if (tabIndex == 4) {
-            if (topBarTitle != null) {
-                topBarTitle.setText(R.string.topbar_system_logs);
-            }
-            if (!logWelcomeTtsDone) {
-                logWelcomeTtsDone = true;
-                handler.postDelayed(
-                        () -> speakTtsText(getString(R.string.log_tts_welcome_phrase)), 450);
-            }
-        } else if (tabIndex == 5) {
-            if (topBarTitle != null) topBarTitle.setText(R.string.topbar_apps);
-            if (topBarButtonsContainer != null && appsTabBuilder != null) {
-                topBarButtonsContainer.addView(appsTabBuilder.buildTopBarButtons(this));
-            }
-        } else if (tabIndex == 7) {
-            if (settingsTabBuilder != null) {
-                settingsTabBuilder.syncLauncherModeFromPrefs();
-            }
-        } else if (tabIndex == 8) {
-            if (topBarTitle != null) {
-                topBarTitle.setText(getString(R.string.welcome_sound_title));
-            }
-            if (welcomeSoundTabBuilder != null) {
-                welcomeSoundTabBuilder.onTabVisible();
-            }
-        } else if (tabIndex == 9) {
-            if (topBarTitle != null) {
-                topBarTitle.setText(getString(R.string.side_rail_vehicle_info));
-            }
-            if (vehicleInfoTabBuilder != null) {
-                vehicleInfoTabBuilder.startListening();
-            }
-        } else if (tabIndex == TAB_EQUALIZER) {
-            if (topBarTitle != null) {
-                topBarTitle.setText(getString(R.string.equalizer_title));
-            }
-        } else if (tabIndex == TAB_LAUNCHER) {
-            if (topBarTitle != null) {
-                topBarTitle.setText(R.string.topbar_vehicle_home);
-            }
+        }
+        if (tabIndex == 0 && wifiTabBuilder != null) {
+            wifiTabBuilder.updateWifiStatus();
+        } else if (tabIndex == 4 && !logWelcomeTtsDone) {
+            logWelcomeTtsDone = true;
+            handler.postDelayed(() -> speakTtsText(getString(R.string.log_tts_welcome_phrase)), 450);
+        } else if (tabIndex == 7 && settingsTabBuilder != null) {
+            settingsTabBuilder.syncLauncherModeFromPrefs();
+        } else if (tabIndex == 8 && welcomeSoundTabBuilder != null) {
+            welcomeSoundTabBuilder.onTabVisible();
+        } else if (tabIndex == 9 && vehicleInfoTabBuilder != null) {
+            vehicleInfoTabBuilder.startListening();
         }
     }
 
@@ -1201,30 +1207,34 @@ public class MainActivity extends AppCompatActivity {
             }
             mainContent.setLayoutParams(mainContentParams);
         }
-        if (topBarBuilder != null) {
-            boolean onLauncherHome = active && currentTab == TAB_LAUNCHER;
-            topBarBuilder.setTopBarVisible(!onLauncherHome);
-            topBarBuilder.setLauncherBackButtonVisible(active && !onLauncherHome);
-        }
+        updateLauncherBackButton(active);
         ImmersiveFullscreenHelper.setImmersiveFullscreen(this, active);
     }
 
-    /** Launcher modunda alt sekmeden ana ekran ızgarasına döner; modu kapatmaz. */
-    private void returnToLauncherHome() {
-        if (!LauncherModeManager.isEnabled(this)) {
-            return;
+    private void updateLauncherBackButton(boolean active) {
+        if (topBarBuilder != null) {
+            boolean notLauncher = (currentTab != TAB_LAUNCHER);
+            topBarBuilder.setTopBarVisible(notLauncher);
+            boolean sidebarOpen = (sideRailBuilder != null && !sideRailBuilder.isLauncherModeActive());
+            topBarBuilder.setLauncherBackButtonVisible(!sidebarOpen && notLauncher);
         }
-        crossfadeLauncherTransition(() -> {
-            switchTab(TAB_LAUNCHER);
-            if (topBarTitle != null) {
-                topBarTitle.setText(R.string.topbar_vehicle_home);
-            }
-        });
     }
 
-    /** Fades only the content column (side rail stays put) around a tab switch. */
+    /** Alt sekmeden ana ekran ızgarasına döner. */
+    private void returnToLauncherHome() {
+        if (currentTab != TAB_LAUNCHER) {
+            crossfadeContent(() -> {
+                switchTab(TAB_LAUNCHER);
+                if (sideRailBuilder != null) {
+                    sideRailBuilder.setSelectionForTabIndex(TAB_LAUNCHER);
+                }
+            });
+        }
+    }
+
+    /** Page transitions leave the shared header and side rail visible. */
     private void crossfadeContent(Runnable change) {
-        crossfadeWithVeil(mainContent, 110L, 200L, change);
+        crossfadeWithVeil(tabContentArea, 110L, 200L, change);
     }
 
     /** Covers the window, applies the layout switch, then reveals it. */
@@ -1344,9 +1354,6 @@ public class MainActivity extends AppCompatActivity {
         detachParkedLauncher();
         if (wasOnLauncherTab) {
             switchTab(0);
-            if (topBarTitle != null) {
-                topBarTitle.setText(R.string.topbar_wifi_management);
-            }
             if (sideRailBuilder != null) {
                 sideRailBuilder.setSelectionForTabIndex(0);
             }
@@ -1355,13 +1362,13 @@ public class MainActivity extends AppCompatActivity {
 
     /** Launcher modu kapanırken ana ekran view'ını parent'tan ayırır. */
     private void detachParkedLauncher() {
-        if (launcherScrollView == null || tabContentArea == null) {
+        if (launcherView == null || tabContentArea == null) {
             return;
         }
-        if (launcherScrollView.getParent() == tabContentArea) {
-            tabContentArea.removeView(launcherScrollView);
+        if (launcherView.getParent() == tabContentArea) {
+            tabContentArea.removeView(launcherView);
         }
-        launcherScrollView.setVisibility(View.VISIBLE);
+        launcherView.setVisibility(View.VISIBLE);
     }
 
     private void syncLauncherModeSettingsUi() {
@@ -1465,16 +1472,11 @@ public class MainActivity extends AppCompatActivity {
 
     @Override
     public void onBackPressed() {
+        if (currentTab != TAB_LAUNCHER) {
+            returnToLauncherHome();
+            return;
+        }
         if (LauncherModeManager.isEnabled(this)) {
-            // Ana Ekran (Home) olarak çalışırken geri tuşu uygulamayı kapatmamalı:
-            // Launcher ekranındaysak hiçbir şey yapma, başka sekmedeysek Launcher'a dön.
-            if (currentTab == TAB_LAUNCHER) {
-                return;
-            }
-            switchTab(TAB_LAUNCHER);
-            if (topBarTitle != null) {
-                topBarTitle.setText(R.string.topbar_vehicle_home);
-            }
             return;
         }
         super.onBackPressed();
@@ -1625,11 +1627,17 @@ public class MainActivity extends AppCompatActivity {
         }
         boolean show = currentTab == TAB_LAUNCHER;
         launcherTabBuilder.release();
-        if (launcherScrollView != null
-                && launcherScrollView.getParent() instanceof android.view.ViewGroup) {
-            ((android.view.ViewGroup) launcherScrollView.getParent()).removeView(launcherScrollView);
+        if (launcherView != null
+                && launcherView.getParent() instanceof android.view.ViewGroup) {
+            ((android.view.ViewGroup) launcherView.getParent()).removeView(launcherView);
         }
-        launcherScrollView = launcherTabBuilder.build();
+        if (headerStatusMonitor != null && launcherTabBuilder != null && launcherTabBuilder.getDashboardBuilder() != null) {
+            headerStatusMonitor.removeSink(launcherTabBuilder.getDashboardBuilder());
+        }
+        launcherView = launcherTabBuilder.build();
+        if (headerStatusMonitor != null && launcherTabBuilder.getDashboardBuilder() != null) {
+            headerStatusMonitor.addSink(launcherTabBuilder.getDashboardBuilder());
+        }
         if (show && tabContentArea != null) {
             tabContentArea.removeAllViews();
             attachTabContent(TAB_LAUNCHER);
@@ -1641,20 +1649,8 @@ public class MainActivity extends AppCompatActivity {
         if (topBarBuilder == null || mainContent == null) {
             return;
         }
-        CharSequence title = topBarTitle != null ? topBarTitle.getText() : null;
-        LinearLayout newTopBar = topBarBuilder.build();
-        if (mainContent.getChildCount() > 0) {
-            mainContent.removeViewAt(0);
-        }
-        mainContent.addView(newTopBar, 0, new LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT,
-                LinearLayout.LayoutParams.WRAP_CONTENT));
-        topBarTitle = topBarBuilder.getTitleView();
-        topBarButtonsContainer = topBarBuilder.getButtonsContainer();
-        topBarBuilder.setLauncherBackButtonListener(v -> returnToLauncherHome());
-        if (title != null && topBarTitle != null) {
-            topBarTitle.setText(title);
-        }
+        topBarBuilder.reapplyTheme();
+        topBarBuilder.setTitle(tabTitle(currentTab));
     }
 
     /** Launcher dışındaki sekmeleri taze renklerle yeniden kurar. */
@@ -1775,12 +1771,16 @@ public class MainActivity extends AppCompatActivity {
     @Override
     protected void onStart() {
         super.onStart();
+        activityStarted = true;
+        if (headerStatusMonitor != null) headerStatusMonitor.start();
         if (currentTab == TAB_LAUNCHER && launcherTabBuilder != null) launcherTabBuilder.onTabVisible();
         if (currentTab == 5 && appsTabBuilder != null) appsTabBuilder.onTabVisible();
     }
 
     @Override
     protected void onStop() {
+        activityStarted = false;
+        if (headerStatusMonitor != null) headerStatusMonitor.stop();
         if (launcherTabBuilder != null) launcherTabBuilder.onTabHidden();
         if (appsTabBuilder != null) appsTabBuilder.onTabHidden();
         super.onStop();
@@ -1874,6 +1874,7 @@ public class MainActivity extends AppCompatActivity {
     private void applyNavigationClusterOpenFromBus(boolean open) {
         isNavigationOpen = open;
         ClusterNavigationState.setLastKnownOpen(open);
+        if (topBarBuilder != null) topBarBuilder.setProjectionActive(open);
         if (projectionTabBuilder != null) {
             projectionTabBuilder.refreshProjectionStatusUi();
         }
@@ -1902,6 +1903,13 @@ public class MainActivity extends AppCompatActivity {
 
     @Override
     protected void onDestroy() {
+        if (headerStatusMonitor != null) {
+            if (launcherTabBuilder != null && launcherTabBuilder.getDashboardBuilder() != null) {
+                headerStatusMonitor.removeSink(launcherTabBuilder.getDashboardBuilder());
+            }
+            headerStatusMonitor.stop();
+        }
+        if (topBarBuilder != null) topBarBuilder.release();
         if (launcherTabBuilder != null) launcherTabBuilder.release();
         if (appsTabBuilder != null) appsTabBuilder.onTabHidden();
         if (clusterDisplayManager != null) clusterDisplayManager.release();

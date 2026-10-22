@@ -1,0 +1,62 @@
+[
+  {
+    "dosya": "01-wifi.png",
+    "sayfa": "Wi-Fi"
+  },
+  {
+    "dosya": "02-uygulamalar.png",
+    "sayfa": "Uygulamalar"
+  },
+  {
+    "dosya": "03-telefondan-yonet.png",
+    "sayfa": "Telefondan yönet"
+  },
+  {
+    "dosya": "04-surus-modu.png",
+    "sayfa": "Sürüş modu"
+  },
+  {
+    "dosya": "05-karsilama.png",
+    "sayfa": "Karşılama"
+  },
+  {
+    "dosya": "06-ses-ayarlari.png",
+    "sayfa": "Ses ayarları"
+  },
+  {
+    "dosya": "07-gosterge-ekrani.png",
+    "sayfa": "Gösterge ekranı"
+  },
+  {
+    "dosya": "08-arac-bilgileri.png",
+    "sayfa": "Araç bilgileri"
+  },
+  {
+    "dosya": "09-ayarlar.png",
+    "sayfa": "Ayarlar"
+  },
+  {
+    "dosya": "10-sunucu-etkin.png",
+    "sayfa": "Başka menüde telefon sunucusunun canlı durumu"
+  },
+  {
+    "dosya": "11-wifi-kapali.png",
+    "sayfa": "Wi-Fi kapalı durumu başka menüde"
+  },
+  {
+    "dosya": "12-ana-ekran.png",
+    "sayfa": "Ana ekran - ortak başlık"
+  },
+  {
+    "dosya": "13-acik-tema.png",
+    "sayfa": "Ana ekran - açık temada ortak başlık"
+  },
+  {
+    "dosya": "14-ana-ekran-son.png",
+    "sayfa": "Ana ekran - son ortak başlık ve kaydırılabilir hızlı erişim"
+  },
+  {
+    "dosya": "15-kisayollar-asagi.png",
+    "sayfa": "Ana ekran - alt kısayollar erişilebilir, üst şerit sabit"
+  }
+]

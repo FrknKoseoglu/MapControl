@@ -15,7 +15,7 @@ import java.lang.reflect.Method;
 /**
  * OEM {@code EolConfig} / {@code CarConfigUtil} verisinin MapControl için sadeleştirilmiş okuyucusu.
  */
-final class OemEolConfigReader {
+public final class OemEolConfigReader {
 
     private static final String TAG = "OemEolConfig";
     private static final int VDB_BIND_WAIT_MS = 2500;
@@ -25,7 +25,7 @@ final class OemEolConfigReader {
     private int[] carConfig5;
     private int[] comboConfig;
 
-    void load(Context context) {
+    public void load(Context context) {
         Context app = context.getApplicationContext();
         VDBus vdbus = VDBus.getDefault();
         vdbus.init(app);
@@ -75,18 +75,18 @@ final class OemEolConfigReader {
         Log.w(TAG, "VDBus VEHICLE_DEVICE bağlantısı zaman aşımı");
     }
 
-    int getModelCode() {
+    public int getModelCode() {
         return comboConfig != null && comboConfig.length >= 2 ? comboConfig[1] : 0;
     }
 
-    int getPowerType() {
+    public int getPowerType() {
         if (carConfig5 == null || carConfig5.length < 8) {
             return 0;
         }
         return (carConfig5[4] >> 4) & 3;
     }
 
-    int getCountryOrRegion() {
+    public int getCountryOrRegion() {
         if (carConfig5 == null || carConfig5.length < 8) {
             return 0;
         }

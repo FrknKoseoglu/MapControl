@@ -151,6 +151,18 @@ public final class AudioEqualizerController {
         return snapshot(saved);
     }
 
+    public static boolean isBoostActive(Context context) {
+        if (context == null) return false;
+        SharedPreferences prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
+        return prefs.getBoolean(KEY_ENABLED, false) && prefs.getInt(KEY_GAIN_MB, 0) > 0;
+    }
+
+    public static int getGainMb(Context context) {
+        if (context == null) return 0;
+        SharedPreferences prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
+        return prefs.getInt(KEY_GAIN_MB, 0);
+    }
+
     public static synchronized void ensureApplied(Context context) {
         if (!keeperActive) {
             return;

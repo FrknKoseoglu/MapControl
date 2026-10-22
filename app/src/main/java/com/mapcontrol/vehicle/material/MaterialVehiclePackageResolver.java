@@ -9,16 +9,16 @@ import androidx.annotation.Nullable;
 /**
  * OEM vehiclesetting {@code ResourceLoadManager#a()} ile aynı materialvehicle paket seçimi.
  */
-final class MaterialVehiclePackageResolver {
+public final class MaterialVehiclePackageResolver {
 
     private static final String TAG = "MaterialVehiclePkg";
 
-    static final class Resolution {
-        @Nullable final String packageName;
-        final String carDrawableBaseName;
-        @Nullable final String platformLabel;
+    public static final class Resolution {
+        @Nullable public final String packageName;
+        public final String carDrawableBaseName;
+        @Nullable public final String platformLabel;
 
-        Resolution(@Nullable String packageName, String carDrawableBaseName, @Nullable String platformLabel) {
+        public Resolution(@Nullable String packageName, String carDrawableBaseName, @Nullable String platformLabel) {
             this.packageName = packageName;
             this.carDrawableBaseName = carDrawableBaseName;
             this.platformLabel = platformLabel;
@@ -28,7 +28,7 @@ final class MaterialVehiclePackageResolver {
     private MaterialVehiclePackageResolver() {
     }
 
-    static Resolution resolve(Context context) {
+    public static Resolution resolve(Context context) {
         OemEolConfigReader eol = new OemEolConfigReader();
         eol.load(context);
 

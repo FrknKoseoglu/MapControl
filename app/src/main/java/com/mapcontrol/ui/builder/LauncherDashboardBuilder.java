@@ -37,6 +37,11 @@ import com.mapcontrol.util.ProjectionTargetApps;
 import com.mapcontrol.vehicle.VehicleMetricsFormatter;
 import com.mapcontrol.vehicle.VehicleMetricsRepository;
 import com.mapcontrol.vehicle.VehicleMetricsSnapshot;
+import android.content.res.ColorStateList;
+import android.graphics.drawable.GradientDrawable;
+import androidx.core.graphics.ColorUtils;
+import com.mapcontrol.ui.HeaderStatusSink;
+import com.mapcontrol.vehicle.DriveModeStyle;
 
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -48,9 +53,10 @@ import java.util.Map;
  */
 public final class LauncherDashboardBuilder implements
         VehicleMetricsRepository.Listener,
-        LauncherMediaController.Listener {
+        LauncherMediaController.Listener,
+        HeaderStatusSink {
 
-    private static final int QUICK_SHORTCUT_COLUMNS = 5;
+    private static final int QUICK_SHORTCUT_COLUMNS = 3;
 
     private static final class DashboardShortcut {
         final int tabIndex;
@@ -114,10 +120,19 @@ public final class LauncherDashboardBuilder implements
     private final View[] quickAppSlots = new View[LauncherQuickAppsStore.MAX_SLOT_COUNT];
     private GridLayout shortcutsGrid;
     private TextView shortcutsLabelView;
+    private TextView quickAppsLabelView;
 
     private LinearLayout quickAccessCard;
     private LinearLayout vehicleCard;
     private LinearLayout musicDriveCard;
+    private DashboardStatusChip wifiChip, modeChip, phoneChip, projectionChip, soundChip;
+    private TopBarBuilder.WifiState wifiState = TopBarBuilder.WifiState.UNKNOWN;
+    private boolean vehicleConnected;
+    private int driveMode = Integer.MIN_VALUE;
+    private boolean serverRunning;
+    private boolean projectionActive;
+    private boolean soundBoostActive;
+    private int soundGainMb;
     private TextView quickAccessTitleView;
     private AppCompatImageButton quickAccessGearButton;
     private AppCompatImageButton quickAccessExitButton;
@@ -160,23 +175,19 @@ public final class LauncherDashboardBuilder implements
         musicDriveCard.setMinimumWidth(0);
 
         if (portrait) {
-            int screenH = context.getResources().getDisplayMetrics().heightPixels;
-            float density = context.getResources().getDisplayMetrics().density;
-            int sideH = Math.max(Math.round(screenH * 0.42f), Math.round(360 * density));
-            int vehicleH = Math.max(Math.round(screenH * 0.62f), Math.round(480 * density));
             LinearLayout.LayoutParams quickLp = new LinearLayout.LayoutParams(
-                    LinearLayout.LayoutParams.MATCH_PARENT, sideH);
+                    LinearLayout.LayoutParams.MATCH_PARENT, 0, 0.28f);
             quickLp.bottomMargin = cardGap / 2;
             cardsRow.addView(quickCard, quickLp);
 
             LinearLayout.LayoutParams vehicleLp = new LinearLayout.LayoutParams(
-                    LinearLayout.LayoutParams.MATCH_PARENT, vehicleH);
+                    LinearLayout.LayoutParams.MATCH_PARENT, 0, 0.44f);
             vehicleLp.topMargin = cardGap / 2;
             vehicleLp.bottomMargin = cardGap / 2;
             cardsRow.addView(vehicleCard, vehicleLp);
 
             LinearLayout.LayoutParams musicDriveLp = new LinearLayout.LayoutParams(
-                    LinearLayout.LayoutParams.MATCH_PARENT, sideH);
+                    LinearLayout.LayoutParams.MATCH_PARENT, 0, 0.28f);
             musicDriveLp.topMargin = cardGap / 2;
             cardsRow.addView(musicDriveCard, musicDriveLp);
         } else {
@@ -194,14 +205,10 @@ public final class LauncherDashboardBuilder implements
             cardsRow.addView(musicDriveCard, musicDriveLp);
         }
 
-        LinearLayout.LayoutParams cardsRowLp = portrait
-                ? new LinearLayout.LayoutParams(
-                        LinearLayout.LayoutParams.MATCH_PARENT,
-                        LinearLayout.LayoutParams.WRAP_CONTENT)
-                : new LinearLayout.LayoutParams(
-                        LinearLayout.LayoutParams.MATCH_PARENT,
-                        0,
-                        1f);
+        LinearLayout.LayoutParams cardsRowLp = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                0,
+                1f);
         root.addView(cardsRow, cardsRowLp);
 
         applySnapshot(repository.currentSnapshot());
@@ -268,7 +275,7 @@ public final class LauncherDashboardBuilder implements
         }
         if (quickAccessExitButton != null) {
             quickAccessExitButton.setColorFilter(
-                    UiStyles.color(context, R.color.textDestructive));
+                    UiStyles.color(context, R.color.textSecondary));
         }
         if (quickAccessDivider != null) {
             quickAccessDivider.setBackgroundColor(
@@ -276,6 +283,9 @@ public final class LauncherDashboardBuilder implements
         }
         if (shortcutsLabelView != null) {
             shortcutsLabelView.setTextColor(UiStyles.color(context, R.color.textSecondary));
+        }
+        if (quickAppsLabelView != null) {
+            quickAppsLabelView.setTextColor(UiStyles.color(context, R.color.textSecondary));
         }
         // Slot arka planları (surfaceCard) Activity Resources'ta yapışır — taze yükle / yeniden kur
         rebuildQuickAppsArea();
@@ -307,6 +317,7 @@ public final class LauncherDashboardBuilder implements
         if (litePanelView != null) {
             litePanelView.reapplyTheme();
         }
+        refreshStatuses();
         applySnapshot(repository.currentSnapshot());
         applyMediaState(mediaController.currentState());
     }
@@ -364,6 +375,9 @@ public final class LauncherDashboardBuilder implements
 
         if (litePanelView != null) {
             litePanelView.bindVehicleMetrics(snapshot);
+        }
+        if (snapshot != null && DriveModeStyle.isThemed(snapshot.driveMode)) {
+            setDriveMode(snapshot.connected, snapshot.driveMode);
         }
     }
 
@@ -508,8 +522,8 @@ public final class LauncherDashboardBuilder implements
         titleRow.addView(gearButton, gearLp);
 
         AppCompatImageButton exitButton = new AppCompatImageButton(context);
-        exitButton.setImageResource(R.drawable.ic_mdi_close);
-        exitButton.setColorFilter(UiStyles.color(context, R.color.textDestructive));
+        exitButton.setImageResource(R.drawable.ic_mdi_fullscreen_exit);
+        exitButton.setColorFilter(UiStyles.color(context, R.color.textSecondary));
         exitButton.setBackground(null);
         exitButton.setPadding(0, 0, 0, 0);
         exitButton.setScaleType(ImageView.ScaleType.CENTER_INSIDE);
@@ -527,26 +541,30 @@ public final class LauncherDashboardBuilder implements
         titleRow.addView(exitButton, exitLp);
         card.addView(titleRow, matchWidthWrap());
 
-        LinearLayout body = cardContent(card);
+        // The persistent header reduces the viewport. Keep every shortcut reachable without
+        // shrinking labels or nesting two independently scrolling regions in this card.
+        android.widget.ScrollView quickScroll = new android.widget.ScrollView(context);
+        quickScroll.setTag("launcher_quick_access_scroll");
+        quickScroll.setFillViewport(false);
+        quickScroll.setVerticalScrollBarEnabled(true);
+        LinearLayout body = new LinearLayout(context);
+        body.setOrientation(LinearLayout.VERTICAL);
         body.setGravity(Gravity.TOP);
+        quickScroll.addView(body, new android.widget.FrameLayout.LayoutParams(-1, -2));
+        LinearLayout.LayoutParams quickScrollLp = new LinearLayout.LayoutParams(-1, 0, 1);
+        quickScrollLp.topMargin = UiStyles.dimenPx(context, R.dimen.spacing_medium);
+        card.addView(quickScroll, quickScrollLp);
 
-        quickAppsGrid = new GridLayout(context);
-        quickAppsGrid.setColumnCount(LauncherQuickAppsStore.GRID_COLUMNS);
-        quickAppsGrid.setUseDefaultMargins(false);
+        // --- MapControl İkonları (Üstte) ---
+        shortcutsLabelView = createSectionMiniLabel(R.string.launcher_dashboard_quick_shortcuts_label);
+        body.addView(shortcutsLabelView, matchWidthWrap());
 
-        android.widget.ScrollView appsScroll = new android.widget.ScrollView(context);
-        appsScroll.setFillViewport(false);
-        appsScroll.setVerticalScrollBarEnabled(true);
-        appsScroll.addView(quickAppsGrid, new android.widget.FrameLayout.LayoutParams(
+        shortcutsGrid = buildDashboardShortcutsGrid();
+        LinearLayout.LayoutParams gridLp = new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT,
-                LinearLayout.LayoutParams.WRAP_CONTENT));
-        LinearLayout.LayoutParams appsScrollLp = new LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT,
-                0,
-                1.2f);
-        appsScrollLp.topMargin = UiStyles.dimenPx(context, R.dimen.spacing_tiny);
-        body.addView(appsScroll, appsScrollLp);
-        rebuildQuickAppsArea();
+                LinearLayout.LayoutParams.WRAP_CONTENT);
+        gridLp.topMargin = UiStyles.dimenPx(context, R.dimen.spacing_tiny);
+        body.addView(shortcutsGrid, gridLp);
 
         View divider = new View(context);
         divider.setBackgroundColor(UiStyles.color(context, R.color.outlineSubtle));
@@ -558,16 +576,18 @@ public final class LauncherDashboardBuilder implements
         dividerLp.bottomMargin = UiStyles.dimenPx(context, R.dimen.spacing_small);
         body.addView(divider, dividerLp);
 
-        // --- MapControl 5 sütun ---
-        shortcutsLabelView = createSectionMiniLabel(R.string.launcher_dashboard_quick_shortcuts_label);
-        body.addView(shortcutsLabelView, matchWidthWrap());
+        // --- Hızlı Erişim Uygulamaları (Altta) ---
+        quickAppsLabelView = createSectionMiniLabel(R.string.launcher_dashboard_card_quick);
+        body.addView(quickAppsLabelView, matchWidthWrap());
 
-        shortcutsGrid = buildDashboardShortcutsGrid();
-        LinearLayout.LayoutParams gridLp = new LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT,
-                LinearLayout.LayoutParams.WRAP_CONTENT);
-        gridLp.topMargin = UiStyles.dimenPx(context, R.dimen.spacing_tiny);
-        body.addView(shortcutsGrid, gridLp);
+        quickAppsGrid = new GridLayout(context);
+        quickAppsGrid.setColumnCount(LauncherQuickAppsStore.GRID_COLUMNS);
+        quickAppsGrid.setUseDefaultMargins(false);
+
+        LinearLayout.LayoutParams appsGridLp = new LinearLayout.LayoutParams(-1, -2);
+        appsGridLp.topMargin = UiStyles.dimenPx(context, R.dimen.spacing_tiny);
+        body.addView(quickAppsGrid, appsGridLp);
+        rebuildQuickAppsArea();
 
         return card;
     }
@@ -1116,11 +1136,11 @@ public final class LauncherDashboardBuilder implements
     private DashboardShortcut[] dashboardShortcuts() {
         return new DashboardShortcut[]{
                 new DashboardShortcut(0, R.drawable.ic_mdi_wifi, context.getString(R.string.launcher_shortcut_wifi)),
-                new DashboardShortcut(1, R.drawable.ic_mdi_web, context.getString(R.string.launcher_shortcut_web)),
+                new DashboardShortcut(1, R.drawable.ic_mdi_cellphone, context.getString(R.string.header_phone)),
                 // Temporarily hidden: Profile shortcut (restore line below when profile tab is re-enabled).
                 // new DashboardShortcut(2, R.drawable.ic_mdi_account, context.getString(R.string.launcher_shortcut_profile)),
                 new DashboardShortcut(3, R.drawable.ic_mdi_map, context.getString(R.string.launcher_shortcut_projection)),
-                new DashboardShortcut(5, R.drawable.ic_mdi_cellphone, context.getString(R.string.launcher_shortcut_apps)),
+                new DashboardShortcut(5, R.drawable.ic_mdi_package_variant, context.getString(R.string.launcher_shortcut_apps)),
                 new DashboardShortcut(6, R.drawable.ic_mdi_car, context.getString(R.string.launcher_shortcut_drive)),
                 new DashboardShortcut(9, R.drawable.ic_mdi_speedometer, context.getString(R.string.side_rail_vehicle_info)),
                 new DashboardShortcut(8, R.drawable.ic_mdi_volume_high, context.getString(R.string.launcher_shortcut_welcome)),
@@ -1184,7 +1204,8 @@ public final class LauncherDashboardBuilder implements
         label.setTextSize(TypedValue.COMPLEX_UNIT_PX,
                 context.getResources().getDimension(R.dimen.text_size_small));
         label.setGravity(Gravity.CENTER);
-        label.setMaxLines(1);
+        label.setMinHeight(UiStyles.dimenPx(context, R.dimen.launcher_tile_label_min_height));
+        label.setMaxLines(2);
         label.setEllipsize(android.text.TextUtils.TruncateAt.END);
         label.setTextColor(UiStyles.color(context, colorRes));
         label.setPadding(0, UiStyles.dimenPx(context, R.dimen.spacing_tiny), 0, 0);
@@ -1413,7 +1434,30 @@ public final class LauncherDashboardBuilder implements
     }
 
     private LinearLayout buildVehicleCard() {
-        LinearLayout card = createCardShell(context.getString(R.string.launcher_dashboard_card_clock));
+        LinearLayout card = createGlassCard();
+
+        LinearLayout headerRow = new LinearLayout(context);
+        headerRow.setOrientation(LinearLayout.HORIZONTAL);
+        headerRow.setGravity(Gravity.CENTER_VERTICAL);
+
+        TextView titleView = new TextView(context);
+        titleView.setText(R.string.launcher_dashboard_card_clock);
+        titleView.setTextSize(TypedValue.COMPLEX_UNIT_PX,
+                context.getResources().getDimension(R.dimen.text_size_small));
+        titleView.setTypeface(null, Typeface.BOLD);
+        titleView.setTextColor(UiStyles.color(context, R.color.textMuted));
+        titleView.setAllCaps(true);
+        titleView.setLetterSpacing(0.08f);
+        headerRow.addView(titleView, new LinearLayout.LayoutParams(
+                0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f));
+
+        LinearLayout statusStrip = buildStatusStrip();
+        headerRow.addView(statusStrip, new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.WRAP_CONTENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT));
+
+        card.addView(headerRow, matchWidthWrap());
+
         LinearLayout body = cardContent(card);
 
         centerPanelHost = new LauncherClockSwipeLayout(context);
@@ -1425,6 +1469,208 @@ public final class LauncherDashboardBuilder implements
         ensureLitePanelVisible();
 
         return card;
+    }
+
+    private LinearLayout buildStatusStrip() {
+        LinearLayout strip = new LinearLayout(context);
+        strip.setOrientation(LinearLayout.HORIZONTAL);
+        strip.setGravity(Gravity.CENTER_VERTICAL);
+        int gap = UiStyles.dimenPx(context, R.dimen.spacing_tiny);
+
+        wifiChip = new DashboardStatusChip("launcher_status_wifi", R.string.header_wifi, R.drawable.ic_mdi_wifi, 0);
+        modeChip = new DashboardStatusChip("launcher_status_mode", R.string.header_mode, R.drawable.ic_mdi_car, 6);
+        phoneChip = new DashboardStatusChip("launcher_status_phone", R.string.header_phone, R.drawable.ic_mdi_cellphone, 1);
+        projectionChip = new DashboardStatusChip("launcher_status_projection", R.string.header_projection, R.drawable.ic_hub_monitor, 3);
+
+        strip.addView(wifiChip);
+
+        LinearLayout.LayoutParams modeLp = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT);
+        modeLp.setMarginStart(gap);
+        strip.addView(modeChip, modeLp);
+
+        LinearLayout.LayoutParams phoneLp = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT);
+        phoneLp.setMarginStart(gap);
+        strip.addView(phoneChip, phoneLp);
+
+        LinearLayout.LayoutParams projLp = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT);
+        projLp.setMarginStart(gap);
+        strip.addView(projectionChip, projLp);
+
+        soundChip = new DashboardStatusChip("launcher_status_sound", R.string.side_rail_equalizer,
+                R.drawable.ic_mdi_volume_plus, 11);
+        soundChip.setVisibility(View.GONE);
+        LinearLayout.LayoutParams soundLp = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT);
+        soundLp.setMarginStart(gap);
+        strip.addView(soundChip, soundLp);
+
+        refreshStatuses();
+        return strip;
+    }
+
+    private void refreshStatuses() {
+        refreshWifi();
+        refreshMode();
+        refreshPhone();
+        refreshProjection();
+        refreshSound();
+    }
+
+    private void refreshWifi() {
+        if (wifiChip == null) return;
+        int label = R.string.header_unknown;
+        if (wifiState == TopBarBuilder.WifiState.CONNECTED) label = R.string.header_connected;
+        else if (wifiState == TopBarBuilder.WifiState.DISCONNECTED) label = R.string.header_disconnected;
+        else if (wifiState == TopBarBuilder.WifiState.OFF) label = R.string.header_off;
+        wifiChip.bind(context.getString(label), UiStyles.color(context,
+                wifiState == TopBarBuilder.WifiState.CONNECTED ? R.color.statusSuccess
+                : wifiState == TopBarBuilder.WifiState.DISCONNECTED ? R.color.statusWarning : R.color.textSecondary));
+    }
+
+    private void refreshMode() {
+        if (modeChip == null) return;
+        int mode = driveMode;
+        if (!DriveModeStyle.isThemed(mode)) {
+            int prefMode = context.getSharedPreferences("MapControlPrefs", Context.MODE_PRIVATE)
+                    .getInt("driveModeSetting", -1);
+            if (DriveModeStyle.isThemed(prefMode)) {
+                mode = prefMode;
+            }
+        }
+        boolean knownMode = DriveModeStyle.isThemed(mode);
+        modeChip.bind(knownMode ? DriveModeStyle.shortLabel(mode) : "—",
+                knownMode ? DriveModeStyle.accentColor(context, mode)
+                        : UiStyles.color(context, R.color.textSecondary));
+    }
+
+    private void refreshPhone() {
+        if (phoneChip == null) return;
+        phoneChip.bind(context.getString(serverRunning ? R.string.header_running : R.string.header_stopped),
+                UiStyles.color(context, serverRunning ? R.color.statusSuccess : R.color.textSecondary));
+    }
+
+    private void refreshProjection() {
+        if (projectionChip == null) return;
+        projectionChip.bind(context.getString(projectionActive ? R.string.header_active : R.string.header_off),
+                UiStyles.color(context, projectionActive ? R.color.statusSuccess : R.color.textSecondary));
+    }
+
+    private void refreshSound() {
+        if (soundChip == null) return;
+        if (soundBoostActive && soundGainMb > 0) {
+            soundChip.setVisibility(View.VISIBLE);
+            String val = String.format(java.util.Locale.US, "+%.1f dB", soundGainMb / 100.0f);
+            soundChip.bind(val, UiStyles.color(context, R.color.oemAccent));
+        } else {
+            soundChip.setVisibility(View.GONE);
+        }
+    }
+
+    @Override
+    public void setSoundBoost(boolean active, int gainMb) {
+        if (soundBoostActive == active && soundGainMb == gainMb) return;
+        soundBoostActive = active;
+        soundGainMb = gainMb;
+        refreshSound();
+    }
+
+    @Override
+    public void setWifiState(TopBarBuilder.WifiState state) {
+        if (state == wifiState) return;
+        wifiState = state;
+        refreshWifi();
+    }
+
+    @Override
+    public void setDriveMode(boolean connected, int mode) {
+        if (!DriveModeStyle.isThemed(mode)) {
+            int prefMode = context.getSharedPreferences("MapControlPrefs", Context.MODE_PRIVATE)
+                    .getInt("driveModeSetting", -1);
+            if (DriveModeStyle.isThemed(prefMode)) {
+                mode = prefMode;
+            }
+        }
+        if (connected == vehicleConnected && mode == driveMode) return;
+        vehicleConnected = connected;
+        driveMode = mode;
+        refreshMode();
+    }
+
+    @Override
+    public void setServerRunning(boolean running) {
+        if (serverRunning == running) return;
+        serverRunning = running;
+        refreshPhone();
+    }
+
+    @Override
+    public void setProjectionActive(boolean active) {
+        if (projectionActive == active) return;
+        projectionActive = active;
+        refreshProjection();
+    }
+
+    private int dp(float value) {
+        return Math.round(value * context.getResources().getDisplayMetrics().density);
+    }
+
+    private final class DashboardStatusChip extends LinearLayout {
+        private final AppCompatImageView icon;
+        private final TextView value;
+        private final int labelRes;
+
+        DashboardStatusChip(String tag, int labelRes, int iconRes, int tabIndex) {
+            super(context);
+            this.labelRes = labelRes;
+            setTag(tag);
+            setOrientation(HORIZONTAL);
+            setGravity(Gravity.CENTER_VERTICAL);
+            int padH = dp(10);
+            int padV = dp(4);
+            setPadding(padH, padV, padH, padV);
+            setFocusable(true);
+            setClickable(true);
+            applyBorderlessRipple(this);
+            setOnClickListener(v -> {
+                if (launcherCallback != null) {
+                    launcherCallback.onShortcutSelected(tabIndex, context.getString(labelRes));
+                }
+            });
+
+            icon = new AppCompatImageView(context);
+            icon.setImageResource(iconRes);
+            int iconSize = dp(16);
+            addView(icon, new LinearLayout.LayoutParams(iconSize, iconSize));
+
+            value = new TextView(context);
+            value.setTag(tag + "_value");
+            value.setSingleLine(true);
+            value.setTypeface(null, Typeface.BOLD);
+            value.setTextSize(TypedValue.COMPLEX_UNIT_PX,
+                    context.getResources().getDimension(R.dimen.text_size_small));
+            value.setIncludeFontPadding(false);
+            LinearLayout.LayoutParams valParams = new LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.WRAP_CONTENT,
+                    LinearLayout.LayoutParams.WRAP_CONTENT);
+            valParams.setMarginStart(dp(6));
+            addView(value, valParams);
+        }
+
+        void bind(String text, int accent) {
+            value.setText(text);
+            value.setTextColor(accent);
+            icon.setImageTintList(ColorStateList.valueOf(accent));
+            GradientDrawable background = new GradientDrawable();
+            background.setCornerRadius(dp(14));
+            background.setColor(ColorUtils.blendARGB(
+                    UiStyles.color(context, R.color.surfaceCardInner), accent, 0.08f));
+            background.setStroke(Math.max(1, dp(1)), ColorUtils.setAlphaComponent(accent, 45));
+            setBackground(background);
+            setContentDescription(context.getString(labelRes) + ": " + text);
+        }
     }
 
     private void buildMediaControls(LinearLayout mediaSection) {

@@ -45,6 +45,7 @@ import com.mapcontrol.util.DisplayHelper;
 import com.mapcontrol.util.ClusterNavigationState;
 import com.mapcontrol.util.TargetPackageStore;
 import com.mapcontrol.manager.CarSystemGestureController;
+import com.mapcontrol.manager.SportAnimationController;
 import com.mapcontrol.manager.ClusterDisplayManager;
 import com.mapcontrol.manager.FloatingBackButtonManager;
 import com.mapcontrol.manager.MapControlVDBusKeyBridge;
@@ -84,6 +85,7 @@ public class MapControlService extends Service {
     private volatile int uiLaunchAttempts;
     private volatile long nextUiLaunchAt;
     private CarSystemGestureController carSystemGestureController;
+    private SportAnimationController sportAnimationController;
     private SharedPreferences.OnSharedPreferenceChangeListener gesturePrefListener;
     
     /**
@@ -107,6 +109,8 @@ public class MapControlService extends Service {
         BootSession.noteServiceStart(this);
         handler = new Handler(Looper.getMainLooper());
         scheduler = Executors.newSingleThreadScheduledExecutor();
+        sportAnimationController = new SportAnimationController(this, scheduler, this::log);
+        sportAnimationController.start();
         scheduleClusterBootSplash();
         scheduleEqualizerKeeper();
 
@@ -267,6 +271,10 @@ public class MapControlService extends Service {
     @Override
     public void onDestroy() {
         destroyed = true;
+        if (sportAnimationController != null) {
+            sportAnimationController.release();
+            sportAnimationController = null;
+        }
         releaseWelcomeAudio();
         if (gesturePrefListener != null) {
             TargetPackageStore.prefs(this).unregisterOnSharedPreferenceChangeListener(gesturePrefListener);

@@ -1,0 +1,14 @@
+
+com.mapcontrol.vehicle.VehicleMetricsLiveHeaderTest:..
+com.mapcontrol.ui.widget.DriveModeBadgeTest:..
+com.mapcontrol.ui.activity.SharedHeaderNavigationTest:.
+com.mapcontrol.ui.builder.DriveModeOptionsTest:...
+com.mapcontrol.manager.SportAnimationControllerTest:..
+com.mapcontrol.ui.theme.CompactControlsTest:....
+com.mapcontrol.ui.builder.SharedHeaderTest:....
+
+Time: 5.945
+
+OK (18 tests)
+
+

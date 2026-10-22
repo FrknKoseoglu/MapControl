@@ -47,6 +47,21 @@ public class WifiTabBuilder {
         build();
     }
 
+    private void applyControlButtonStyle(Button button, int backgroundColorArgb) {
+        UiStyles.applySolidRoundedBackground(button, backgroundColorArgb);
+        UiStyles.setTextSize(button, R.dimen.text_size_normal);
+        button.setTextColor(UiStyles.textOnColor(backgroundColorArgb));
+        button.setTypeface(null, android.graphics.Typeface.BOLD);
+        button.setAllCaps(false);
+        button.setSingleLine(true);
+        button.setGravity(android.view.Gravity.CENTER);
+        int inset = UiStyles.dimenPx(context, R.dimen.spacing_medium);
+        button.setPadding(inset, 0, inset, 0);
+        int btnHeight = UiStyles.dimenPx(context, R.dimen.button_height);
+        button.setMinHeight(btnHeight);
+        button.setMinimumHeight(btnHeight);
+    }
+
     public LinearLayout build() {
         wifiTabContent = new LinearLayout(context);
         wifiTabContent.setOrientation(LinearLayout.VERTICAL);
@@ -66,29 +81,23 @@ public class WifiTabBuilder {
         controlButtonsRow.setGravity(android.view.Gravity.CENTER_VERTICAL);
         controlButtonsRow.setBackgroundColor(UiStyles.color(context, R.color.transparent));
 
+        int btnHeight = UiStyles.dimenPx(context, R.dimen.button_height);
+        int gap = UiStyles.dimenPx(context, R.dimen.spacing_small);
+
         btnWifiToggle = new Button(context);
         btnWifiToggle.setText(R.string.wifi_turn_on);
-        UiStyles.setTextSize(btnWifiToggle, R.dimen.text_size_small);
-        btnWifiToggle.setTextColor(UiStyles.color(context, R.color.textPrimary));
-        btnWifiToggle.setTypeface(null, android.graphics.Typeface.BOLD);
-        UiStyles.styleOemButton(btnWifiToggle, UiStyles.color(context, R.color.buttonPrimary));
-        btnWifiToggle.setPadding(24, 12, 24, 12);
+        applyControlButtonStyle(btnWifiToggle, UiStyles.color(context, R.color.buttonPrimary));
         btnWifiToggle.setOnClickListener(v -> toggleWifi());
-        LinearLayout.LayoutParams toggleParams = new LinearLayout.LayoutParams(
-                0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f);
-        toggleParams.setMargins(0, 0, 8, 0);
+        LinearLayout.LayoutParams toggleParams = new LinearLayout.LayoutParams(0, btnHeight, 1f);
+        toggleParams.setMargins(0, 0, gap / 2, 0);
         controlButtonsRow.addView(btnWifiToggle, toggleParams);
 
         btnScanWifi = new Button(context);
         btnScanWifi.setText(R.string.wifi_refresh);
-        UiStyles.setTextSize(btnScanWifi, R.dimen.text_size_small);
-        btnScanWifi.setTextColor(UiStyles.color(context, R.color.textPrimary));
-        btnScanWifi.setTypeface(null, android.graphics.Typeface.BOLD);
-        UiStyles.styleOemButton(btnScanWifi, UiStyles.color(context, R.color.oemAccent));
-        btnScanWifi.setPadding(24, 12, 24, 12);
+        applyControlButtonStyle(btnScanWifi, UiStyles.color(context, R.color.oemAccent));
         btnScanWifi.setOnClickListener(v -> scanWifiNetworks());
-        LinearLayout.LayoutParams scanParams = new LinearLayout.LayoutParams(
-                0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f);
+        LinearLayout.LayoutParams scanParams = new LinearLayout.LayoutParams(0, btnHeight, 1f);
+        scanParams.setMargins(gap / 2, 0, 0, 0);
         controlButtonsRow.addView(btnScanWifi, scanParams);
 
         card.addView(controlButtonsRow, new LinearLayout.LayoutParams(
@@ -130,11 +139,11 @@ public class WifiTabBuilder {
             boolean isWifiEnabled = wifiManager.isWifiEnabled();
 
             if (isWifiEnabled) {
-                btnWifiToggle.setText(R.string.wifi_turn_off_label);
-                UiStyles.styleOemButton(btnWifiToggle, UiStyles.color(context, R.color.buttonPrimary));
+                btnWifiToggle.setText(R.string.wifi_turn_off);
+                applyControlButtonStyle(btnWifiToggle, UiStyles.color(context, R.color.buttonPrimary));
             } else {
                 btnWifiToggle.setText(R.string.wifi_turn_on);
-                UiStyles.styleOemButton(btnWifiToggle, UiStyles.color(context, R.color.primaryDarkColor));
+                applyControlButtonStyle(btnWifiToggle, UiStyles.color(context, R.color.primaryDarkColor));
             }
 
             callback.log("Wi-Fi durumu güncellendi: " + (isWifiEnabled ? "AÇIK" : "KAPALI"));
@@ -146,7 +155,7 @@ public class WifiTabBuilder {
             callback.log("Wi-Fi durumu kontrol hatası: " + e.getMessage());
             if (btnWifiToggle != null) {
                 btnWifiToggle.setText(R.string.wifi_status_error);
-                UiStyles.styleOemButton(btnWifiToggle, UiStyles.color(context, R.color.textLoading));
+                applyControlButtonStyle(btnWifiToggle, UiStyles.color(context, R.color.textLoading));
             }
         }
     }

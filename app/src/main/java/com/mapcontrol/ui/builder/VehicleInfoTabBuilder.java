@@ -254,7 +254,7 @@ public class VehicleInfoTabBuilder implements VehicleMetricsRepository.Listener 
         UiStyles.setTextSize(identityModelYearText, R.dimen.text_size_large);
         identityModelYearText.setTypeface(null, Typeface.BOLD);
         identityModelYearText.setTextColor(UiStyles.color(uiContext, R.color.textPrimary));
-        identityModelYearText.setText("Chery Omoda 5 Pro - 2024");
+        identityModelYearText.setText("-");
         identityModelYearText.setSingleLine(true);
         card.addView(identityModelYearText, new LinearLayout.LayoutParams(
                 0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f));
@@ -273,21 +273,43 @@ public class VehicleInfoTabBuilder implements VehicleMetricsRepository.Listener 
 
     private void bindIdentity(VehicleIdentity identity) {
         if (identityModelYearText != null) {
-            String model = (identity.marketName != null && !identity.marketName.isEmpty()
-                    && !identity.marketName.equals("Chery Otomobil"))
-                    ? identity.marketName : "Chery Omoda 5 Pro";
-            String year = (identity.modelYear != null && !identity.modelYear.isEmpty()
-                    && !identity.modelYear.equals("—"))
-                    ? identity.modelYear : "2024";
-            identityModelYearText.setText(model + " - " + year);
+            if (identity == null) {
+                identityModelYearText.setText("-");
+                return;
+            }
+            String marketName = identity.marketName != null ? identity.marketName.trim() : "";
+            String year = identity.modelYear != null ? identity.modelYear.trim() : "";
+
+            boolean validModel = !marketName.isEmpty()
+                    && !marketName.equals("-")
+                    && !marketName.equals("—")
+                    && !marketName.equalsIgnoreCase("Chery Otomobil")
+                    && !marketName.equalsIgnoreCase("Bilinmiyor");
+
+            boolean validYear = !year.isEmpty()
+                    && !year.equals("-")
+                    && !year.equals("—")
+                    && !year.equalsIgnoreCase("Bilinmiyor");
+
+            if (validModel && validYear) {
+                identityModelYearText.setText(marketName + " - " + year);
+            } else if (validModel) {
+                identityModelYearText.setText(marketName);
+            } else {
+                identityModelYearText.setText("-");
+            }
         }
     }
 
     private String read(int id, Function<Integer, String> format) {
         int raw = repository.getCombined(id);
-        if (!VehicleMetricsSnapshot.isValid(raw)) return "—";
+        if (!VehicleMetricsSnapshot.isValid(raw)) return "-";
         String value = format.apply(raw);
-        return uiContext.getString(R.string.vehicle_info_value_unknown).equals(value) ? "—" : value;
+        if (value == null || value.equals("—") || value.trim().isEmpty()
+                || uiContext.getString(R.string.vehicle_info_value_unknown).equals(value)) {
+            return "-";
+        }
+        return value;
     }
 
     private void addMetric(FeatureGridLayout grid, int labelRes, EnumSet<Category> categories,

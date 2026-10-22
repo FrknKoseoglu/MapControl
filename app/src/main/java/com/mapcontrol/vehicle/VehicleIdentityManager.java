@@ -74,7 +74,7 @@ public final class VehicleIdentityManager {
     private final Handler mainHandler = new Handler(Looper.getMainLooper());
 
     private List<ModelCatalogEntry> cachedCatalog;
-    private String cachedFallbackName = "Chery Omoda 5 Pro";
+    private String cachedFallbackName = "-";
     private String cachedFallbackDesc = "";
     private volatile VehicleIdentity cachedIdentity;
 
@@ -229,7 +229,7 @@ public final class VehicleIdentityManager {
             return new ModelMatch("Chery Arrizo 8", "M1E", "Sedan");
         }
 
-        return new ModelMatch(cachedFallbackName, platformLabel != null ? platformLabel : "GENEL", cachedFallbackDesc);
+        return new ModelMatch(cachedFallbackName, platformLabel != null ? platformLabel : "-", cachedFallbackDesc);
     }
 
     /**

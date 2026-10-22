@@ -22,7 +22,7 @@ public final class VehicleMetricsFormatter {
         if (speed > 0) {
             return String.format(Locale.getDefault(), "%d", speed);
         }
-        return "—";
+        return "-";
     }
 
     public String formatDashboardOdo(VehicleMetricsSnapshot snapshot) {
@@ -64,7 +64,7 @@ public final class VehicleMetricsFormatter {
     public String formatDashboardGearShort(VehicleMetricsSnapshot snapshot) {
         int combined = snapshot.gearSignal;
         if (!VehicleMetricsSnapshot.isValid(combined)) {
-            return "—";
+            return "-";
         }
         switch (combined) {
             case 1:
@@ -79,7 +79,7 @@ public final class VehicleMetricsFormatter {
                 if (combined > 4) {
                     return "D" + (combined - 4);
                 }
-                return "—";
+                return "-";
         }
     }
 
@@ -299,10 +299,10 @@ public final class VehicleMetricsFormatter {
     }
 
     private String unknown() {
-        return context.getString(R.string.vehicle_info_value_unknown);
+        return "-";
     }
 
     private String dash() {
-        return "—";
+        return "-";
     }
 }

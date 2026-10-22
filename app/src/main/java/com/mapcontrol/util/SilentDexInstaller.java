@@ -13,8 +13,8 @@ import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
 
 /**
- * APK kurulumu: assets içindeki sessiz dex'i {@code app_process} ile çalıştırır.
- * Sonuç {@code INSTALL_SUCCEEDED} satırıyla gelir; onay penceresi açılmaz.
+ * Optional OEM installer asset. Standard builds fall back to PackageInstaller;
+ * app_process inherits existing IVI permissions and does not grant new privileges.
  */
 public final class SilentDexInstaller {
 
@@ -42,12 +42,14 @@ public final class SilentDexInstaller {
         }
         File dexFile = extractDex(context.getApplicationContext());
         if (dexFile == null) {
-            return new Result(false, "Kurulum aracı kopyalanamadı");
+            return new Result(false, "İsteğe bağlı OEM kurulum aracı mevcut değil");
         }
         String appProcess = firstExecutable("/system/bin/app_process64", "/system/bin/app_process");
         if (appProcess == null) {
             return new Result(false, "app_process bulunamadı");
         }
+        Process process = null;
+        java.util.concurrent.FutureTask<String> reader = null;
         try {
             ProcessBuilder processBuilder = new ProcessBuilder(
                     appProcess,
@@ -58,9 +60,17 @@ public final class SilentDexInstaller {
             processBuilder.directory(new File("/system/bin"));
             processBuilder.redirectErrorStream(true);
             processBuilder.environment().put("CLASSPATH", dexFile.getAbsolutePath());
-            Process process = processBuilder.start();
-            String output = readAll(process.getInputStream()).trim();
-            int exitCode = process.waitFor();
+            process = processBuilder.start();
+            final Process child = process;
+            reader = new java.util.concurrent.FutureTask<>(() -> readAll(child.getInputStream()));
+            Thread outputThread = new Thread(reader, "mapcontrol-installer-output");
+            outputThread.setDaemon(true);
+            outputThread.start();
+            String output = reader.get(60, java.util.concurrent.TimeUnit.SECONDS).trim();
+            if (!process.waitFor(2, java.util.concurrent.TimeUnit.SECONDS)) {
+                return new Result(false, "OEM kurulum zaman aşımı");
+            }
+            int exitCode = process.exitValue();
             if (exitCode == 0 && output.contains("INSTALL_SUCCEEDED")) {
                 return new Result(true, "Dex kurulum tamamlandı: " + apkFile.getName());
             }
@@ -72,12 +82,17 @@ public final class SilentDexInstaller {
         } catch (InterruptedException error) {
             Thread.currentThread().interrupt();
             return new Result(false, "dex kurulum kesildi");
-        } catch (Throwable error) {
+        } catch (java.util.concurrent.TimeoutException timeout) {
+            return new Result(false, "OEM kurulum zaman aşımı");
+        } catch (Exception error) {
             String detail = error.getMessage();
             if (detail == null || detail.isEmpty()) {
                 detail = "dex kurulum çalışmadı";
             }
             return new Result(false, detail);
+        } finally {
+            if (process != null) process.destroyForcibly();
+            if (reader != null) reader.cancel(true);
         }
     }
 
@@ -116,12 +131,10 @@ public final class SilentDexInstaller {
     private static String readAll(@NonNull InputStream input) throws Exception {
         StringBuilder builder = new StringBuilder();
         try (BufferedReader reader = new BufferedReader(new InputStreamReader(input, StandardCharsets.UTF_8))) {
-            String line;
-            while ((line = reader.readLine()) != null) {
-                if (builder.length() > 0) {
-                    builder.append('\n');
-                }
-                builder.append(line);
+            char[] buffer = new char[4096];
+            for (int count; (count = reader.read(buffer)) != -1;) {
+                if (builder.length() + count > 64 * 1024) throw new java.io.IOException("OEM kurulum çıktısı çok büyük");
+                builder.append(buffer, 0, count);
             }
         }
         return builder.toString();

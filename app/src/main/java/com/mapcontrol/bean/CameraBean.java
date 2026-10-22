@@ -18,6 +18,9 @@ public class CameraBean {
     private String cameraName;
     private CaptureRequest.Builder captureRequestBuilder;
     private LogListener logListener;
+    private final HandlerThread handlerThread;
+    private volatile boolean released;
+    private android.view.Surface previewSurface;
     
     public interface LogListener {
         void onLog(String message);
@@ -26,16 +29,24 @@ public class CameraBean {
         @Override
         public void onConfigureFailed(@NonNull CameraCaptureSession cameraCaptureSession) {
             CameraBean.this.log("[WARN] Kamera capture session yapılandırılamadı");
+            cameraCaptureSession.close();
+            release();
         }
 
         @Override
         public void onConfigured(@NonNull CameraCaptureSession cameraCaptureSession) {
-            CameraBean.this.log("[INFO] Kamera capture session yapılandırıldı");
-            CameraBean.this.cameraCaptureSession = cameraCaptureSession;
-            try {
-                CameraBean.this.updatePreview();
-            } catch (CameraAccessException e) {
-                CameraBean.this.log("[ERROR] Önizleme güncelleme hatası: " + e.getMessage());
+            synchronized (CameraBean.this) {
+                if (released) {
+                    cameraCaptureSession.close();
+                    return;
+                }
+                CameraBean.this.log("[INFO] Kamera capture session yapılandırıldı");
+                CameraBean.this.cameraCaptureSession = cameraCaptureSession;
+                try {
+                    CameraBean.this.updatePreview();
+                } catch (CameraAccessException | IllegalStateException e) {
+                    CameraBean.this.log("[ERROR] Önizleme güncelleme hatası: " + e.getMessage());
+                }
             }
         }
     };
@@ -46,7 +57,7 @@ public class CameraBean {
         this.cameraName = str;
         this.cameraDevice = cameraDevice;
         this.logListener = logListener;
-        HandlerThread handlerThread = new HandlerThread(TAG);
+        handlerThread = new HandlerThread(TAG);
         handlerThread.start();
         this.handler = new Handler(handlerThread.getLooper());
     }
@@ -108,6 +119,24 @@ public class CameraBean {
 
     public void setCaptureRequestBuilder(CaptureRequest.Builder builder) {
         this.captureRequestBuilder = builder;
+    }
+
+    public synchronized void setPreviewSurface(android.view.Surface surface) {
+        if (released) surface.release(); else previewSurface = surface;
+    }
+
+    public synchronized void release() {
+        if (released) return;
+        released = true;
+        if (cameraCaptureSession != null) cameraCaptureSession.close();
+        cameraCaptureSession = null;
+        if (cameraDevice != null) cameraDevice.close();
+        cameraDevice = null;
+        if (previewSurface != null) previewSurface.release();
+        previewSurface = null;
+        handler.removeCallbacksAndMessages(null);
+        handlerThread.quitSafely();
+        logListener = null;
     }
     
     private void log(String message) {

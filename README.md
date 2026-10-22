@@ -1,5 +1,7 @@
 # Map Control
 
+> **Geliştirici notu:** Güncel launcher orta kartı Lite paneldir (saat, hava durumu, araç ölçümleri). Aşağıdaki v1.1.4 3D performans ölçümleri tarihsel verilerdir. Son güvenilirlik düzeltmeleri ve fiziksel IVI kabul kontrolleri için [inceleme raporuna](docs/ivi-reliability-review.md) bakın.
+
  ⚠️ **Bilinen sorunlar / Known issues**
 
  | | |
@@ -74,6 +76,8 @@ Bu proje **eğlence ve kişisel ihtiyaç** amacıyla geliştirilmiştir.
 
 **Yerel HTTP sunucu (7462):** Cihazla aynı ağdaki telefon veya bilgisayardan tarayıcı ile dosya yükleme, APK kurma, uygulama listeleme/silme/başlatma. Ana ekrandaki QR kod ile sunucu adresine hızlı erişim.
 
+Web yönetimi için araç ekranındaki güncel QR kodunu kullanın. Her sunucu açılışında erişim anahtarı yenilenir; eski tarayıcı oturumu yeniden eşleştirme ister. Dosya yükleme istek sınırı 1 GiB'dir. Hava durumu, mevcut konum izniyle yaklaşık araç konumunu Open-Meteo'ya gönderir; geçerli konum yoksa sabit bir şehir göstermez.
+
 **Wi-Fi:** Ağ aç/kapat, tarama ve bağlanma.
 
 **Profil / bulut:** Harici API (api.vnoisy.dev) ile giriş, araç token’ı; isteğe bağlı araç kapanırken konum kaydetme.
@@ -120,6 +124,25 @@ Cluster / navigasyon panelini kapatır. Özet akış:
 MainActivity’de manuel aç/kapa butonları ve MapControlService’de araç güç moduna göre otomatik açma/kapama bu metodları kullanır.
 
 ---
+
+## Yerel debug build
+
+JDK 17, Android SDK Platform 34 ve Android SDK Build-Tools 34.0.0 gereklidir. SDK konumunu `ANDROID_HOME` ile veya `local.properties` içindeki `sdk.dir` alanıyla belirtin.
+
+Windows PowerShell üzerinde APK ve birim testleri:
+
+```powershell
+java -classpath gradle/wrapper/gradle-wrapper.jar org.gradle.wrapper.GradleWrapperMain :app:assembleDebug :app:testDebugUnitTest
+```
+
+Android Studio üzerinden bir emülatör açtıktan sonra kurulum ve çalıştırma:
+
+```powershell
+adb -e install -r app/build/outputs/apk/debug/app-debug.apk
+adb -e shell am start -n com.mapcontrol/.ui.activity.MainActivity
+```
+
+Debug derlemesi release imzalama anahtarı gerektirmez. `GLITCHTIP_DSN` boşken çökme raporlama başlatılmaz. Standart Android emülatöründe arayüz açılır; DesaySV araç servisleri ve fiziksel gösterge ekranı bulunmadığı için araç kontrolleri çalışmaz.
 
 ## Release imzalı build
 

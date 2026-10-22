@@ -386,7 +386,7 @@ public class SideRailBuilder {
 
         TextView textView = new TextView(context);
         textView.setText(text);
-        textView.setTextSize(22);
+        UiStyles.setTextSize(textView, R.dimen.text_size_large);
         textView.setTextColor(UiStyles.color(context, R.color.textSecondary));
         textView.setGravity(Gravity.START | Gravity.CENTER_VERTICAL);
         LinearLayout.LayoutParams textParams = new LinearLayout.LayoutParams(
@@ -432,7 +432,7 @@ public class SideRailBuilder {
 
         TextView textView = new TextView(context);
         textView.setText(text);
-        textView.setTextSize(12);
+        UiStyles.setTextSize(textView, R.dimen.text_size_small);
         textView.setMaxLines(1);
         textView.setEllipsize(TextUtils.TruncateAt.END);
         textView.setTextColor(UiStyles.color(context, R.color.textSecondary));

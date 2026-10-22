@@ -14,7 +14,7 @@ public final class VehicleMetricsFormatter {
     private final Context context;
 
     public VehicleMetricsFormatter(Context context) {
-        this.context = context.getApplicationContext();
+        this.context = context;
     }
 
     public String formatDashboardSpeed(VehicleMetricsSnapshot snapshot) {
@@ -202,7 +202,7 @@ public final class VehicleMetricsFormatter {
             return unknown();
         }
         if (combined >= 1000) {
-            return String.format(Locale.getDefault(), "%.2f litre (ETM TotaUseFul)", combined / 1000.0);
+            return String.format(Locale.getDefault(), "%.2f litre", combined / 1000.0);
         }
         return String.format(Locale.getDefault(), "%d ml", combined);
     }
@@ -284,7 +284,7 @@ public final class VehicleMetricsFormatter {
                 label = "D" + (combined - 4);
                 break;
         }
-        return String.format(Locale.getDefault(), "%s (sinyal %d)", label, combined);
+        return label;
     }
 
     public String formatPowerMode(int combined) {

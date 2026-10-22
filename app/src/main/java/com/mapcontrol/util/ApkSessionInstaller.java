@@ -25,7 +25,14 @@ public final class ApkSessionInstaller {
     public static final String ACTION_SESSION_RESULT =
             "com.mapcontrol.action.PACKAGE_INSTALL_SESSION_RESULT";
 
-    private static final int REQUEST_CODE = 0x4D43;
+    private static final String EXTRA_MAPCONTROL_SESSION = "mapcontrol_session_id";
+    private static final class SessionListener {
+        final Activity owner;
+        final Listener callback;
+        SessionListener(Activity owner, Listener callback) { this.owner = owner; this.callback = callback; }
+    }
+    private static final java.util.concurrent.ConcurrentMap<Integer, SessionListener> sessionListeners =
+            new java.util.concurrent.ConcurrentHashMap<>();
     private static final int COPY_BUFFER = 16384;
 
     public interface Listener {
@@ -66,14 +73,17 @@ public final class ApkSessionInstaller {
         }
     }
 
+    public static void clearSessionListeners(Activity owner) {
+        for (java.util.Map.Entry<Integer, SessionListener> entry : sessionListeners.entrySet()) {
+            if (entry.getValue().owner == owner) sessionListeners.remove(entry.getKey(), entry.getValue());
+        }
+    }
+
     /**
      * Session açar, APK'yı yazar ve commit eder. Çağıran thread'i bloklar; UI thread'den çağırma.
      */
     public static void install(@NonNull Activity activity, @NonNull File apkFile,
                                 @Nullable Listener installListener) throws Exception {
-        if (installListener != null) {
-            listener = installListener;
-        }
         if (!apkFile.isFile()) {
             throw new IllegalArgumentException("APK dosyası yok: " + apkFile.getAbsolutePath());
         }
@@ -102,14 +112,17 @@ public final class ApkSessionInstaller {
 
             Intent callback = new Intent(activity, activity.getClass());
             callback.setAction(ACTION_SESSION_RESULT);
+            callback.putExtra(EXTRA_MAPCONTROL_SESSION, sessionId);
 
             int flags = PendingIntent.FLAG_UPDATE_CURRENT;
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
                 flags |= PendingIntent.FLAG_MUTABLE;
             }
-            PendingIntent pending = PendingIntent.getActivity(activity, REQUEST_CODE, callback, flags);
+            PendingIntent pending = PendingIntent.getActivity(activity, sessionId, callback, flags);
+            if (installListener != null) sessionListeners.put(sessionId, new SessionListener(activity, installListener));
             session.commit(pending.getIntentSender());
         } catch (Exception e) {
+            sessionListeners.remove(sessionId);
             try {
                 session.abandon();
             } catch (Exception ignored) {
@@ -134,7 +147,7 @@ public final class ApkSessionInstaller {
             return false;
         }
         Bundle extras = intent.getExtras();
-        if (extras == null) {
+        if (extras == null || !extras.containsKey(PackageInstaller.EXTRA_STATUS)) {
             return true;
         }
 
@@ -145,10 +158,21 @@ public final class ApkSessionInstaller {
             Intent confirm = readConfirmIntent(extras);
             if (confirm != null) {
                 confirm.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TOP);
-                activity.startActivity(confirm);
+                try {
+                    activity.startActivity(confirm);
+                } catch (RuntimeException unavailable) {
+                    status = PackageInstaller.STATUS_FAILURE;
+                    message = "Kurulum onay ekranı açılamadı";
+                }
             }
         }
         dispatch(status, message);
+        int sessionId = intent.getIntExtra(EXTRA_MAPCONTROL_SESSION, -1);
+        SessionListener sessionListener = status == PackageInstaller.STATUS_PENDING_USER_ACTION
+                ? sessionListeners.get(sessionId) : sessionListeners.remove(sessionId);
+        if (sessionListener != null && !sessionListener.owner.isDestroyed()) {
+            sessionListener.callback.onInstallStatus(status, message);
+        }
         return true;
     }
 

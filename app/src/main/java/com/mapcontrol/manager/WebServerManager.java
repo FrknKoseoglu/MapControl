@@ -10,7 +10,6 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
-import java.io.FileOutputStream;
 import java.io.File;
 import java.io.BufferedInputStream;
 import org.json.JSONArray;
@@ -24,7 +23,6 @@ import java.nio.charset.StandardCharsets;
 import java.util.concurrent.atomic.AtomicBoolean;
 import android.os.Environment;
 
-import androidx.core.content.ContextCompat;
 
 import com.mapcontrol.R;
 import com.mapcontrol.ui.theme.UiStyles;
@@ -42,8 +40,11 @@ public class WebServerManager {
     private Thread serverThread;
     private AtomicBoolean isRunning = new AtomicBoolean(false);
     private int serverPort;
-    private Context context;
-    private WebServerListener listener;
+    private volatile com.mapcontrol.http.WebSession session;
+    private java.util.concurrent.ThreadPoolExecutor clientPool;
+    private final java.util.Set<Socket> activeClients = java.util.concurrent.ConcurrentHashMap.newKeySet();
+    private final Context context;
+    private volatile WebServerListener listener;
 
     public interface WebServerListener {
         void onServerStarted(int port, String localIp);
@@ -63,7 +64,7 @@ public class WebServerManager {
     }
 
     public WebServerManager(Context context) {
-        this.context = context;
+        this.context = context.getApplicationContext();
     }
 
     public void setListener(WebServerListener listener) {
@@ -73,234 +74,140 @@ public class WebServerManager {
     /**
      * HTTP server'ı başlat (7462 portunda)
      */
-    public void startServer() {
-        if (isRunning.get()) {
-            if (listener != null) listener.onLog("Server zaten çalışıyor");
-            return;
-        }
-
+    public synchronized void startServer() {
+        if (isRunning.get()) return;
         try {
-            // Sabit port kullan (7462)
             serverPort = 7462;
-            
-            serverSocket = new ServerSocket(serverPort);
+            final ServerSocket socket = new ServerSocket(serverPort);
+            final com.mapcontrol.http.WebSession startedSession = new com.mapcontrol.http.WebSession();
+            final java.util.concurrent.ThreadPoolExecutor workers = new java.util.concurrent.ThreadPoolExecutor(
+                    4, 4, 0L, java.util.concurrent.TimeUnit.MILLISECONDS,
+                    new java.util.concurrent.ArrayBlockingQueue<>(8));
+            serverSocket = socket;
+            session = startedSession;
+            clientPool = workers;
             isRunning.set(true);
-            
             serverThread = new Thread(() -> {
                 try {
                     String localIp = getLocalIpAddress();
-                    if (listener != null) {
-                        listener.onServerStarted(serverPort, localIp);
-                    }
-                    
-                    if (listener != null) listener.onLog("HTTP Server başlatıldı: http://" + localIp + ":" + serverPort);
-                    
-                    while (isRunning.get() && !serverSocket.isClosed()) {
+                    if (listener != null) listener.onServerStarted(serverPort, localIp);
+                    while (!socket.isClosed()) {
+                        Socket client = socket.accept();
+                        activeClients.add(client);
                         try {
-                            Socket clientSocket = serverSocket.accept();
-                            handleClient(clientSocket);
-                        } catch (IOException e) {
-                            if (isRunning.get()) {
-                                if (listener != null) listener.onLog("[ERROR] Client bağlantı hatası: " + e.getMessage());
-                            }
+                            workers.execute(() -> handleClient(client, startedSession));
+                        } catch (java.util.concurrent.RejectedExecutionException busy) {
+                            activeClients.remove(client);
+                            closeClient(client);
                         }
                     }
-                } catch (Exception e) {
-                    if (listener != null) listener.onLog("[ERROR] Server hatası: " + e.getMessage());
-                    if (listener != null) {
-                        listener.onError("Server hatası: " + e.getMessage());
-                    }
+                } catch (IOException error) {
+                    if (!socket.isClosed() && listener != null) listener.onError("Server hatası: " + error.getMessage());
                 } finally {
-                    isRunning.set(false);
-                    if (listener != null) {
-                        listener.onServerStopped();
+                    synchronized (WebServerManager.this) {
+                        if (serverSocket == socket) stopServer();
                     }
                 }
-            });
-            
+            }, "MapControl-HTTP");
             serverThread.start();
-        } catch (IOException e) {
-            if (listener != null) listener.onLog("[ERROR] Server başlatma hatası: " + e.getMessage());
-            isRunning.set(false);
-            if (listener != null) {
-                listener.onError("Server başlatma hatası: " + e.getMessage());
-            }
+        } catch (IOException error) {
+            if (listener != null) listener.onError("Server başlatma hatası: " + error.getMessage());
         }
     }
 
-    /**
-     * HTTP server'ı durdur
-     */
-    public void stopServer() {
-        if (!isRunning.get()) {
-            return;
-        }
+    public synchronized String getAccessUrl(String localIp) {
+        String base = "http://" + localIp + ":" + serverPort;
+        return session == null ? base : session.accessUrl(base);
+    }
 
-        isRunning.set(false);
-        
-        try {
-            if (serverSocket != null && !serverSocket.isClosed()) {
-                serverSocket.close();
-            }
-        } catch (IOException e) {
-            if (listener != null) listener.onLog("[ERROR] Server kapatma hatası: " + e.getMessage());
-        }
+    public String getAccessUrl() {
+        return getAccessUrl(getLocalIpAddress());
+    }
 
-        if (serverThread != null) {
+    public synchronized void stopServer() {
+        boolean wasRunning = isRunning.getAndSet(false);
+        session = null;
+        if (serverSocket != null) {
+            try { serverSocket.close(); } catch (IOException ignored) { }
+            serverSocket = null;
+        }
+        if (clientPool != null) {
+            clientPool.shutdownNow();
+            clientPool = null;
+        }
+        for (Socket client : activeClients) closeClient(client);
+        activeClients.clear();
+        if (wasRunning && listener != null) listener.onServerStopped();
+    }
+
+    private static void closeClient(Socket client) {
+        try { client.close(); } catch (IOException ignored) { }
+    }
+
+    private void handleClient(Socket clientSocket, com.mapcontrol.http.WebSession requestSession) {
+        try (Socket client = clientSocket) {
+            client.setSoTimeout(10000);
+            client.setTcpNoDelay(true);
+            InputStream input = new BufferedInputStream(client.getInputStream(), 16384);
+            OutputStream output = client.getOutputStream();
+            com.mapcontrol.http.HttpRequest request;
             try {
-                serverThread.join(1000);
-            } catch (InterruptedException e) {
-                if (listener != null) listener.onLog("[ERROR] Server thread bekleme hatası: " + e.getMessage());
+                request = com.mapcontrol.http.HttpRequest.read(input);
+            } catch (IOException malformed) {
+                sendErrorResponse(output, 400, malformed.getMessage());
+                return;
             }
+            if (!com.mapcontrol.http.WebSession.sameOrigin(request.header("origin"), request.header("host"))) {
+                sendErrorResponse(output, 403, "Bu kaynaktan erişime izin verilmiyor");
+                return;
+            }
+            String method = request.method;
+            String path = request.path;
+            String query = request.query;
+            boolean welcome = "/".equals(path) && ("GET".equals(method) || "HEAD".equals(method));
+            if (!welcome && (!isRunning.get() || session != requestSession
+                    || !requestSession.accepts(request.header("x-mapcontrol-key")))) {
+                sendErrorResponse(output, 401, "Araç ekranındaki QR kodunu yeniden tarayın");
+                return;
+            }
+            client.setSoTimeout("/upload".equals(path) ? 30000 : 10000);
+            if (listener != null) listener.onLog("HTTP Request: " + method + " " + path);
+            if (welcome) {
+                byte[] page = generateWelcomePage().getBytes(StandardCharsets.UTF_8);
+                String header = "HTTP/1.1 200 OK\r\nContent-Type: text/html; charset=UTF-8\r\n"
+                        + "Cache-Control: no-store\r\nReferrer-Policy: no-referrer\r\nX-Frame-Options: DENY\r\n"
+                        + "Content-Length: " + page.length + "\r\nConnection: close\r\n\r\n";
+                output.write(header.getBytes(StandardCharsets.UTF_8));
+                if (!"HEAD".equals(method)) output.write(page);
+                output.flush();
+            } else if ("POST".equals(method) && "/upload".equals(path)) {
+                handleFileUpload(input, output, request);
+            } else if ("POST".equals(method) && "/action/open-maps".equals(path)) {
+                handleOpenMaps(input, output, request.rawHeaders);
+            } else if ("POST".equals(method) && "/action/keyboard".equals(path)) {
+                handleKeyboard(input, output, request.rawHeaders);
+            } else if ("GET".equals(method) && "/files".equals(path)) {
+                handleFileList(output);
+            } else if ("DELETE".equals(method) && "/files".equals(path)) {
+                handleFileDelete(output, query);
+            } else if ("POST".equals(method) && "/install".equals(path)) {
+                handleInstallApk(output, query);
+            } else if ("GET".equals(method) && "/apps".equals(path)) {
+                handleAppList(output);
+            } else if ("POST".equals(method) && "/app/delete".equals(path)) {
+                handleAppDelete(output, query);
+            } else if ("POST".equals(method) && "/app/launch".equals(path)) {
+                handleAppLaunch(output, query);
+            } else {
+                sendErrorResponse(output, 404, "Adres bulunamadı");
+            }
+        } catch (Exception error) {
+            if (isRunning.get() && listener != null) listener.onLog("[ERROR] HTTP: " + error.getMessage());
+        } finally {
+            activeClients.remove(clientSocket);
         }
-
-        if (listener != null) listener.onLog("HTTP Server durduruldu");
     }
 
-    /**
-     * HTTP istek satırı: {@code GET /yol?a=1 HTTP/1.1} veya mutlak form {@code GET http://host:port/yol?a=1 HTTP/1.1}.
-     * @return [method, path, queryString] — sorgu yoksa üçüncü alan "".
-     */
-    private static String[] parseHttpRequestLine(String requestLine) {
-        if (requestLine == null || requestLine.isEmpty()) {
-            return null;
-        }
-        int sp1 = requestLine.indexOf(' ');
-        if (sp1 < 0) {
-            return null;
-        }
-        int sp2 = requestLine.indexOf(' ', sp1 + 1);
-        if (sp2 < 0) {
-            return null;
-        }
-        String method = requestLine.substring(0, sp1);
-        String uriToken = requestLine.substring(sp1 + 1, sp2);
-        if (uriToken.startsWith("http://") || uriToken.startsWith("https://")) {
-            try {
-                URL u = new URL(uriToken);
-                String p = u.getPath();
-                if (p == null || p.isEmpty()) {
-                    p = "/";
-                }
-                String q = u.getQuery();
-                return new String[] { method, p, q != null ? q : "" };
-            } catch (Exception e) {
-                return null;
-            }
-        }
-        int queryIndex = uriToken.indexOf('?');
-        if (queryIndex != -1) {
-            return new String[] { method, uriToken.substring(0, queryIndex), uriToken.substring(queryIndex + 1) };
-        }
-        return new String[] { method, uriToken, "" };
-    }
-
-    /**
-     * Client isteğini işle
-     */
-    private void handleClient(Socket clientSocket) {
-        new Thread(() -> {
-            try {
-                // Socket timeout ayarla (30 dakika - çok büyük dosyalar için)
-                clientSocket.setSoTimeout(1800000); // 30 dakika
-                // Keep-alive ve buffer ayarları
-                clientSocket.setTcpNoDelay(true);
-                clientSocket.setKeepAlive(true);
-                
-                InputStream input = clientSocket.getInputStream();
-                OutputStream output = clientSocket.getOutputStream();
-
-                // HTTP header'ı oku
-                StringBuilder headerBuilder = new StringBuilder();
-                byte[] buffer = new byte[1];
-                String lineEnding = "\r\n\r\n";
-                String currentEnding = "";
-                
-                // Header'ı oku (boş satıra kadar)
-                while (true) {
-                    int read = input.read(buffer);
-                    if (read == -1) {
-                        clientSocket.close();
-                        return;
-                    }
-                    char c = (char) buffer[0];
-                    headerBuilder.append(c);
-                    currentEnding += c;
-                    if (currentEnding.length() > 4) {
-                        currentEnding = currentEnding.substring(1);
-                    }
-                    if (currentEnding.equals(lineEnding)) {
-                        break;
-                    }
-                }
-
-                String requestHeader = headerBuilder.toString();
-                String[] requestLines = requestHeader.split("\r\n");
-                if (requestLines.length == 0) {
-                    clientSocket.close();
-                    return;
-                }
-
-                String requestLine = requestLines[0];
-                String[] parsed = parseHttpRequestLine(requestLine);
-                if (parsed == null) {
-                    clientSocket.close();
-                    return;
-                }
-                String method = parsed[0];
-                String path = parsed[1];
-                String queryString = parsed[2] != null ? parsed[2] : "";
-
-                if (listener != null) listener.onLog("HTTP Request: " + method + " " + path);
-
-                if ("OPTIONS".equals(method)) {
-                    sendOptionsResponse(output);
-                } else if ("POST".equals(method) && "/upload".equals(path)) {
-                    handleFileUpload(input, output, requestHeader);
-                } else if ("POST".equals(method) && "/action/open-maps".equals(path)) {
-                    handleOpenMaps(input, output, requestHeader);
-                } else if ("POST".equals(method) && "/action/keyboard".equals(path)) {
-                    handleKeyboard(input, output, requestHeader);
-                } else if ("GET".equals(method) && "/files".equals(path)) {
-                    handleFileList(output);
-                } else if ("DELETE".equals(method) && "/files".equals(path)) {
-                    handleFileDelete(output, queryString);
-                } else if ("POST".equals(method) && "/install".equals(path)) {
-                    handleInstallApk(output, queryString);
-                } else if ("GET".equals(method) && "/apps".equals(path)) {
-                    handleAppList(output);
-                } else if ("POST".equals(method) && "/app/delete".equals(path)) {
-                    handleAppDelete(output, queryString);
-                } else if ("POST".equals(method) && "/app/launch".equals(path)) {
-                    handleAppLaunch(output, queryString);
-                } else if ("GET".equals(method) || "HEAD".equals(method)) {
-                    String response = generateWelcomePage();
-                    String httpResponse = "HTTP/1.1 200 OK\r\n" +
-                            "Content-Type: text/html; charset=UTF-8\r\n" +
-                            "Content-Length: " + response.getBytes(StandardCharsets.UTF_8).length + "\r\n" +
-                            "Connection: close\r\n\r\n" +
-                            response;
-                    output.write(httpResponse.getBytes(StandardCharsets.UTF_8));
-                    output.flush();
-                } else {
-                    sendErrorResponse(output, 405, "Method not allowed");
-                }
-                clientSocket.close();
-
-            } catch (IOException e) {
-                if (listener != null) listener.onLog("[ERROR] Client işleme hatası: " + e.getMessage());
-                try {
-                    clientSocket.close();
-                } catch (IOException ex) {
-                    // Ignore
-                }
-            }
-        }).start();
-    }
-
-    /**
-     * Welcome sayfası HTML'i oluştur (assets'ten dosyayı oku)
-     */
     private String generateWelcomePage() {
         try {
             InputStream inputStream = context.getAssets().open("welcome.html");
@@ -332,363 +239,27 @@ public class WebServerManager {
         }
     }
 
-    /**
-     * Dosya yükleme işlemini handle et (deterministik multipart parsing)
-     * - Header okuma body'den byte çalmaz
-     * - Content-Length zorunlu
-     * - Body'yi Content-Length kadar oku, boundary'yi body içinde ara
-     * - Dosya offset'lerini deterministik şekilde bul
-     */
-    private void handleFileUpload(InputStream input, OutputStream output, String requestHeader) {
-        FileOutputStream fileOutputStream = null;
-        File file = null;
-        
+    /** Streams one multipart file; failed requests only remove their own temporary file. */
+    private void handleFileUpload(InputStream input, OutputStream output, com.mapcontrol.http.HttpRequest request) {
         try {
-            // Header'ları parse et
-            String[] headerLines = requestHeader.split("\r\n");
-            
-            // Content-Length zorunlu
-            long contentLength = -1;
-            String contentType = null;
-            boolean hasTransferEncoding = false;
-            String transferEncoding = null;
-            
-            for (String line : headerLines) {
-                String lowerLine = line.toLowerCase();
-                if (lowerLine.startsWith("content-length:")) {
-                    try {
-                        contentLength = Long.parseLong(line.substring(15).trim());
-                    } catch (NumberFormatException e) {
-                        if (listener != null) listener.onLog("[ERROR] Geçersiz Content-Length: " + line);
-                        sendErrorResponse(output, 400, "Geçersiz Content-Length");
-                        return;
-                    }
-                } else if (lowerLine.startsWith("content-type:")) {
-                    contentType = line.substring(13).trim();
-                } else if (lowerLine.startsWith("transfer-encoding:")) {
-                    hasTransferEncoding = true;
-                    transferEncoding = line.substring(18).trim().toLowerCase();
-                }
-            }
-            
-            // Debug: Header bilgilerini logla
-            if (listener != null) {
-                listener.onLog("Upload Header - Content-Length: " + contentLength + 
-                             ", Content-Type: " + contentType + 
-                             ", Transfer-Encoding: " + (hasTransferEncoding ? transferEncoding : "yok"));
-            }
-            
-            // Content-Length kontrolü
-            if (contentLength <= 0) {
-                if (listener != null) listener.onLog("[ERROR] Content-Length bulunamadı veya 0");
-                sendErrorResponse(output, 411, "Content-Length gerekli");
+            long length = request.contentLength();
+            if (length > com.mapcontrol.http.MultipartUpload.MAX_UPLOAD_BYTES) {
+                sendErrorResponse(output, 413, "Dosya yükleme sınırı 1 GB");
                 return;
             }
-            
-            // Transfer-Encoding: chunked kontrolü
-            if (hasTransferEncoding && "chunked".equals(transferEncoding)) {
-                if (listener != null) listener.onLog("[ERROR] Transfer-Encoding: chunked desteklenmiyor");
-                sendErrorResponse(output, 501, "Transfer-Encoding: chunked desteklenmiyor");
-                return;
-            }
-            
-            // Boundary'yi bul
-            String boundary = null;
-            if (contentType != null && contentType.toLowerCase().startsWith("multipart/form-data")) {
-                int boundaryIndex = contentType.indexOf("boundary=");
-                if (boundaryIndex != -1) {
-                    String boundaryValue = contentType.substring(boundaryIndex + 9);
-                    // Boundary değeri tırnak içinde olabilir
-                    if (boundaryValue.startsWith("\"") && boundaryValue.endsWith("\"")) {
-                        boundaryValue = boundaryValue.substring(1, boundaryValue.length() - 1);
-                    }
-                    boundary = "--" + boundaryValue;
-                }
-            }
-            
-            if (boundary == null) {
-                if (listener != null) listener.onLog("[ERROR] Boundary bulunamadı");
-                sendErrorResponse(output, 400, "Boundary bulunamadı");
-                return;
-            }
-            
-            if (listener != null) listener.onLog("Boundary: " + boundary);
-
-            // Body'yi Content-Length kadar oku (deterministik yaklaşım)
-            BufferedInputStream bufferedInput = new BufferedInputStream(input, 65536);
-            byte[] bodyBytes = new byte[(int) contentLength];
-            long totalBodyRead = 0;
-            
-            // Content-Length kadar oku
-            while (totalBodyRead < contentLength) {
-                int bytesRead = bufferedInput.read(bodyBytes, (int) totalBodyRead, 
-                                                   (int) (contentLength - totalBodyRead));
-                if (bytesRead == -1) {
-                    if (listener != null) listener.onLog("[ERROR] Erken EOF: " + totalBodyRead + " / " + contentLength + " byte okundu");
-                    sendErrorResponse(output, 400, "Body eksik: " + totalBodyRead + " / " + contentLength + " byte okundu");
-                    return;
-                }
-                totalBodyRead += bytesRead;
-            }
-            
-            if (listener != null) listener.onLog("Body okundu: " + totalBodyRead + " bytes (Content-Length: " + contentLength + ")");
-            
-            // Body içinde ilk part'ın header'ını bul (\r\n\r\n ile biten)
-            byte[] doubleCrlf = "\r\n\r\n".getBytes(StandardCharsets.UTF_8);
-            int doubleCrlfPos = -1;
-            
-            for (int i = 0; i <= bodyBytes.length - doubleCrlf.length; i++) {
-                boolean matches = true;
-                for (int j = 0; j < doubleCrlf.length; j++) {
-                    if (bodyBytes[i + j] != doubleCrlf[j]) {
-                        matches = false;
-                        break;
-                    }
-                }
-                if (matches) {
-                    doubleCrlfPos = i + doubleCrlf.length;
-                    break;
-                }
-            }
-            
-            if (doubleCrlfPos == -1) {
-                if (listener != null) listener.onLog("[ERROR] Body içinde \\r\\n\\r\\n bulunamadı");
-                sendErrorResponse(output, 400, "Multipart header bulunamadı");
-                return;
-            }
-            
-            // Filename'i header'dan çıkar
-            String partHeader = new String(bodyBytes, 0, doubleCrlfPos, StandardCharsets.UTF_8);
-            String fileName = null;
-            
-            int filenameIndex = partHeader.indexOf("filename=\"");
-            if (filenameIndex == -1) {
-                filenameIndex = partHeader.indexOf("filename=");
-                if (filenameIndex != -1) {
-                    // Tırnaksız filename
-                    int filenameStart = filenameIndex + 9;
-                    int filenameEnd = partHeader.indexOf("\r\n", filenameStart);
-                    if (filenameEnd == -1) filenameEnd = partHeader.length();
-                    fileName = partHeader.substring(filenameStart, filenameEnd).trim();
-                }
-            } else {
-                // Tırnaklı filename
-                int filenameStart = filenameIndex + 10;
-                int filenameEnd = partHeader.indexOf("\"", filenameStart);
-                if (filenameEnd != -1) {
-                    fileName = partHeader.substring(filenameStart, filenameEnd);
-                }
-            }
-            
-            if (fileName == null || fileName.isEmpty()) {
-                if (listener != null) listener.onLog("[ERROR] Filename bulunamadı");
-                sendErrorResponse(output, 400, "Filename bulunamadı");
-                return;
-            }
-            
-            if (listener != null) listener.onLog("Filename: " + fileName);
-            
-            // Dosya içeriğinin başlangıcı: doubleCrlfPos
-            int fileDataStart = doubleCrlfPos;
-            
-            // Boundary'yi body içinde ara (\r\n--boundary formatında)
-            byte[] boundaryBytes = ("\r\n" + boundary).getBytes(StandardCharsets.UTF_8);
-            int boundaryPos = -1;
-            
-            for (int i = fileDataStart; i <= bodyBytes.length - boundaryBytes.length; i++) {
-                boolean matches = true;
-                for (int j = 0; j < boundaryBytes.length; j++) {
-                    if (bodyBytes[i + j] != boundaryBytes[j]) {
-                        matches = false;
-                        break;
-                    }
-                }
-                if (matches) {
-                    boundaryPos = i;
-                    break;
-                }
-            }
-            
-            if (boundaryPos == -1) {
-                if (listener != null) listener.onLog("[ERROR] Boundary body içinde bulunamadı");
-                sendErrorResponse(output, 400, "Boundary bulunamadı");
-                return;
-            }
-            
-            // Dosya içeriğinin sonu: boundaryPos (boundary'den önceki \r\n dosyaya dahil değil)
-            // boundaryPos'tan önceki 2 byte \r\n olabilir, kontrol et
-            int fileDataEnd = boundaryPos;
-            if (fileDataEnd >= 2 && 
-                bodyBytes[fileDataEnd - 2] == 0x0D && 
-                bodyBytes[fileDataEnd - 1] == 0x0A) {
-                fileDataEnd -= 2; // \r\n'yi çıkar
-            }
-            
-            int fileDataLength = fileDataEnd - fileDataStart;
-            
-            if (listener != null) {
-                listener.onLog("Dosya offset'leri - Başlangıç: " + fileDataStart + 
-                             ", Bitiş: " + fileDataEnd + 
-                             ", Uzunluk: " + fileDataLength + " bytes");
-            }
-            
-            if (fileDataLength <= 0) {
-                if (listener != null) listener.onLog("[ERROR] Dosya içeriği boş");
-                sendErrorResponse(output, 400, "Dosya içeriği boş");
-                return;
-            }
-            
-            // Download klasörüne kaydet
             File downloadDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS);
-            if (!downloadDir.exists()) {
-                boolean created = downloadDir.mkdirs();
-                if (!created && listener != null) {
-                    listener.onLog("[WARN] Download klasörü oluşturulamadı: " + downloadDir.getAbsolutePath());
-                }
-            }
-            
-            file = new File(downloadDir, fileName);
-            // Aynı isimde dosya varsa numara ekle
-            int counter = 1;
-            int dotIndex = fileName.lastIndexOf('.');
-            String nameWithoutExt = dotIndex > 0 ? fileName.substring(0, dotIndex) : fileName;
-            String ext = dotIndex > 0 ? fileName.substring(dotIndex) : "";
-            
-            while (file.exists()) {
-                fileName = nameWithoutExt + " (" + counter + ")" + ext;
-                file = new File(downloadDir, fileName);
-                counter++;
-            }
-            
-            // Dosya içeriğini yaz
-            try {
-                fileOutputStream = new FileOutputStream(file);
-                fileOutputStream.write(bodyBytes, fileDataStart, fileDataLength);
-                fileOutputStream.flush();
-                fileOutputStream.close();
-                fileOutputStream = null;
-            } catch (Exception e) {
-                if (fileOutputStream != null) {
-                    try {
-                        fileOutputStream.close();
-                    } catch (Exception ex) {
-                        // Ignore
-                    }
-                }
-                if (listener != null) listener.onLog("[ERROR] Dosya yazma hatası: " + e.getMessage());
-                sendErrorResponse(output, 500, "Dosya yazma hatası: " + e.getMessage());
-                return;
-            }
-            
-            // Dosya yazımını doğrula
-            long actualFileSize = file.length();
-            if (actualFileSize != fileDataLength) {
-                if (listener != null) {
-                    listener.onLog("[ERROR] Dosya boyutu uyuşmazlığı - Beklenen: " + fileDataLength + 
-                                 ", Gerçek: " + actualFileSize);
-                }
-                file.delete();
-                sendErrorResponse(output, 500, "Dosya yazma hatası: Boyut uyuşmazlığı");
-                return;
-            }
-            
-            if (listener != null) {
-                listener.onLog("Dosya kaydedildi: " + file.getAbsolutePath() + 
-                             " (Content-Length: " + contentLength + 
-                             ", Body okunan: " + totalBodyRead + 
-                             ", Dosya yazılan: " + fileDataLength + 
-                             ", Final file.length(): " + actualFileSize + ")");
-            }
-            
-            // Zorunlu doğrulamalar
-            // 1. Okunan byte sayısı kontrolü
-            if (totalBodyRead != contentLength) {
-                if (listener != null) {
-                    listener.onLog("[ERROR] Okunan byte != Content-Length: " + totalBodyRead + " != " + contentLength);
-                }
-                file.delete();
-                sendErrorResponse(output, 500, "Body okuma hatası");
-                return;
-            }
-            
-            // 2. APK için hızlı kontrol
-            if (fileName.toLowerCase().endsWith(".apk")) {
-                try {
-                    if (actualFileSize < 2) {
-                        if (listener != null) listener.onLog("[ERROR] APK dosyası çok küçük: " + actualFileSize + " bytes");
-                        file.delete();
-                        sendErrorResponse(output, 500, "APK dosyası bozuk: Dosya çok küçük");
-                        return;
-                    }
-                    
-                    // İlk 2 byte "PK" olmalı
-                    java.io.RandomAccessFile raf = new java.io.RandomAccessFile(file, "r");
-                    byte[] apkHeader = new byte[2];
-                    raf.read(apkHeader);
-                    raf.close();
-                    
-                    if (apkHeader[0] != 0x50 || apkHeader[1] != 0x4B) {
-                        if (listener != null) {
-                            listener.onLog("[ERROR] APK ZIP signature yok - İlk 2 byte: " + 
-                                        String.format("%02X %02X", apkHeader[0], apkHeader[1]) + 
-                                        ", Dosya boyutu: " + actualFileSize);
-                        }
-                        file.delete();
-                        sendErrorResponse(output, 500, "APK dosyası bozuk: Geçersiz ZIP signature");
-                        return;
-                    }
-                    
-                    if (listener != null) {
-                        listener.onLog("APK doğrulama başarılı: ZIP signature geçerli (" + actualFileSize + " bytes)");
-                    }
-                } catch (Exception e) {
-                    if (listener != null) listener.onLog("[ERROR] APK doğrulama hatası: " + e.getMessage());
-                    file.delete();
-                    sendErrorResponse(output, 500, "APK doğrulama hatası");
-                    return;
-                }
-            }
-            
-            // Başarı yanıtı gönder
-            String successResponse = "Dosya başarıyla yüklendi: " + fileName;
-            String httpResponse = "HTTP/1.1 200 OK\r\n" +
-                    "Content-Type: text/plain; charset=UTF-8\r\n" +
-                    "Content-Length: " + successResponse.getBytes(StandardCharsets.UTF_8).length + "\r\n" +
-                    "Connection: close\r\n\r\n" +
-                    successResponse;
-            output.write(httpResponse.getBytes(StandardCharsets.UTF_8));
+            File file = com.mapcontrol.http.MultipartUpload.receive(input, length,
+                    request.header("content-type"), downloadDir);
+            if (listener != null) listener.onLog("Dosya kaydedildi: " + file.getName() + " (" + file.length() + " bytes)");
+            String body = "Dosya başarıyla yüklendi: " + file.getName();
+            byte[] data = body.getBytes(StandardCharsets.UTF_8);
+            output.write(("HTTP/1.1 200 OK\r\nContent-Type: text/plain; charset=UTF-8\r\n"
+                    + "Cache-Control: no-store\r\nX-Content-Type-Options: nosniff\r\n"
+                    + "Content-Length: " + data.length + "\r\nConnection: close\r\n\r\n").getBytes(StandardCharsets.UTF_8));
+            output.write(data);
             output.flush();
-
-        } catch (Exception e) {
-            if (listener != null) listener.onLog("[ERROR] Dosya yükleme hatası: " + e.getMessage());
-            e.printStackTrace();
-            if (file != null && file.exists()) {
-                file.delete(); // Hatalı dosyayı sil
-            }
-            sendErrorResponse(output, 500, "Dosya yükleme hatası: " + e.getMessage());
-        } finally {
-            if (fileOutputStream != null) {
-                try {
-                    fileOutputStream.close();
-                } catch (IOException e) {
-                    if (listener != null) listener.onLog("[ERROR] FileOutputStream kapatma hatası: " + e.getMessage());
-                }
-            }
-        }
-    }
-
-    private void sendOptionsResponse(OutputStream output) {
-        try {
-            String r = "HTTP/1.1 204 No Content\r\n" +
-                    "Access-Control-Allow-Origin: *\r\n" +
-                    "Access-Control-Allow-Methods: GET, POST, DELETE, HEAD, OPTIONS\r\n" +
-                    "Access-Control-Allow-Headers: Content-Type\r\n" +
-                    "Access-Control-Max-Age: 86400\r\n" +
-                    "Connection: close\r\n\r\n";
-            output.write(r.getBytes(StandardCharsets.UTF_8));
-            output.flush();
-        } catch (IOException e) {
-            if (listener != null) listener.onLog("[ERROR] OPTIONS yanıtı: " + e.getMessage());
+        } catch (IOException error) {
+            sendErrorResponse(output, 400, error.getMessage());
         }
     }
 
@@ -858,7 +429,7 @@ public class WebServerManager {
     private void sendJson200(OutputStream output, String json) throws IOException {
         String http = "HTTP/1.1 200 OK\r\n" +
                 "Content-Type: application/json; charset=UTF-8\r\n" +
-                "Access-Control-Allow-Origin: *\r\n" +
+                "Cache-Control: no-store\r\nReferrer-Policy: no-referrer\r\nX-Content-Type-Options: nosniff\r\n" +
                 "Content-Length: " + json.getBytes(StandardCharsets.UTF_8).length + "\r\n" +
                 "Connection: close\r\n\r\n" +
                 json;
@@ -873,7 +444,7 @@ public class WebServerManager {
         try {
             String response = "HTTP/1.1 " + statusCode + " " + getStatusText(statusCode) + "\r\n" +
                     "Content-Type: text/plain; charset=UTF-8\r\n" +
-                    "Access-Control-Allow-Origin: *\r\n" +
+                    "Cache-Control: no-store\r\nReferrer-Policy: no-referrer\r\nX-Content-Type-Options: nosniff\r\n" +
                     "Content-Length: " + message.getBytes(StandardCharsets.UTF_8).length + "\r\n" +
                     "Connection: close\r\n\r\n" +
                     message;
@@ -917,7 +488,7 @@ public class WebServerManager {
             String jsonResponse = response.toString();
             String httpResponse = "HTTP/1.1 200 OK\r\n" +
                     "Content-Type: application/json; charset=UTF-8\r\n" +
-                    "Access-Control-Allow-Origin: *\r\n" +
+                    "Cache-Control: no-store\r\nReferrer-Policy: no-referrer\r\nX-Content-Type-Options: nosniff\r\n" +
                     "Content-Length: " + jsonResponse.getBytes(StandardCharsets.UTF_8).length + "\r\n" +
                     "Connection: close\r\n\r\n" +
                     jsonResponse;
@@ -960,7 +531,7 @@ public class WebServerManager {
             }
             
             File downloadDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS);
-            File file = new File(downloadDir, fileName);
+            File file = com.mapcontrol.http.UploadFiles.resolve(downloadDir, fileName);
             
             if (!file.exists()) {
                 sendErrorResponse(output, 404, "Dosya bulunamadı");
@@ -979,7 +550,7 @@ public class WebServerManager {
                 String successResponse = "Dosya başarıyla silindi: " + fileName;
                 String httpResponse = "HTTP/1.1 200 OK\r\n" +
                         "Content-Type: text/plain; charset=UTF-8\r\n" +
-                        "Access-Control-Allow-Origin: *\r\n" +
+                        "Cache-Control: no-store\r\nReferrer-Policy: no-referrer\r\nX-Content-Type-Options: nosniff\r\n" +
                         "Content-Length: " + successResponse.getBytes(StandardCharsets.UTF_8).length + "\r\n" +
                         "Connection: close\r\n\r\n" +
                         successResponse;
@@ -1031,7 +602,7 @@ public class WebServerManager {
             }
             
             File downloadDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS);
-            File file = new File(downloadDir, fileName);
+            File file = com.mapcontrol.http.UploadFiles.resolve(downloadDir, fileName);
             
             if (!file.exists()) {
                 sendErrorResponse(output, 404, "Dosya bulunamadı");
@@ -1051,7 +622,7 @@ public class WebServerManager {
                 String successResponse = "APK kurulum başlatıldı: " + fileName;
                 String httpResponse = "HTTP/1.1 200 OK\r\n" +
                         "Content-Type: text/plain; charset=UTF-8\r\n" +
-                        "Access-Control-Allow-Origin: *\r\n" +
+                        "Cache-Control: no-store\r\nReferrer-Policy: no-referrer\r\nX-Content-Type-Options: nosniff\r\n" +
                         "Content-Length: " + successResponse.getBytes(StandardCharsets.UTF_8).length + "\r\n" +
                         "Connection: close\r\n\r\n" +
                         successResponse;
@@ -1104,7 +675,7 @@ public class WebServerManager {
             String jsonResponse = response.toString();
             String httpResponse = "HTTP/1.1 200 OK\r\n" +
                     "Content-Type: application/json; charset=UTF-8\r\n" +
-                    "Access-Control-Allow-Origin: *\r\n" +
+                    "Cache-Control: no-store\r\nReferrer-Policy: no-referrer\r\nX-Content-Type-Options: nosniff\r\n" +
                     "Content-Length: " + jsonResponse.getBytes(StandardCharsets.UTF_8).length + "\r\n" +
                     "Connection: close\r\n\r\n" +
                     jsonResponse;
@@ -1167,7 +738,7 @@ public class WebServerManager {
                 String successResponse = "Uygulama silme başlatıldı: " + packageName;
                 String httpResponse = "HTTP/1.1 200 OK\r\n" +
                         "Content-Type: text/plain; charset=UTF-8\r\n" +
-                        "Access-Control-Allow-Origin: *\r\n" +
+                        "Cache-Control: no-store\r\nReferrer-Policy: no-referrer\r\nX-Content-Type-Options: nosniff\r\n" +
                         "Content-Length: " + successResponse.getBytes(StandardCharsets.UTF_8).length + "\r\n" +
                         "Connection: close\r\n\r\n" +
                         successResponse;
@@ -1223,7 +794,7 @@ public class WebServerManager {
                 String successResponse = "Uygulama açma başlatıldı: " + packageName;
                 String httpResponse = "HTTP/1.1 200 OK\r\n" +
                         "Content-Type: text/plain; charset=UTF-8\r\n" +
-                        "Access-Control-Allow-Origin: *\r\n" +
+                        "Cache-Control: no-store\r\nReferrer-Policy: no-referrer\r\nX-Content-Type-Options: nosniff\r\n" +
                         "Content-Length: " + successResponse.getBytes(StandardCharsets.UTF_8).length + "\r\n" +
                         "Connection: close\r\n\r\n" +
                         successResponse;
@@ -1296,6 +867,9 @@ public class WebServerManager {
     private String getStatusText(int statusCode) {
         switch (statusCode) {
             case 400: return "Bad Request";
+            case 401: return "Unauthorized";
+            case 403: return "Forbidden";
+            case 413: return "Payload Too Large";
             case 404: return "Not Found";
             case 405: return "Method Not Allowed";
             case 500: return "Internal Server Error";
@@ -1346,4 +920,3 @@ public class WebServerManager {
         return serverPort;
     }
 }
-

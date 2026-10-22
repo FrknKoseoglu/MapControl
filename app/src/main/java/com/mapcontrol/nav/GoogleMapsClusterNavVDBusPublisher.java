@@ -87,32 +87,8 @@ public final class GoogleMapsClusterNavVDBusPublisher {
         }
     }
 
-    private static int parseDurationMinutes(@Nullable String durationLabel) {
-        if (durationLabel == null) {
-            return 0;
-        }
-        String lower = durationLabel.toLowerCase();
-        int minutes = 0;
-        try {
-            if (lower.contains("hr") || lower.contains("sa")) {
-                String[] tokens = lower.replace("dk", "min").split("\\s+");
-                for (int i = 0; i < tokens.length; i++) {
-                    if (tokens[i].contains("hr") || tokens[i].contains("sa")) {
-                        minutes += (int) (Double.parseDouble(tokens[i - 1].replace(',', '.')) * 60);
-                    }
-                    if (tokens[i].contains("min") || tokens[i].equals("dk")) {
-                        minutes += (int) Double.parseDouble(tokens[i - 1].replace(',', '.'));
-                    }
-                }
-                return minutes;
-            }
-            if (lower.contains("min") || lower.contains("dk")) {
-                String num = lower.split("(min|dk)", 2)[0].trim().replace(',', '.');
-                return (int) Double.parseDouble(num);
-            }
-        } catch (Exception ignored) {
-        }
-        return 0;
+    static int parseDurationMinutes(@Nullable String durationLabel) {
+        return NavigationQuantities.durationMinutes(durationLabel);
     }
 
     private static String firstNonEmpty(@Nullable String primary, String fallback) {

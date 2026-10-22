@@ -10,7 +10,6 @@ import android.hardware.camera2.params.StreamConfigurationMap;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.HandlerThread;
-import android.os.Process;
 import android.util.Size;
 import android.content.Intent;
 import android.view.Surface;
@@ -27,10 +26,6 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
-import java.util.concurrent.LinkedBlockingQueue;
-import java.util.concurrent.ThreadFactory;
-import java.util.concurrent.ThreadPoolExecutor;
-import java.util.concurrent.TimeUnit;
 import com.mapcontrol.R;
 
 public class CameraActivity extends AppCompatActivity implements TextureView.SurfaceTextureListener {
@@ -55,7 +50,11 @@ public class CameraActivity extends AppCompatActivity implements TextureView.Sur
     private int mNumCameraDevices;
     private Size outputSize;
     private final List<String> mCameraDevices = new ArrayList();
-    private final List<CameraBean> mCameraBeans = new ArrayList();
+    private final List<CameraBean> mCameraBeans = new java.util.concurrent.CopyOnWriteArrayList<>();
+    private volatile boolean destroyed;
+    private volatile boolean cameraScreenVisible;
+    private final java.util.Set<String> openingCameras = java.util.concurrent.ConcurrentHashMap.newKeySet();
+    private boolean cameraPermissionRequested;
     private boolean isTextureAvailable0 = false;
     private boolean isTextureAvailable1 = false;
     private boolean isTextureAvailable2 = false;
@@ -73,6 +72,7 @@ public class CameraActivity extends AppCompatActivity implements TextureView.Sur
         @Override
         public void onCameraAvailable(@NonNull String str) {
             super.onCameraAvailable(str);
+            if (destroyed) return;
             CameraActivity.this.log("[INFO] Kamera kullanılabilir: " + str);
             try {
                 if (str.equals("0")) {
@@ -129,6 +129,12 @@ public class CameraActivity extends AppCompatActivity implements TextureView.Sur
 
         @Override
         public void onOpened(@NonNull CameraDevice cameraDevice) {
+            synchronized (CameraActivity.this) {
+            if (destroyed || !cameraScreenVisible) {
+                openingCameras.remove(cameraDevice.getId());
+                cameraDevice.close();
+                return;
+            }
             CameraActivity.this.log("[INFO] Kamera açıldı: " + cameraDevice.getId());
             try {
                 CameraBean cameraBean = new CameraBean(this.cameraId, cameraDevice, new CameraBean.LogListener() {
@@ -139,14 +145,23 @@ public class CameraActivity extends AppCompatActivity implements TextureView.Sur
                 });
                 CameraActivity.this.mCameraBeans.add(cameraBean);
                 CameraActivity.this.createCameraPreview(cameraBean);
-            } catch (CameraAccessException e) {
+            } catch (CameraAccessException | RuntimeException e) {
                 CameraActivity.this.log("[ERROR] Kamera önizleme oluşturma hatası: " + e.getMessage());
+                closeCamera(cameraDevice);
+            }
             }
         }
     }
 
     private void closeCamera(CameraDevice cameraDevice) {
         if (cameraDevice != null) {
+            openingCameras.remove(cameraDevice.getId());
+            for (CameraBean bean : mCameraBeans) {
+                if (bean.getCameraDevice() == cameraDevice) {
+                    bean.release();
+                    mCameraBeans.remove(bean);
+                }
+            }
             cameraDevice.close();
             log("[INFO] Kamera kapatıldı: " + cameraDevice.getId());
         }
@@ -177,27 +192,35 @@ public class CameraActivity extends AppCompatActivity implements TextureView.Sur
         }
         CameraDevice cameraDevice = cameraBean.getCameraDevice();
         SurfaceTexture surfaceTexture = textureView.getSurfaceTexture();
-        surfaceTexture.setDefaultBufferSize(this.outputSize.getWidth(), this.outputSize.getHeight());
+        if (destroyed || cameraDevice == null || surfaceTexture == null) {
+            cameraBean.release();
+            return;
+        }
+        StreamConfigurationMap outputs = cameraManager.getCameraCharacteristics(cameraDevice.getId())
+                .get(CameraCharacteristics.SCALER_STREAM_CONFIGURATION_MAP);
+        Size[] sizes = outputs == null ? null : outputs.getOutputSizes(SurfaceTexture.class);
+        if (sizes == null || sizes.length == 0) { closeCamera(cameraDevice); return; }
+        surfaceTexture.setDefaultBufferSize(sizes[0].getWidth(), sizes[0].getHeight());
         Surface surface = new Surface(surfaceTexture);
+        cameraBean.setPreviewSurface(surface);
         try {
-            cameraBean.setCaptureRequestBuilder(cameraDevice.createCaptureRequest(1));
+            cameraBean.setCaptureRequestBuilder(cameraDevice.createCaptureRequest(CameraDevice.TEMPLATE_PREVIEW));
         } catch (CameraAccessException e2) {
-            e2.printStackTrace();
+            closeCamera(cameraDevice);
+            return;
         }
         cameraBean.getCaptureRequestBuilder().addTarget(surface);
         try {
-            cameraDevice.createCaptureSession(new SessionConfiguration(0, Collections.singletonList(new OutputConfiguration(surface)), new ThreadPoolExecutor(2, 4, 2L, TimeUnit.SECONDS, new LinkedBlockingQueue(), new ThreadFactory() {
-                @Override
-                public final Thread newThread(Runnable runnable) {
-                    return CameraActivity.lambda$createCameraPreview$1(runnable);
-                }
-            }), cameraBean.getCaptureStateCallback()));
+            cameraDevice.createCaptureSession(new SessionConfiguration(SessionConfiguration.SESSION_REGULAR,
+                    Collections.singletonList(new OutputConfiguration(surface)), command -> handler.post(command),
+                    cameraBean.getCaptureStateCallback()));
         } catch (CameraAccessException e3) {
-            e3.printStackTrace();
+            closeCamera(cameraDevice);
         }
     }
 
     private void initCamera(String str) throws CameraAccessException {
+        if (destroyed || !cameraScreenVisible) return;
         String str2;
         str.hashCode();
         switch (str) {
@@ -225,24 +248,30 @@ public class CameraActivity extends AppCompatActivity implements TextureView.Sur
                 break;
         }
         log("[DEBUG] Kamera başlatılıyor: cameraId = " + str2);
-        if (ContextCompat.checkSelfPermission(this, "android.permission.CAMERA") != 0 || ContextCompat.checkSelfPermission(this, "android.permission.WRITE_EXTERNAL_STORAGE") != 0 || ContextCompat.checkSelfPermission(this, "android.permission.RECORD_AUDIO") != 0) {
-            requestPermissions(new String[]{"android.permission.CAMERA", "android.permission.WRITE_EXTERNAL_STORAGE", "android.permission.RECORD_AUDIO"}, 2);
+        if (ContextCompat.checkSelfPermission(this, "android.permission.CAMERA") != 0) {
+            runOnUiThread(() -> {
+                if (!destroyed && !cameraPermissionRequested) {
+                    cameraPermissionRequested = true;
+                    requestPermissions(new String[]{"android.permission.CAMERA"}, 2);
+                }
+            });
             return;
         }
         try {
             this.outputSize = ((StreamConfigurationMap) this.cameraManager.getCameraCharacteristics(str2).get(CameraCharacteristics.SCALER_STREAM_CONFIGURATION_MAP)).getOutputSizes(SurfaceTexture.class)[0];
             log("[DEBUG] Kamera çıktı boyutu: " + this.outputSize.toString());
             if ((str2.equals("0") && this.isTextureAvailable0 && this.isCameraAvailable0) || ((str2.equals("1") && this.isTextureAvailable1 && this.isCameraAvailable1) || ((str2.equals("2") && this.isTextureAvailable2 && this.isCameraAvailable2) || (str2.equals("3") && this.isTextureAvailable3 && this.isCameraAvailable3)))) {
-                this.cameraManager.openCamera(str2, new CameraStateCallback(str), this.handler);
+                if (openingCameras.add(str2)) this.cameraManager.openCamera(str2, new CameraStateCallback(str), this.handler);
             }
         } catch (Exception e2) {
+            openingCameras.remove(str2);
             e2.printStackTrace();
         }
     }
 
     private void initCameraManager() throws CameraAccessException {
         if (this.cameraManager == null) {
-            this.cameraManager = (CameraManager) getApplicationContext().getSystemService("camera");
+            this.cameraManager = (CameraManager) getApplicationContext().getSystemService(CAMERA_SERVICE);
         }
         updateCameraDevices();
         this.cameraManager.registerAvailabilityCallback(this.availabilityCallback, this.handler);
@@ -254,24 +283,6 @@ public class CameraActivity extends AppCompatActivity implements TextureView.Sur
         this.handlerThread = handlerThread;
         handlerThread.start();
         this.handler = new Handler(this.handlerThread.getLooper());
-    }
-
-    private static void lambda$createCameraPreview$0(Runnable runnable) throws SecurityException, IllegalArgumentException {
-        Process.setThreadPriority(10);
-        runnable.run();
-    }
-
-    private static Thread lambda$createCameraPreview$1(final Runnable runnable) {
-        Thread thread = new Thread(new Runnable() {
-            @Override
-            public final void run() throws SecurityException, IllegalArgumentException {
-                CameraActivity.lambda$createCameraPreview$0(runnable);
-            }
-        });
-        if (thread.isDaemon()) {
-            thread.setDaemon(false);
-        }
-        return thread;
     }
 
     private void setTitleName(TextView textView, String str) {
@@ -346,17 +357,56 @@ public class CameraActivity extends AppCompatActivity implements TextureView.Sur
     }
 
     @Override
+    protected void onStart() {
+        super.onStart();
+        cameraScreenVisible = true;
+        retryCameras();
+    }
+
+    @Override
+    protected void onStop() {
+        synchronized (this) {
+            cameraScreenVisible = false;
+            for (CameraBean bean : mCameraBeans) bean.release();
+            mCameraBeans.clear();
+            openingCameras.clear();
+        }
+        super.onStop();
+    }
+
+    private void retryCameras() {
+        if (handler == null || destroyed) return;
+        handler.post(() -> {
+            for (String name : new String[]{"DMS", "OMS", "DVR", "AVM4"}) {
+                try { initCamera(name); } catch (CameraAccessException unavailable) {
+                    log("Kamera açılamadı: " + name);
+                }
+            }
+        });
+    }
+
+    @Override
     protected void onDestroy() {
+        synchronized (this) {
+            destroyed = true;
+            for (CameraBean bean : mCameraBeans) bean.release();
+            mCameraBeans.clear();
+        }
         super.onDestroy();
         if (cameraManager != null) {
             cameraManager.unregisterAvailabilityCallback(this.availabilityCallback);
         }
-        for (int i2 = 0; i2 < this.mCameraBeans.size(); i2++) {
-            closeCamera(this.mCameraBeans.get(i2).getCameraDevice());
-            this.mCameraBeans.get(i2).setCameraDevice(null);
-        }
         if (this.handlerThread != null) {
-            this.handlerThread.quit();
+            this.handlerThread.quitSafely();
+        }
+    }
+
+    @Override
+    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+        if (requestCode == 2 && grantResults.length > 0
+                && grantResults[0] == android.content.pm.PackageManager.PERMISSION_GRANTED && !destroyed) {
+            retryCameras();
         }
     }
 
@@ -387,6 +437,7 @@ public class CameraActivity extends AppCompatActivity implements TextureView.Sur
      */
     private void log(String msg) {
         Intent intent = new Intent(ACTION_LOG);
+        intent.setPackage(getPackageName());
         intent.putExtra(EXTRA_LOG_MESSAGE, msg);
         sendBroadcast(intent);
     }
@@ -403,7 +454,14 @@ public class CameraActivity extends AppCompatActivity implements TextureView.Sur
             // 4. kamera için
             this.isTextureAvailable3 = false;
         }
-        return false;
+        for (CameraBean bean : mCameraBeans) {
+            String name = bean.getCameraName();
+            TextureView view = ("DMS".equals(name) || "AVM1".equals(name)) ? tvSurfaceCamera1
+                    : ("OMS".equals(name) || "AVM2".equals(name)) ? tvSurfaceCamera2
+                    : ("DVR".equals(name) || "AVM3".equals(name)) ? tvSurfaceCamera3 : tvSurfaceCamera4;
+            if (view.getSurfaceTexture() == surfaceTexture) closeCamera(bean.getCameraDevice());
+        }
+        return true;
     }
 
     @Override

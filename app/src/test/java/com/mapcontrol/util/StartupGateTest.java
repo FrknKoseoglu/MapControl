@@ -7,6 +7,42 @@ import static org.junit.Assert.assertTrue;
 
 public class StartupGateTest {
 
+    @Test public void strWakeRearmsUiAfterConfirmedOffWhenEnabled() {
+        for (int mode : new int[]{1, 2}) {
+            StartupGate gate = StartupGate.decide(0, mode, false, true, false, true);
+            assertTrue(gate.rearmUi);
+            assertTrue(gate.launchUi);
+        }
+    }
+
+    @Test public void strWakeRespectsDisabledAutoLaunch() {
+        StartupGate gate = StartupGate.decide(0, 1, false, true, false, false);
+        assertFalse(gate.rearmUi);
+        assertFalse(gate.launchUi);
+        assertTrue(gate.showWelcome);
+    }
+
+    @Test public void serviceRestartWhileOnDoesNotStealTheForeground() {
+        StartupGate gate = StartupGate.decide(-1, 2, true, true, false, true);
+        assertFalse(gate.rearmUi);
+        assertFalse(gate.launchUi);
+    }
+
+    @Test public void standbyToOnDoesNotRearmAfterAcknowledgement() {
+        StartupGate gate = StartupGate.decide(1, 2, true, true, false, true);
+        assertFalse(gate.rearmUi);
+        assertFalse(gate.launchUi);
+    }
+
+    @Test public void invalidSamplesDoNotClearOrLaunchAnything() {
+        for (int mode : new int[]{-1, 3}) {
+            StartupGate gate = StartupGate.decide(0, mode, false, true, true, true);
+            assertFalse(gate.clearWelcome);
+            assertFalse(gate.rearmUi);
+            assertFalse(gate.launchUi);
+        }
+    }
+
     @Test
     public void powerOffClearsWelcomeAndDoesNotLaunch() {
         StartupGate gate = StartupGate.decide(-1, 0, false, true, true);
@@ -48,6 +84,7 @@ public class StartupGateTest {
     public void designOffDoesNotShow() {
         StartupGate gate = StartupGate.decide(0, 1, false, false, false);
         assertFalse(gate.showWelcome);
+        assertTrue(gate.playWelcome);
     }
 
     @Test

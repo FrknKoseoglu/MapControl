@@ -2,7 +2,6 @@ package com.mapcontrol.nav;
 
 import androidx.annotation.Nullable;
 
-import java.util.Locale;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -93,6 +92,15 @@ public final class GoogleMapsNavSnapshot {
         return splitTitleDistancePart(distanceTitle);
     }
 
+    /** Manevra mesafesini VDBus için metreye çevirir; bilinmeyen mesafe sıfırdır. */
+    public int segmentRemainMeters() {
+        String distance = formatManeuverDistanceLine();
+        if (!active || distance == null) {
+            return 0;
+        }
+        return NavigationQuantities.segmentMeters(distance);
+    }
+
     /** Manevra yönü: başlıktaki talimat veya hedef satırı. */
     @Nullable
     public String formatManeuverDirectionLine() {
@@ -149,25 +157,24 @@ public final class GoogleMapsNavSnapshot {
         if (routeSummary == null || routeSummary.isEmpty()) {
             return null;
         }
-        String[] parts = routeSummary.split(" · ");
+        String[] parts = routeSummary.split("\\s*[·•|]\\s*");
         for (String part : parts) {
             String trimmed = part.trim();
             if (trimmed.isEmpty()) {
                 continue;
             }
-            String lower = trimmed.toLowerCase(Locale.US);
-            boolean isDistance = lower.contains(" km") || lower.contains(" mi") || lower.contains(" m ");
-            boolean isDuration = lower.contains("min") || lower.contains("dk")
-                    || lower.contains("hr") || lower.contains("sa");
+            String distance = NavigationQuantities.distanceLabel(trimmed);
+            String duration = NavigationQuantities.durationLabel(trimmed);
             boolean isArrival = ARRIVAL_TIME.matcher(trimmed).find();
-            if (wantDistance && isDistance && !isDuration) {
-                return trimmed;
+            if (wantDistance && distance != null) {
+                return distance;
             }
-            if (wantDuration && isDuration) {
-                return trimmed;
+            if (wantDuration && duration != null) {
+                return duration;
             }
             if (wantArrival && isArrival) {
-                return trimmed;
+                Matcher arrival = ARRIVAL_TIME.matcher(trimmed);
+                if (arrival.find()) return arrival.group();
             }
         }
         if (wantArrival) {

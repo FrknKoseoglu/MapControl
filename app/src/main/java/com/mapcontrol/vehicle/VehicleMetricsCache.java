@@ -17,7 +17,7 @@ public final class VehicleMetricsCache {
 
     private final Bundle data = new Bundle();
 
-    boolean update(int module, int itemId, int[] rawValues) {
+    synchronized boolean update(int module, int itemId, int[] rawValues) {
         int combined = combineRaw(rawValues);
         int previous = data.getInt(key(module, itemId), INVALID);
         if (previous == combined) {
@@ -27,20 +27,20 @@ public final class VehicleMetricsCache {
         return true;
     }
 
-    void put(int module, int itemId, int[] rawValues) {
+    synchronized void put(int module, int itemId, int[] rawValues) {
         data.putInt(key(module, itemId), combineRaw(rawValues));
     }
 
     /** ReadOnly modülü için kısayol. */
-    int getCombined(int itemId) {
+    synchronized int getCombined(int itemId) {
         return getCombined(MODULE_READONLY, itemId);
     }
 
-    int getCombined(int module, int itemId) {
+    synchronized int getCombined(int module, int itemId) {
         return data.getInt(key(module, itemId), INVALID);
     }
 
-    void clear() {
+    synchronized void clear() {
         data.clear();
     }
 

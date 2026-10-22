@@ -32,7 +32,7 @@ public class ProfileApiService {
     }
     
     public ProfileApiService(Context context) {
-        this.context = context;
+        this.context = context.getApplicationContext();
         this.mainHandler = new Handler(Looper.getMainLooper());
     }
     
@@ -95,9 +95,12 @@ public class ProfileApiService {
      */
     public void sendVerificationCode(String email, ApiCallback callback) {
         new Thread(() -> {
+            HttpURLConnection conn = null;
             try {
                 URL url = new URL(API_BASE_URL + "/api/auth/send-code");
-                HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+                conn = (HttpURLConnection) url.openConnection();
+                conn.setConnectTimeout(10000);
+                conn.setReadTimeout(15000);
                 conn.setRequestMethod("POST");
                 conn.setRequestProperty("Content-Type", "application/json");
                 conn.setDoOutput(true);
@@ -115,14 +118,10 @@ public class ProfileApiService {
                 if (responseCode >= 200 && responseCode < 300) {
                     reader = new BufferedReader(new InputStreamReader(conn.getInputStream(), StandardCharsets.UTF_8));
                 } else {
-                    reader = new BufferedReader(new InputStreamReader(conn.getErrorStream(), StandardCharsets.UTF_8));
+                    reader = new BufferedReader(new InputStreamReader(errorStream(conn), StandardCharsets.UTF_8));
                 }
                 
-                StringBuilder response = new StringBuilder();
-                String line;
-                while ((line = reader.readLine()) != null) {
-                    response.append(line);
-                }
+                String response = readResponse(reader);
                 reader.close();
                 conn.disconnect();
                 
@@ -137,6 +136,8 @@ public class ProfileApiService {
                 }
             } catch (Exception e) {
                 mainHandler.post(() -> callback.onError("Hata: " + e.getMessage()));
+            } finally {
+                if (conn != null) conn.disconnect();
             }
         }).start();
     }
@@ -146,9 +147,12 @@ public class ProfileApiService {
      */
     public void verifyCode(String email, String code, ApiCallback callback) {
         new Thread(() -> {
+            HttpURLConnection conn = null;
             try {
                 URL url = new URL(API_BASE_URL + "/api/auth/verify-code");
-                HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+                conn = (HttpURLConnection) url.openConnection();
+                conn.setConnectTimeout(10000);
+                conn.setReadTimeout(15000);
                 conn.setRequestMethod("POST");
                 conn.setRequestProperty("Content-Type", "application/json");
                 conn.setDoOutput(true);
@@ -167,14 +171,10 @@ public class ProfileApiService {
                 if (responseCode >= 200 && responseCode < 300) {
                     reader = new BufferedReader(new InputStreamReader(conn.getInputStream(), StandardCharsets.UTF_8));
                 } else {
-                    reader = new BufferedReader(new InputStreamReader(conn.getErrorStream(), StandardCharsets.UTF_8));
+                    reader = new BufferedReader(new InputStreamReader(errorStream(conn), StandardCharsets.UTF_8));
                 }
                 
-                StringBuilder response = new StringBuilder();
-                String line;
-                while ((line = reader.readLine()) != null) {
-                    response.append(line);
-                }
+                String response = readResponse(reader);
                 reader.close();
                 conn.disconnect();
                 
@@ -194,6 +194,8 @@ public class ProfileApiService {
                 }
             } catch (Exception e) {
                 mainHandler.post(() -> callback.onError("Hata: " + e.getMessage()));
+            } finally {
+                if (conn != null) conn.disconnect();
             }
         }).start();
     }
@@ -209,9 +211,12 @@ public class ProfileApiService {
         }
         
         new Thread(() -> {
+            HttpURLConnection conn = null;
             try {
                 URL url = new URL(API_BASE_URL + "/api/userdata/save");
-                HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+                conn = (HttpURLConnection) url.openConnection();
+                conn.setConnectTimeout(10000);
+                conn.setReadTimeout(15000);
                 conn.setRequestMethod("POST");
                 conn.setRequestProperty("Content-Type", "application/json");
                 conn.setRequestProperty("Authorization", "Bearer " + token);
@@ -230,14 +235,10 @@ public class ProfileApiService {
                 if (responseCode >= 200 && responseCode < 300) {
                     reader = new BufferedReader(new InputStreamReader(conn.getInputStream(), StandardCharsets.UTF_8));
                 } else {
-                    reader = new BufferedReader(new InputStreamReader(conn.getErrorStream(), StandardCharsets.UTF_8));
+                    reader = new BufferedReader(new InputStreamReader(errorStream(conn), StandardCharsets.UTF_8));
                 }
                 
-                StringBuilder response = new StringBuilder();
-                String line;
-                while ((line = reader.readLine()) != null) {
-                    response.append(line);
-                }
+                String response = readResponse(reader);
                 reader.close();
                 conn.disconnect();
                 
@@ -252,6 +253,8 @@ public class ProfileApiService {
                 }
             } catch (Exception e) {
                 mainHandler.post(() -> callback.onError("Hata: " + e.getMessage()));
+            } finally {
+                if (conn != null) conn.disconnect();
             }
         }).start();
     }
@@ -267,9 +270,12 @@ public class ProfileApiService {
         }
         
         new Thread(() -> {
+            HttpURLConnection conn = null;
             try {
                 URL url = new URL(API_BASE_URL + "/api/userdata/get");
-                HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+                conn = (HttpURLConnection) url.openConnection();
+                conn.setConnectTimeout(10000);
+                conn.setReadTimeout(15000);
                 conn.setRequestMethod("GET");
                 conn.setRequestProperty("Authorization", "Bearer " + token);
                 
@@ -278,14 +284,10 @@ public class ProfileApiService {
                 if (responseCode >= 200 && responseCode < 300) {
                     reader = new BufferedReader(new InputStreamReader(conn.getInputStream(), StandardCharsets.UTF_8));
                 } else {
-                    reader = new BufferedReader(new InputStreamReader(conn.getErrorStream(), StandardCharsets.UTF_8));
+                    reader = new BufferedReader(new InputStreamReader(errorStream(conn), StandardCharsets.UTF_8));
                 }
                 
-                StringBuilder response = new StringBuilder();
-                String line;
-                while ((line = reader.readLine()) != null) {
-                    response.append(line);
-                }
+                String response = readResponse(reader);
                 reader.close();
                 conn.disconnect();
                 
@@ -299,6 +301,8 @@ public class ProfileApiService {
                 }
             } catch (Exception e) {
                 mainHandler.post(() -> callback.onError("Hata: " + e.getMessage()));
+            } finally {
+                if (conn != null) conn.disconnect();
             }
         }).start();
     }
@@ -314,9 +318,12 @@ public class ProfileApiService {
         }
         
         new Thread(() -> {
+            HttpURLConnection conn = null;
             try {
                 URL url = new URL(API_BASE_URL + "/api/coordinates/save");
-                HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+                conn = (HttpURLConnection) url.openConnection();
+                conn.setConnectTimeout(10000);
+                conn.setReadTimeout(15000);
                 conn.setRequestMethod("POST");
                 conn.setRequestProperty("Content-Type", "application/json");
                 conn.setRequestProperty("Authorization", "Bearer " + token);
@@ -342,14 +349,10 @@ public class ProfileApiService {
                 if (responseCode >= 200 && responseCode < 300) {
                     reader = new BufferedReader(new InputStreamReader(conn.getInputStream(), StandardCharsets.UTF_8));
                 } else {
-                    reader = new BufferedReader(new InputStreamReader(conn.getErrorStream(), StandardCharsets.UTF_8));
+                    reader = new BufferedReader(new InputStreamReader(errorStream(conn), StandardCharsets.UTF_8));
                 }
                 
-                StringBuilder response = new StringBuilder();
-                String line;
-                while ((line = reader.readLine()) != null) {
-                    response.append(line);
-                }
+                String response = readResponse(reader);
                 reader.close();
                 conn.disconnect();
                 
@@ -364,8 +367,23 @@ public class ProfileApiService {
                 }
             } catch (Exception e) {
                 mainHandler.post(() -> callback.onError("Hata: " + e.getMessage()));
+            } finally {
+                if (conn != null) conn.disconnect();
             }
         }).start();
     }
+    private static java.io.InputStream errorStream(HttpURLConnection connection) {
+        java.io.InputStream error = connection.getErrorStream();
+        return error != null ? error : new java.io.ByteArrayInputStream(new byte[0]);
+    }    private static String readResponse(BufferedReader reader) throws java.io.IOException {
+        try (BufferedReader input = reader) {
+            StringBuilder body = new StringBuilder();
+            char[] buffer = new char[4096];
+            for (int count; (count = input.read(buffer)) != -1;) {
+                if (body.length() + count > 1024 * 1024) throw new java.io.IOException("API yanıtı çok büyük");
+                body.append(buffer, 0, count);
+            }
+            return body.toString();
+        }
+    }
 }
-

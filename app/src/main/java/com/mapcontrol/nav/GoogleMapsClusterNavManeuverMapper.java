@@ -29,7 +29,10 @@ final class GoogleMapsClusterNavManeuverMapper {
                 "u-turn", "uturn", "roundabout", "rotary", "ramp", "exit",
                 "turn left", "turn right", "bear left", "bear right",
                 "slight left", "slight right", "sharp left", "sharp right",
-                "keep left", "keep right", "fork", "merge")) {
+                "keep left", "keep right", "fork", "merge",
+                "sola dön", "sağa dön", "sola don", "saga don", "dönel kavşak", "çıkış",
+                "поверните", "поворот", "налево", "направо", "разворот", "съезд", "кругов",
+                "abbiegen", "links halten", "rechts halten", "kreisverkehr", "ausfahrt", "wenden")) {
             return ACTION_TURN;
         }
         if (containsAny(lower,

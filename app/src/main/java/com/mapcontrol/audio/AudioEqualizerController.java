@@ -42,7 +42,7 @@ public final class AudioEqualizerController {
     private static long lastPreviewApplyMs;
     private static int minLevelMb = -BAND_RANGE_MB;
     private static int maxLevelMb = BAND_RANGE_MB;
-    private static int[] centerHz = new int[0];
+    private static int[] centerHz = BAND_HZ.clone();
 
     private AudioEqualizerController() {
     }
@@ -90,7 +90,7 @@ public final class AudioEqualizerController {
 
     public static synchronized void update(Context context, boolean enabled, int gainMb,
             int[] bands, String preset) {
-        openEffects();
+        if (enabled) openEffects();
         Saved saved = new Saved(
                 enabled,
                 clamp(gainMb, 0, MAX_GAIN_MB),
@@ -128,6 +128,13 @@ public final class AudioEqualizerController {
 
     public static synchronized State read(Context context) {
         Saved saved = load(context);
+        if (!saved.enabled) {
+            releaseEffects();
+            // Enumerate capabilities without attaching an effect to the vehicle's global mix.
+            supported = isAvailable();
+            return snapshot(new Saved(false, saved.gainMb, saved.preset,
+                    fitBands(saved.bands, centerHz.length, minLevelMb, maxLevelMb)));
+        }
         boolean opened = openEffects();
         int[] fitted = fitBands(saved.bands, centerHz.length, minLevelMb, maxLevelMb);
         if (opened && fitted.length != saved.bands.length) {
@@ -144,6 +151,18 @@ public final class AudioEqualizerController {
         return snapshot(saved);
     }
 
+    public static boolean isBoostActive(Context context) {
+        if (context == null) return false;
+        SharedPreferences prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
+        return prefs.getBoolean(KEY_ENABLED, false) && prefs.getInt(KEY_GAIN_MB, 0) > 0;
+    }
+
+    public static int getGainMb(Context context) {
+        if (context == null) return 0;
+        SharedPreferences prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
+        return prefs.getInt(KEY_GAIN_MB, 0);
+    }
+
     public static synchronized void ensureApplied(Context context) {
         if (!keeperActive) {
             return;
@@ -153,12 +172,32 @@ public final class AudioEqualizerController {
             releaseEffects();
             return;
         }
-        if (!effectsMatch(saved)) {
-            releaseEffects();
-            if (openEffects()) {
-                applyEffects(fitSaved(saved));
-            }
+        if (dynamics == null) {
+            if (openEffects()) applyEffects(fitSaved(saved));
+            return;
         }
+        try {
+            // Another OEM controller can own the effect. Do not repeatedly destroy/recreate it.
+            if (dynamics.hasControl() && !effectsMatch(saved)) applyEffects(fitSaved(saved));
+        } catch (RuntimeException deadEffect) {
+            releaseEffects();
+        }
+    }
+
+    private static boolean isAvailable() {
+        try {
+            android.media.audiofx.AudioEffect.Descriptor[] descriptors =
+                    android.media.audiofx.AudioEffect.queryEffects();
+            if (descriptors != null) {
+                for (android.media.audiofx.AudioEffect.Descriptor descriptor : descriptors) {
+                    if (android.media.audiofx.AudioEffect.EFFECT_TYPE_DYNAMICS_PROCESSING.equals(descriptor.type)) return true;
+                }
+                return false;
+            }
+        } catch (RuntimeException unavailableQuery) {
+            // An OEM may not enumerate effects. Let the user's explicit enable action try it.
+        }
+        return true;
     }
 
     public static synchronized void release() {

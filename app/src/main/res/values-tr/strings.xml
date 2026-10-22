@@ -159,7 +159,7 @@
     <string name="launcher_dashboard_tab_drive">Sürüş</string>
     <string name="launcher_dashboard_card_fuel_motor">Yakıt ve motor</string>
     <string name="launcher_dashboard_card_quick">Hızlı erişim</string>
-    <string name="launcher_dashboard_quick_apps_label">Uygulamalar</string>
+    <string name="launcher_dashboard_quick_apps_label">Kısayollar</string>
     <string name="launcher_dashboard_quick_shortcuts_label">MapControl</string>
     <string name="launcher_dashboard_quick_add">Uygulama ekle</string>
     <string name="launcher_dashboard_quick_pick_title">Uygulama seç</string>

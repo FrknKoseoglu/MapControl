@@ -566,7 +566,7 @@ public final class LauncherDashboardBuilder implements
         body.addView(divider, dividerLp);
 
         // --- Hızlı Erişim Uygulamaları (Altta) ---
-        quickAppsLabelView = createSectionMiniLabel(R.string.launcher_dashboard_card_quick);
+        quickAppsLabelView = createSectionMiniLabel(R.string.launcher_dashboard_quick_apps_label);
         body.addView(quickAppsLabelView, matchWidthWrap());
 
         quickAppsGrid = new GridLayout(context);

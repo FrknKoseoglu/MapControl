@@ -158,7 +158,7 @@ Monitor — Foreground apps on display 2</string>
     <string name="launcher_dashboard_tab_drive">Driving</string>
     <string name="launcher_dashboard_card_fuel_motor">Fuel and engine</string>
     <string name="launcher_dashboard_card_quick">Quick access</string>
-    <string name="launcher_dashboard_quick_apps_label">Apps</string>
+    <string name="launcher_dashboard_quick_apps_label">Shortcuts</string>
     <string name="launcher_dashboard_quick_shortcuts_label">MapControl</string>
     <string name="launcher_dashboard_quick_add">Add app</string>
     <string name="launcher_dashboard_quick_pick_title">Choose app</string>

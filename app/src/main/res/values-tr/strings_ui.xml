@@ -499,4 +499,332 @@
     <string name="settings_perm_no">hayır</string>
     <string name="settings_perm_on">açık</string>
     <string name="settings_perm_off">kapalı</string>
+
+    <string name="settings_uninstall_button">MapControl uygulamasını kaldır</string>
+
+    <string name="settings_uninstall_title">MapControl kaldırılsın mı?</string>
+
+    <string name="settings_uninstall_message">Yalnızca MapControl uygulaması kaldırılacak. Android’in sistem onayı da açılacak.</string>
+
+    <string name="settings_uninstall_failed">Uygulama kaldırma ekranı açılamadı.</string>
+
+    <string name="wifi_global_stabilize_eyebrow">WI-FI YÖNETİMİ</string>
+
+    <string name="wifi_global_stabilize_title">Wi-Fi bağlantısı hazırlanıyor…</string>
+
+    <string name="wifi_global_toast_eyebrow_ok">BAĞLANTI HAZIR</string>
+
+    <string name="wifi_global_status_internet_ok">İnternet bağlantısı hazır</string>
+
+    <string name="wifi_global_toast_eyebrow_fail">BAĞLANTI KURULAMADI</string>
+
+    <string name="wifi_global_status_wifi_failed">Wi-Fi bağlantısı başarısız</string>
+
+    <string name="cluster_test_temperature_button">Dış sıcaklık ham VDBus verisini oku (10 örnek)</string>
+
+    <string name="cluster_test_temperature_running">Sıcaklık verileri okunuyor…</string>
+
+    <string name="cluster_test_temperature_header">Dış sıcaklık teşhisi başladı: HVAC modülü=%1$d, Celsius ID=%2$d, Fahrenheit ID=%3$d. Kadrandaki değeri örnekler alınırken not edin.</string>
+
+    <string name="cluster_test_temperature_connecting">Araç VDBus bağlantısı yok; bağlantı başlatılıyor ve bekleniyor…</string>
+
+    <string name="cluster_test_temperature_sample">Örnek %1$d · %2$s · bağlı=%3$b\nCelsius: %4$s\nFahrenheit: %5$s</string>
+
+    <string name="cluster_test_temperature_error">Örnek %1$d okunamadı (%2$s): %3$s</string>
+
+    <string name="cluster_test_temperature_no_value">yanıt yok</string>
+
+    <string name="cluster_test_temperature_done">Dış sıcaklık testi tamamlandı. Ana loga da kopyalandı; ham değerleri araç kadranındaki eşzamanlı dereceyle paylaşın. API yanıt yokken [0] döndürebildiğinden raw=0 tek başına gerçek 0°C anlamına gelmeyebilir.</string>
+
+    <string name="cluster_test_automation_button">Otomasyon ON/OFF ve komut teşhisi (salt okunur)</string>
+
+    <string name="cluster_test_automation_running">Otomasyon verileri okunuyor…</string>
+
+    <string name="cluster_test_automation_connecting">Araç VDBus bağlantısı başlatılıyor…</string>
+
+    <string name="cluster_test_automation_interrupted">Otomasyon teşhisi kesildi.</string>
+
+    <string name="cluster_test_automation_header">Otomasyon teşhisi · %1$s · bağlı=%2$b · HVAC modül=%3$d · ayar modül=%4$d · salt-okunur modül=%5$d. Komut gönderilmez.</string>
+
+    <string name="cluster_test_automation_no_connection">Araç VDBus bağlantısı kurulamadı; veriler alınamadı.</string>
+
+    <string name="cluster_test_automation_vehicle">SENSÖRLER: dış Celsius raw=[%1$s], Fahrenheit raw=[%2$s], sistem güç modu (ID 14)=%3$s, araç güç modu (ID 13)=%4$s, hız raw=%5$s. Ham 0, API yanıtı yok anlamına da gelebilir.</string>
+
+    <string name="cluster_test_automation_master">Ana otomasyon açık=%1$b</string>
+
+    <string name="cluster_test_automation_decoded">Uygulamanın mevcut kalibrasyon/dönüşümüne göre dış sıcaklık=%1$s°C</string>
+
+    <string name="cluster_test_automation_rule">KURAL %1$s: açık=%2$b, koşul dış sıcaklık %3$s %4$d°C, koşul eşleşiyor=%5$b, gecikme=%6$d dk, kademe=%7$d, beklenen=%8$s</string>
+
+    <string name="cluster_test_automation_feedback">GERİ OKUMA %1$s: sinyal=%2$s modül=%3$d ID=%4$d raw=[%5$s]</string>
+
+    <string name="cluster_test_automation_feedback_error">GERİ OKUMA HATASI %1$s: sinyal=%2$s modül=%3$d ID=%4$d (%5$s): %6$s</string>
+
+    <string name="cluster_test_automation_error">Otomasyon teşhisi başarısız (%1$s): %2$s</string>
+
+    <string name="cluster_test_automation_done">Otomasyon teşhisi tamamlandı. Çıktıyı kadran/ayar davranışı ve ilgili loglarla birlikte paylaşın.</string>
+
+    <string name="cluster_test_live_button">Kontak, sıcaklık ve otomasyon canlı kaydı (2 dk)</string>
+
+    <string name="cluster_test_live_stop">Canlı kaydı durdur</string>
+
+    <string name="cluster_test_live_stopping">Kayıt durduruluyor…</string>
+
+    <string name="cluster_test_live_header">CANLI KAYIT başlangıç %1$s · saniyede 1 örnek, en fazla 120 sn · HVAC modül=%2$d, ayar modül=%3$d, readonly modül=%4$d · sistem güç ID=%5$d, araç güç ID=%6$d, hız ID=%7$d, Celsius ID=%8$d, Fahrenheit ID=%9$d. Kayıt sırasında otomasyon ON/OFF düğmesini değiştirin veya kontağı açın; yalnızca geri okuma yapılır, komut gönderilmez.</string>
+
+    <string name="cluster_test_live_sample">CANLI #%1$d %2$s: sistemPower(ID14)=%3$s araçPower(ID13)=%4$s hız(ID0)=%5$s sıcaklıkC raw=[%6$s] sıcaklıkF raw=[%7$s] uygulamaC=%8$s°C</string>
+
+    <string name="cluster_test_live_master">%1$s otomasyonAnahtarıAçık=%2$b</string>
+
+    <string name="cluster_test_live_rule">KURAL AYARI %1$s açık=%2$b koşul=%3$s%4$d°C gecikme=%5$d dk kademe=%6$d</string>
+
+    <string name="cluster_test_live_disconnected">CANLI #%1$d %2$s: VDBus bağlantısı kesildi</string>
+
+    <string name="cluster_test_live_done">Canlı kayıt tamamlandı/durduruldu.</string>
+
+    <string name="cluster_test_seat_memory_button">Koltuk hafıza modları VDBus değişim testi</string>
+
+    <string name="cluster_test_seat_memory_running">Koltuk hafıza sinyalleri dinleniyor… Durdurmak için dokunun</string>
+
+    <string name="cluster_test_seat_memory_connecting">Araç VDBus bağlantısı başlatılıyor…</string>
+
+    <string name="cluster_test_seat_memory_no_connection">Araç VDBus bağlantısı kurulamadı; koltuk hafıza testi başlatılmadı.</string>
+
+    <string name="cluster_test_seat_memory_no_signals">Koltuk/hafıza ile ilişkili VDBus sinyali bulunamadı.</string>
+
+    <string name="cluster_test_seat_memory_header">Koltuk hafıza canlı testi başladı · %1$s · ayar modülü=%2$d. Araç ekranından hafıza modlarını değiştirin; değişen sinyaller aşağıya yazılır. Komut gönderilmez. Dinlenen sinyaller: %3$s</string>
+
+    <string name="cluster_test_seat_memory_initial">Başlangıç %1$s (ID %2$d): raw=[%3$s]</string>
+
+    <string name="cluster_test_seat_memory_event">DEĞİŞİM %1$s · %2$s (ID %3$d): raw=[%4$s]</string>
+
+    <string name="cluster_test_seat_memory_read_error">Başlangıç değeri okunamadı %1$s (ID %2$d), %3$s: %4$s</string>
+
+    <string name="cluster_test_seat_memory_field_error">VDBus sinyali alanı okunamadı %1$s: %2$s</string>
+
+    <string name="cluster_test_seat_memory_error">Koltuk hafıza testi başarısız (%1$s): %2$s</string>
+
+    <string name="cluster_test_seat_memory_done">Koltuk hafıza VDBus testi durduruldu.</string>
+
+    <string name="cluster_test_vdbus_button">Tüm araç VDBus sinyallerini tara ve dinle (salt okunur)</string>
+
+    <string name="cluster_test_vdbus_running">Tüm modül/ID taraması ve canlı dinleme sürüyor… Durdurmak için dokunun</string>
+
+    <string name="cluster_test_vdbus_connecting">Araç VDBus bağlantısı başlatılıyor…</string>
+
+    <string name="cluster_test_vdbus_no_connection">Araç VDBus bağlantısı kurulamadı; genel tarama başlatılmadı.</string>
+
+    <string name="cluster_test_vdbus_no_modules">VDBus modülü bulunamadı.</string>
+
+    <string name="cluster_test_vdbus_header">GENEL ARAÇ VDBUS TARAMASI · %1$s · %2$d modül · her modülde ID %3$d–%4$d. Salt okunur; araca komut göndermez. Tarama sürebilir; bitince canlı değişiklikleri dinler.</string>
+
+    <string name="cluster_test_vdbus_module">Modül: %1$s (%2$d)</string>
+
+    <string name="cluster_test_vdbus_value">YANIT: %1$s (%2$d) · %3$s (%4$d) = raw %5$s</string>
+
+    <string name="cluster_test_vdbus_read_error">OKUMA HATASI: %1$s (%2$d) · %3$s (%4$d) · %5$s: %6$s</string>
+
+    <string name="cluster_test_vdbus_module_done">Modül tamamlandı: %1$s · yanıt=%2$d, yanıt yok=%3$d</string>
+
+    <string name="cluster_test_vdbus_listening">İlk tarama bitti; tüm modül/ID’lerden canlı VDBus değişimleri dinleniyor. Araç ekranında incelemek istediğiniz özellikleri değiştirin.</string>
+
+    <string name="cluster_test_vdbus_change">DEĞİŞİM %1$s · %2$s (%3$d) · %4$s (%5$d): önce=%6$s sonra=%7$s</string>
+
+    <string name="cluster_test_vdbus_field_error">VDBus tablo alanı okunamadı %1$s: %2$s</string>
+
+    <string name="cluster_test_vdbus_error">Genel VDBus taraması başarısız (%1$s): %2$s</string>
+
+    <string name="cluster_test_vdbus_done">Genel araç VDBus taraması/dinlemesi durduruldu.</string>
+
+    <string name="side_rail_climate_automation">Otomasyon</string>
+
+    <string name="side_rail_face_recognition">Yüz Tanıma</string>
+
+    <string name="climate_auto_title">Konfor otomasyonu</string>
+
+    <string name="climate_auto_subtitle">Araç termometresindeki dış ortam sıcaklığı seçtiğiniz eşiğe ulaşınca koltuk ısıtma, koltuk soğutma ve direksiyon ısıtma otomatik açılır.</string>
+
+    <string name="climate_auto_master">Otomasyonu çalıştır</string>
+
+    <string name="climate_auto_master_off">Kapalı</string>
+
+    <string name="climate_auto_master_on">Açık</string>
+
+    <string name="climate_auto_status_disconnected">Araç termometresi bağlı değil</string>
+
+    <string name="climate_auto_status_no_temp">Dış ortam sıcaklığı henüz okunamadı</string>
+
+    <string name="climate_auto_status_temp">Dış ortam: %1$.1f°C</string>
+
+    <string name="climate_auto_sensor_label">ARAÇ TERMOMETRESİ · CANLI VERİ</string>
+
+    <string name="climate_auto_rules_heading">Otomasyon kuralları</string>
+
+    <string name="climate_auto_compare_hint">Sıcaklık karşılaştırma koşulunu değiştir</string>
+
+    <string name="climate_auto_driver_heat">Sürücü koltuk ısıtma</string>
+
+    <string name="climate_auto_passenger_heat">Yolcu koltuk ısıtma</string>
+
+    <string name="climate_auto_driver_vent">Sürücü koltuk havalandırma</string>
+
+    <string name="climate_auto_passenger_vent">Yolcu koltuk havalandırma</string>
+
+    <string name="climate_auto_steer_heat">Direksiyon ısıtma</string>
+
+    <string name="climate_auto_windshield">Ön cam ısıtma</string>
+
+    <string name="climate_auto_rear_defrost">Arka cam ve ayna ısıtma</string>
+
+    <string name="climate_auto_climate">Klima (AUTO)</string>
+
+    <string name="climate_auto_delay_off">Otomatik kapatılmaz (sürekli açık)</string>
+
+    <string name="climate_auto_delay">Kontaktan %1$d dakika sonra kapatılır</string>
+
+    <string name="climate_auto_temp">Eşik: %1$d°C</string>
+
+    <string name="climate_auto_level">Seviye: %1$d</string>
+
+    <string name="climate_auto_log_on">Konfor otomasyonu açıldı</string>
+
+    <string name="climate_auto_log_off">Konfor otomasyonu kapatıldı</string>
+
+    <string name="log_dms_face_profiles">Yüz Tanıma Profilleri</string>
+
+    <string name="dms_face_title">Yüz Tanıma ve Profil Yönetimi</string>
+
+    <string name="dms_recognition_title">Yüz Tanıma</string>
+
+    <string name="dms_recognition_description">Kontak açıldığında DMS kamerası ile sürücüyü tespit eder, kayıtlı koltuk hafızasını (1–3) otomatik uygular ve sesli olarak bildirim yapar. En fazla 3 kişi tanımlanabilir.</string>
+
+    <string name="dms_recognition_enable">Otomatik yüz tanıma ve koltuk hafızası</string>
+
+    <string name="dms_recognition_manage_profiles">Yüz Tara / Profilleri Yönet</string>
+
+    <string name="dms_recognition_status">%1$d / %2$d kişi kayıtlı · Otomatik tanıma: %3$s\n%4$s\nDurum: %5$s</string>
+
+    <string name="dms_recognition_no_match_yet">Son oturumda henüz tespit yapılmadı.</string>
+
+    <string name="dms_recognition_last_match">Son tespit: %1$s · Koltuk Hafızası %2$d</string>
+
+    <string name="dms_recognition_notification">DMS kamera yüz tanıması etkin</string>
+
+    <string name="dms_recognition_idle">Yüz tanıma kapalı.</string>
+
+    <string name="dms_recognition_starting">DMS kamerası başlatılıyor…</string>
+
+    <string name="dms_recognition_started">Arka plan yüz tanıma açıldı.</string>
+
+    <string name="dms_recognition_stopped">Arka plan yüz tanıma durduruldu.</string>
+
+    <string name="dms_recognition_running">DMS kamerası aktif; sürücü yüzü taranıyor…</string>
+
+    <string name="dms_recognition_match">Kullanıcı tespit edildi: %1$s (Koltuk Hafızası %2$d)</string>
+
+    <string name="dms_recognition_memory_requested">Koltuk hafızası %1$d otomatik olarak uygulandı.</string>
+
+    <string name="dms_recognition_memory_not_requested">Koltuk hafızası gönderilemedi: %1$s</string>
+
+    <string name="dms_recognition_memory_unsafe_state">Kontak açık değil.</string>
+
+    <string name="dms_recognition_memory_invalid">Hafıza numarası 1-3 aralığında değil.</string>
+
+    <string name="dms_recognition_memory_disconnected">Araç VDBus bağlantısı bekleniyor.</string>
+
+    <string name="dms_recognition_memory_error">VDBus hatası: %1$s</string>
+
+    <string name="dms_recognition_waiting_for_driver">Kontak açık (PowerMode %1$d); sürücü yüzü taranıyor…</string>
+
+    <string name="dms_recognition_waiting_for_power">Yüz tanıma hazır; kontak açılması bekleniyor.</string>
+
+    <string name="dms_recognition_camera_released">Sürücü taraması tamamlandı; DMS kamerası serbest bırakıldı.</string>
+
+    <string name="dms_recognition_ignition_off">Kontak kapalı; sonraki çalıştırma bekleniyor.</string>
+
+    <string name="dms_recognition_welcome_phrase">%1$s</string>
+
+    <string name="dms_recognition_tts_error">Ses motoru hazır olmadığı için sesli anons yapılamadı.</string>
+
+    <string name="dms_recognition_no_profiles">Önce en az bir yüz profili ekleyin.</string>
+
+    <string name="dms_recognition_profiles_updated">Yüz profilleri güncellendi.</string>
+
+    <string name="dms_recognition_camera_permission">Yüz tanıma için kamera izni gerekiyor.</string>
+
+    <string name="dms_recognition_camera_missing">Kullanılabilir DMS/ön kamera bulunamadı.</string>
+
+    <string name="dms_recognition_camera_disconnected">DMS kamerası kullanılamıyor veya bağlantısı kesildi.</string>
+
+    <string name="dms_recognition_error">Yüz tanıma hatası: %1$s</string>
+
+    <string name="dms_face_back">← Geri</string>
+
+    <string name="dms_face_enroll">Yüz Taramayı Başlat</string>
+
+    <string name="dms_face_cancel_enroll">Taramayı İptal Et</string>
+
+    <string name="dms_face_clear">Tümünü Sil</string>
+
+    <string name="dms_face_delete_single">Sil</string>
+
+    <string name="dms_face_max_profiles">En fazla 3 kişi kaydedilebilir. Yeni kayıt için mevcut bir profili silin.</string>
+
+    <string name="dms_face_name_hint">Kişinin adını girin (Örn: Hakan)</string>
+
+    <string name="dms_face_local_notice">Kameraya düz bakın, isminizi girin ve koltuk hafızasını seçip taramayı başlatın. Kontak açıldığında sistem sizi tanıyıp koltuk hafızasını ayarlayacak ve sesli bildirim yapacaktır.</string>
+
+    <string name="dms_face_start">Başlat</string>
+
+    <string name="dms_face_name_required">Lütfen kişinin adını girin.</string>
+
+    <string name="dms_face_name_exists">Bu isimle bir profil zaten kayıtlı.</string>
+
+    <string name="dms_face_enroll_prompt">Yüzünüzü çerçeveye ortalayın · Taranıyor: %1$d / %2$d</string>
+
+    <string name="dms_face_center_prompt">Lütfen yüzünüzü çerçeveye ortalayın ve kameraya bakın.</string>
+
+    <string name="dms_face_adjust_prompt">Kameraya biraz daha yaklaşın ve yüzünüzün net göründüğünden emin olun.</string>
+
+    <string name="dms_face_no_face">Yüz algılanmadı — Kameraya bakın</string>
+
+    <string name="dms_face_saved">✓ %1$s kaydedildi (Koltuk Hafızası %2$d)</string>
+
+    <string name="dms_face_save_error">Profil kaydedilemedi: %1$s</string>
+
+    <string name="dms_face_load_error">Kayıtlı profiller okunamadı: %1$s</string>
+
+    <string name="dms_face_checking">Yüz doğrulanıyor…</string>
+
+    <string name="dms_face_match">✓ Tespit Edildi: %1$s · Koltuk Hafızası %2$d</string>
+
+    <string name="dms_face_unknown">Kayıtlı kişilerle eşleşmedi</string>
+
+    <string name="dms_face_profile_count">%1$d / %2$d kişi kayıtlı — Canlı test aktif</string>
+
+    <string name="dms_face_no_profiles">Henüz kayıtlı kişi yok. Sağdaki alandan isim ve koltuk hafızası seçip yüzünüzü taratın.</string>
+
+    <string name="dms_face_clear_confirm">Kayıtlı tüm yüz profilleri silinsin mi?</string>
+
+    <string name="dms_face_camera_missing">Kamera bulunamadı.</string>
+
+    <string name="dms_face_camera_disconnected">Kamera bağlantısı bekleniyor…</string>
+
+    <string name="dms_face_camera_error">Kamera hatası: %1$s</string>
+
+    <string name="dms_face_camera_permission">Yüz tarama için kamera izni gerekiyor.</string>
+
+    <string name="climate_auto_driver_section">Sürücü Tarafı</string>
+
+    <string name="climate_auto_passenger_section">Yolcu Tarafı</string>
+
+    <string name="climate_auto_other_section">Cam &amp; Direksiyon</string>
+
+    <string name="climate_auto_conflict_rejected">Çakışma Önleme: Isıtma ve havalandırma sıcaklık aralıkları çakışıyor! Birbirinden farklı eşikler belirleyin.</string>
+
+    <string-array name="dms_face_memory_options">
+        <item>Koltuk Hafızası 1</item>
+        <item>Koltuk Hafızası 2</item>
+        <item>Koltuk Hafızası 3</item>
+    </string-array>
 </resources>

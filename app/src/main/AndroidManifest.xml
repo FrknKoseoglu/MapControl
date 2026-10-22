@@ -145,6 +145,10 @@
         </activity-alias>
         
         <activity
+            android:name=".ui.activity.DmsFaceProfileActivity"
+            android:label="@string/dms_face_title" />
+
+        <activity
             android:name=".ui.activity.CameraActivity"
             android:label="Kamera Test"
             android:screenOrientation="landscape" />

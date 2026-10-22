@@ -1,9 +1,11 @@
 package com.mapcontrol.ui.builder;
+import android.app.AlertDialog;
 import android.content.Context;
 import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 import android.content.res.ColorStateList;
 import android.graphics.Color;
+import android.graphics.Typeface;
 import android.text.Spannable;
 import android.text.SpannableString;
 import android.text.style.RelativeSizeSpan;
@@ -290,15 +292,19 @@ public class SideRailBuilder {
             updateMenuSelection(menuEqualizer, menuWifi, menuFileUpload, menuProfile, menuProjection, menuVehicleInfo, menuSettings, menuApps, menuDriveMode, menuTest, menuWelcomeSound);
         });
 
-        menuClimateAutomation.setOnClickListener(v -> {
-            callback.onTabSelected(TAB_CLIMATE_AUTOMATION, t(R.string.side_rail_climate_automation));
-            updateMenuSelection(menuClimateAutomation);
-        });
+        menuClimateAutomation.setOnClickListener(v -> openExperimentalMenu(
+                "climateAutoBetaWarningSeen",
+                () -> {
+                    callback.onTabSelected(TAB_CLIMATE_AUTOMATION, t(R.string.side_rail_climate_automation));
+                    updateMenuSelection(menuClimateAutomation);
+                }));
 
-        menuFaceRecognition.setOnClickListener(v -> {
-            callback.onTabSelected(TAB_FACE_RECOGNITION, t(R.string.dms_recognition_title));
-            updateMenuSelection(menuFaceRecognition);
-        });
+        menuFaceRecognition.setOnClickListener(v -> openExperimentalMenu(
+                "dmsFaceBetaWarningSeen",
+                () -> {
+                    callback.onTabSelected(TAB_FACE_RECOGNITION, t(R.string.dms_recognition_title));
+                    updateMenuSelection(menuFaceRecognition);
+                }));
     }
 
     /**
@@ -502,6 +508,51 @@ public class SideRailBuilder {
                 label.setTypeface(null, android.graphics.Typeface.NORMAL);
             }
         }
+    }
+
+    private void openExperimentalMenu(String seenKey, Runnable open) {
+        if (prefs.getBoolean(seenKey, false)) {
+            open.run();
+            return;
+        }
+        float density = context.getResources().getDisplayMetrics().density;
+        int pad = Math.round(28 * density);
+        LinearLayout box = new LinearLayout(context);
+        box.setOrientation(LinearLayout.VERTICAL);
+        box.setPadding(pad, pad, pad, Math.round(8 * density));
+
+        TextView title = new TextView(context);
+        title.setText(R.string.experimental_feature_warning_title);
+        title.setTextSize(28);
+        title.setTypeface(null, Typeface.BOLD);
+        title.setTextColor(UiStyles.color(context, R.color.textPrimary));
+        title.setGravity(Gravity.CENTER);
+        box.addView(title);
+
+        TextView message = new TextView(context);
+        message.setText(R.string.experimental_feature_warning);
+        message.setTextSize(22);
+        message.setTextColor(UiStyles.color(context, R.color.textPrimary));
+        message.setGravity(Gravity.CENTER);
+        message.setPadding(0, Math.round(18 * density), 0, 0);
+        box.addView(message);
+
+        AlertDialog dialog = new AlertDialog.Builder(context)
+                .setView(box)
+                .setCancelable(false)
+                .setPositiveButton(R.string.experimental_feature_warning_ok, (d, which) -> {
+                    prefs.edit().putBoolean(seenKey, true).apply();
+                    open.run();
+                })
+                .create();
+        dialog.setOnShowListener(d -> {
+            android.widget.Button ok = dialog.getButton(AlertDialog.BUTTON_POSITIVE);
+            if (ok != null) {
+                ok.setTextSize(22);
+                ok.setTypeface(null, Typeface.BOLD);
+            }
+        });
+        dialog.show();
     }
 
     private LinearLayout[] menuRows() {

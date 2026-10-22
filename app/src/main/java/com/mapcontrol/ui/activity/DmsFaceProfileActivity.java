@@ -9,8 +9,10 @@ import android.content.pm.PackageManager;
 import android.content.res.Configuration;
 import android.graphics.Bitmap;
 import android.graphics.Canvas;
+import android.graphics.ColorMatrix;
+import android.graphics.ColorMatrixColorFilter;
 import android.graphics.Paint;
-import android.graphics.RectF;
+import android.graphics.PointF;
 import android.graphics.SurfaceTexture;
 import android.graphics.Typeface;
 import android.hardware.camera2.CameraAccessException;
@@ -24,6 +26,7 @@ import android.media.FaceDetector;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.HandlerThread;
+import android.os.SystemClock;
 import android.util.Size;
 import android.view.Gravity;
 import android.view.Surface;
@@ -33,6 +36,7 @@ import android.view.inputmethod.InputMethodManager;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.FrameLayout;
+import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.ProgressBar;
 import android.widget.ScrollView;
@@ -63,14 +67,29 @@ public final class DmsFaceProfileActivity extends AppCompatActivity
     private static final int FRAME_HEIGHT = 240;
     private static final long ANALYSIS_INTERVAL_MS = 700;
     private static final int REQUIRED_SAMPLES = 5;
+    private static final long TONE_FRAME_INTERVAL_MS = 80L;
 
     private final Handler uiHandler = new Handler();
     private TextureView preview;
-    private FaceGuideView guideOverlay;
+    private ImageView tonePreview;
+    private float faceCenterX = 0.5f;
+    private float faceCenterY = 0.5f;
+    private boolean faceCenterKnown;
+    private long lastFaceLocateAt;
+    private final Paint tonePaint = new Paint(Paint.FILTER_BITMAP_FLAG);
+    private final ColorMatrix toneMatrix = new ColorMatrix();
+    private final Canvas toneCanvas = new Canvas();
+    private Bitmap toneFrame;
+    private int[] toneSampleRow;
+    private long lastToneFrameAt;
+    private final DmsClusterPreview clusterPreview = new DmsClusterPreview();
     private ProgressBar progressBar;
     private TextView status;
     private EditText nameInput;
     private final Button[] memoryButtons = new Button[FaceProfileStore.MAX_PROFILES];
+    private TextView memoryLabel;
+    private LinearLayout memoryRow;
+    private boolean seatMemoryAvailable;
     private int selectedMemory = 1;
     private Button enrollButton;
     private Button clearButton;
@@ -142,7 +161,10 @@ public final class DmsFaceProfileActivity extends AppCompatActivity
         if (DmsFaceRecognitionManager.isEnabled(this)) {
             DmsFaceRecognitionManager.stop(this);
         }
-        CarSeatMemoryManager.getInstance(this).ensureInitialized();
+        seatMemoryAvailable = CarSeatMemoryManager.isSeatMemoryAvailable(this);
+        if (seatMemoryAvailable) {
+            CarSeatMemoryManager.getInstance(this).ensureInitialized();
+        }
         try {
             profiles.addAll(FaceProfileStore.load(this));
         } catch (IllegalStateException e) {
@@ -257,8 +279,12 @@ public final class DmsFaceProfileActivity extends AppCompatActivity
                 FrameLayout.LayoutParams.MATCH_PARENT,
                 FrameLayout.LayoutParams.MATCH_PARENT));
 
-        guideOverlay = new FaceGuideView(this);
-        cameraFrame.addView(guideOverlay, new FrameLayout.LayoutParams(
+        // Nötr ton katmanı yalnızca kare kopyası başarılıysa görünür.
+        // Bu baş ünitede GPU kopyası sık başarısız oluyor; o zaman canlı TextureView kalır.
+        tonePreview = new ImageView(this);
+        tonePreview.setScaleType(ImageView.ScaleType.CENTER_CROP);
+        tonePreview.setVisibility(View.GONE);
+        cameraFrame.addView(tonePreview, new FrameLayout.LayoutParams(
                 FrameLayout.LayoutParams.MATCH_PARENT,
                 FrameLayout.LayoutParams.MATCH_PARENT));
 
@@ -313,7 +339,9 @@ public final class DmsFaceProfileActivity extends AppCompatActivity
         enrollCard.addView(enrollHeader);
 
         TextView enrollSub = new TextView(this);
-        enrollSub.setText(R.string.dms_face_local_notice);
+        enrollSub.setText(seatMemoryAvailable
+                ? R.string.dms_face_local_notice
+                : R.string.dms_face_local_notice_no_memory);
         enrollSub.setTextColor(textSecondary);
         enrollSub.setTextSize(13);
         LinearLayout.LayoutParams subLp = new LinearLayout.LayoutParams(
@@ -333,21 +361,25 @@ public final class DmsFaceProfileActivity extends AppCompatActivity
         enrollCard.addView(nameInput, new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT, dp(44)));
 
-        TextView memLabel = new TextView(this);
-        memLabel.setText("Koltuk Hafızası Seçin:");
-        memLabel.setTextColor(textPrimary);
-        memLabel.setTextSize(13);
-        memLabel.setTypeface(null, Typeface.BOLD);
+        memoryLabel = new TextView(this);
+        memoryLabel.setText("Koltuk Hafızası Seçin:");
+        memoryLabel.setTextColor(textPrimary);
+        memoryLabel.setTextSize(13);
+        memoryLabel.setTypeface(null, Typeface.BOLD);
         LinearLayout.LayoutParams memLabelLp = new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
         memLabelLp.topMargin = dp(10);
         memLabelLp.bottomMargin = dp(6);
-        enrollCard.addView(memLabel, memLabelLp);
+        enrollCard.addView(memoryLabel, memLabelLp);
 
-        LinearLayout memoryRow = new LinearLayout(this);
+        memoryRow = new LinearLayout(this);
         memoryRow.setOrientation(LinearLayout.HORIZONTAL);
         enrollCard.addView(memoryRow, new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT, dp(42)));
+        if (!seatMemoryAvailable) {
+            memoryLabel.setVisibility(View.GONE);
+            memoryRow.setVisibility(View.GONE);
+        }
 
         for (int i = 0; i < FaceProfileStore.MAX_PROFILES; i++) {
             final int memNum = i + 1;
@@ -480,15 +512,18 @@ public final class DmsFaceProfileActivity extends AppCompatActivity
             nameTv.setTypeface(null, Typeface.BOLD);
             infoCol.addView(nameTv);
 
-            TextView subTv = new TextView(this);
-            subTv.setText("Koltuk Hafızası " + p.seatMemory);
-            subTv.setTextColor(0xFF60A5FA);
-            subTv.setTextSize(13);
-            infoCol.addView(subTv);
+            if (seatMemoryAvailable) {
+                TextView subTv = new TextView(this);
+                subTv.setText("Koltuk Hafızası " + p.seatMemory);
+                subTv.setTextColor(0xFF60A5FA);
+                subTv.setTextSize(13);
+                infoCol.addView(subTv);
+            }
 
             row.addView(infoCol, new LinearLayout.LayoutParams(
                     0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f));
 
+            if (seatMemoryAvailable) {
             for (int m = 1; m <= FaceProfileStore.MAX_PROFILES; m++) {
                 final int targetMem = m;
                 Button memBtn = new Button(this);
@@ -505,6 +540,7 @@ public final class DmsFaceProfileActivity extends AppCompatActivity
                 LinearLayout.LayoutParams memLp = new LinearLayout.LayoutParams(dp(34), dp(34));
                 memLp.rightMargin = dp(6);
                 row.addView(memBtn, memLp);
+            }
             }
 
             Button delBtn = new Button(this);
@@ -527,6 +563,9 @@ public final class DmsFaceProfileActivity extends AppCompatActivity
             return;
         }
         FaceProfileStore.Profile old = profiles.get(index);
+        if (!seatMemoryAvailable) {
+            return;
+        }
         if (old.seatMemory == newSeatMemory) {
             CarSeatMemoryManager.getInstance(this).applySeatMemory(newSeatMemory);
             return;
@@ -595,12 +634,11 @@ public final class DmsFaceProfileActivity extends AppCompatActivity
         }
         hideKeyboard();
         enrollmentName = name;
-        enrollmentMemory = selectedMemory;
+        enrollmentMemory = seatMemoryAvailable ? selectedMemory : 0;
         enrollmentSamples = 0;
         enrollmentTemplates.clear();
         progressBar.setProgress(0);
         progressBar.setVisibility(View.VISIBLE);
-        guideOverlay.setState(FaceGuideView.STATE_SCANNING);
         updateEnrollButtonState();
         analyzing = true;
         uiHandler.removeCallbacks(analysisLoop);
@@ -614,9 +652,6 @@ public final class DmsFaceProfileActivity extends AppCompatActivity
         enrollmentTemplates.clear();
         if (progressBar != null) {
             progressBar.setVisibility(View.GONE);
-        }
-        if (guideOverlay != null) {
-            guideOverlay.setState(FaceGuideView.STATE_IDLE);
         }
         updateEnrollButtonState();
     }
@@ -639,11 +674,22 @@ public final class DmsFaceProfileActivity extends AppCompatActivity
     }
 
     private void updateEnrollmentPrompt() {
-        status.setText(getString(R.string.dms_face_enroll_prompt,
+        showFaceStatus(getString(R.string.dms_face_enroll_prompt,
                 enrollmentSamples + 1, REQUIRED_SAMPLES));
         if (progressBar != null) {
             progressBar.setProgress(enrollmentSamples);
         }
+    }
+
+    private void showFaceStatus(CharSequence text) {
+        if (status != null) {
+            status.setText(text);
+        }
+        clusterPreview.setMirrorText(text);
+    }
+
+    private void showFaceStatus(int resId) {
+        showFaceStatus(getText(resId));
     }
 
     private void analyzeFrame(Bitmap source) {
@@ -659,21 +705,18 @@ public final class DmsFaceProfileActivity extends AppCompatActivity
             int faceCount = faceDetector.findFaces(rgb565, faces);
             if (faceCount != 1 || faces[0] == null || faces[0].confidence() < 0.35f) {
                 if (enrollmentName != null) {
-                    guideOverlay.setState(FaceGuideView.STATE_WARN);
-                    status.setText(R.string.dms_face_center_prompt);
+                    showFaceStatus(R.string.dms_face_center_prompt);
                 } else {
-                    guideOverlay.setState(FaceGuideView.STATE_IDLE);
-                    status.setText(R.string.dms_face_no_face);
+                    showFaceStatus(R.string.dms_face_no_face);
                 }
                 return;
             }
             FaceDetector.Face face = faces[0];
+            rememberFaceCenter(face, rgb565.getWidth(), rgb565.getHeight());
             if (enrollmentName != null) {
                 captureEnrollmentSample(rgb565, face);
             } else if (!profiles.isEmpty()) {
                 recognizeFace(rgb565, face);
-            } else {
-                guideOverlay.setState(FaceGuideView.STATE_DETECTED);
             }
         } finally {
             rgb565.recycle();
@@ -688,11 +731,9 @@ public final class DmsFaceProfileActivity extends AppCompatActivity
         lastAnalysisAt = now;
         byte[] descriptor = DmsFaceMatcher.describeFace(frame, face);
         if (descriptor == null) {
-            guideOverlay.setState(FaceGuideView.STATE_WARN);
-            status.setText(R.string.dms_face_adjust_prompt);
+            showFaceStatus(R.string.dms_face_adjust_prompt);
             return;
         }
-        guideOverlay.setState(FaceGuideView.STATE_DETECTED);
         enrollmentTemplates.add(descriptor);
         enrollmentSamples++;
         if (progressBar != null) {
@@ -733,7 +774,9 @@ public final class DmsFaceProfileActivity extends AppCompatActivity
             FaceProfileStore.save(this, updated);
             profiles.clear();
             profiles.addAll(updated);
-            CarSeatMemoryManager.getInstance(this).syncCurrentFromCar();
+            if (seatMemoryAvailable) {
+                CarSeatMemoryManager.getInstance(this).syncCurrentFromCar();
+            }
 
             SharedPreferences prefs = getSharedPreferences("MapControlPrefs", MODE_PRIVATE);
             prefs.edit()
@@ -749,9 +792,10 @@ public final class DmsFaceProfileActivity extends AppCompatActivity
             selectedMemory = pickNextAvailableMemory();
             updateMemoryButtonsUi();
             refreshProfilesListUi();
-            guideOverlay.setState(FaceGuideView.STATE_DETECTED);
-            String msg = getString(R.string.dms_face_saved, savedName, savedMemory);
-            status.setText(msg);
+            String msg = seatMemoryAvailable
+                    ? getString(R.string.dms_face_saved, savedName, savedMemory)
+                    : getString(R.string.dms_face_saved_name, savedName);
+            showFaceStatus(msg);
             Toast.makeText(this, msg, Toast.LENGTH_SHORT).show();
         } catch (IllegalStateException e) {
             status.setText(getString(R.string.dms_face_save_error, e.getMessage()));
@@ -770,30 +814,34 @@ public final class DmsFaceProfileActivity extends AppCompatActivity
                 recognitionCandidateHits = 1;
             }
             if (recognitionCandidateHits >= 2) {
-                guideOverlay.setState(FaceGuideView.STATE_DETECTED);
-                status.setText(getString(R.string.dms_face_match, best.name, best.seatMemory));
+                showFaceStatus(seatMemoryAvailable
+                        ? getString(R.string.dms_face_match, best.name, best.seatMemory)
+                        : getString(R.string.dms_face_match_name, best.name));
                 if (!best.name.equals(reportedRecognitionName)) {
                     reportedRecognitionName = best.name;
+                    int memorySlot = seatMemoryAvailable ? best.seatMemory : 0;
                     getSharedPreferences("MapControlPrefs", MODE_PRIVATE).edit()
                             .putString(DmsFaceRecognitionManager.PREF_LAST_NAME, best.name)
-                            .putInt(DmsFaceRecognitionManager.PREF_LAST_MEMORY, best.seatMemory)
+                            .putInt(DmsFaceRecognitionManager.PREF_LAST_MEMORY, memorySlot)
                             .putString(DmsFaceRecognitionManager.PREF_STATUS,
-                                    getString(R.string.dms_recognition_match,
-                                            best.name, best.seatMemory))
+                                    seatMemoryAvailable
+                                            ? getString(R.string.dms_recognition_match,
+                                                    best.name, best.seatMemory)
+                                            : getString(R.string.dms_recognition_match_name, best.name))
                             .apply();
                     sendBroadcast(new Intent(DmsFaceRecognitionManager.ACTION_STATUS));
-                    CarSeatMemoryManager.getInstance(this).applySeatMemory(best.seatMemory);
+                    if (seatMemoryAvailable) {
+                        CarSeatMemoryManager.getInstance(this).applySeatMemory(best.seatMemory);
+                    }
                 }
             } else {
-                guideOverlay.setState(FaceGuideView.STATE_SCANNING);
-                status.setText(R.string.dms_face_checking);
+                showFaceStatus(R.string.dms_face_checking);
             }
         } else {
             recognitionCandidate = null;
             recognitionCandidateHits = 0;
             reportedRecognitionName = null;
-            guideOverlay.setState(FaceGuideView.STATE_WARN);
-            status.setText(R.string.dms_face_unknown);
+            showFaceStatus(R.string.dms_face_unknown);
         }
     }
 
@@ -803,10 +851,12 @@ public final class DmsFaceProfileActivity extends AppCompatActivity
             return;
         }
         if (enrollmentName == null && !profiles.isEmpty()) {
-            status.setText(getString(R.string.dms_face_profile_count, profiles.size(),
+            showFaceStatus(getString(R.string.dms_face_profile_count, profiles.size(),
                     FaceProfileStore.MAX_PROFILES));
         } else if (profiles.isEmpty()) {
-            status.setText(R.string.dms_face_no_profiles);
+            showFaceStatus(seatMemoryAvailable
+                    ? R.string.dms_face_no_profiles
+                    : R.string.dms_face_no_profiles_no_memory);
         }
         updateEnrollButtonState();
     }
@@ -966,6 +1016,219 @@ public final class DmsFaceProfileActivity extends AppCompatActivity
 
     @Override
     public void onSurfaceTextureUpdated(@NonNull SurfaceTexture surface) {
+        publishNeutralToneFrame();
+    }
+
+    /**
+     * DMS kameranın yeşil IR/renk dengesini ekranda nötr tona çeker.
+     * Tanıma hâlâ alttaki ham kareyle çalışır; kayıtlı yüz şablonları değişmez.
+     */
+    private void publishNeutralToneFrame() {
+        if (preview == null || tonePreview == null || !preview.isAvailable()) {
+            return;
+        }
+        long now = SystemClock.uptimeMillis();
+        if (now - lastToneFrameAt < TONE_FRAME_INTERVAL_MS) {
+            return;
+        }
+        int viewW = preview.getWidth();
+        int viewH = preview.getHeight();
+        if (viewW < 2 || viewH < 2) {
+            return;
+        }
+        lastToneFrameAt = now;
+        int targetW = Math.min(viewW, 960);
+        int targetH = Math.max(1, viewH * targetW / viewW);
+        Bitmap raw = preview.getBitmap(targetW, targetH);
+        if (raw == null || isBlankFrame(raw)) {
+            if (raw != null) {
+                raw.recycle();
+            }
+            if (tonePreview.getVisibility() != View.GONE) {
+                tonePreview.setVisibility(View.GONE);
+            }
+            return;
+        }
+        try {
+            ensureToneFrame(raw.getWidth(), raw.getHeight());
+            applyNeutralToneMatrix(raw);
+            locateFaceForCentering(raw);
+            tonePaint.setColorFilter(new ColorMatrixColorFilter(toneMatrix));
+            toneCanvas.setBitmap(toneFrame);
+            toneCanvas.drawColor(0xFF000000);
+            float dx = toneFrame.getWidth() / 2f - faceCenterX * raw.getWidth();
+            float dy = toneFrame.getHeight() / 2f - faceCenterY * raw.getHeight();
+            toneCanvas.drawBitmap(raw, dx, dy, tonePaint);
+        } finally {
+            raw.recycle();
+        }
+        tonePreview.setImageBitmap(toneFrame);
+        if (tonePreview.getVisibility() != View.VISIBLE) {
+            tonePreview.setVisibility(View.VISIBLE);
+        }
+        tonePreview.invalidate();
+        clusterPreview.setFrame(toneFrame);
+    }
+
+    private boolean isBlankFrame(Bitmap frame) {
+        int width = frame.getWidth();
+        int height = frame.getHeight();
+        if (width < 2 || height < 2) {
+            return true;
+        }
+        int samples = 0;
+        int lit = 0;
+        int stepX = Math.max(1, width / 8);
+        int stepY = Math.max(1, height / 8);
+        for (int y = stepY; y < height; y += stepY) {
+            for (int x = stepX; x < width; x += stepX) {
+                int color = frame.getPixel(x, y);
+                int luma = (((color >> 16) & 0xFF) + ((color >> 8) & 0xFF) + (color & 0xFF)) / 3;
+                samples++;
+                if (luma > 12) {
+                    lit++;
+                }
+            }
+        }
+        return samples == 0 || lit * 5 < samples;
+    }
+
+    private void ensureToneFrame(int width, int height) {
+        if (toneFrame != null
+                && toneFrame.getWidth() == width
+                && toneFrame.getHeight() == height
+                && !toneFrame.isRecycled()) {
+            return;
+        }
+        if (toneFrame != null && !toneFrame.isRecycled()) {
+            tonePreview.setImageBitmap(null);
+            toneFrame.recycle();
+        }
+        toneFrame = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888);
+    }
+
+    private void applyNeutralToneMatrix(Bitmap raw) {
+        int width = raw.getWidth();
+        int height = raw.getHeight();
+        if (toneSampleRow == null || toneSampleRow.length < width) {
+            toneSampleRow = new int[width];
+        }
+        int step = Math.max(1, Math.min(width, height) / 24);
+        long sumR = 0;
+        long sumG = 0;
+        long sumB = 0;
+        int count = 0;
+        int y0 = height / 5;
+        int y1 = height - y0;
+        int x0 = width / 5;
+        int x1 = width - x0;
+        for (int y = y0; y < y1; y += step) {
+            raw.getPixels(toneSampleRow, 0, width, 0, y, width, 1);
+            for (int x = x0; x < x1; x += step) {
+                int color = toneSampleRow[x];
+                sumR += (color >> 16) & 0xFF;
+                sumG += (color >> 8) & 0xFF;
+                sumB += color & 0xFF;
+                count++;
+            }
+        }
+        if (count == 0) {
+            toneMatrix.setSaturation(0f);
+            return;
+        }
+        float meanR = sumR / (float) count;
+        float meanG = sumG / (float) count;
+        float meanB = sumB / (float) count;
+        boolean greenDominant = meanG > 12f
+                && meanG > meanR * 1.35f
+                && meanG > meanB * 1.35f;
+        if (!greenDominant) {
+            toneMatrix.reset();
+            return;
+        }
+        // DMS IR görüntüsü yeşil kanalda durur. Doygunluğu alınca normal gri ton kalır.
+        toneMatrix.setSaturation(0f);
+        toneMatrix.postConcat(new ColorMatrix(new float[]{
+                1.18f, 0, 0, 0, -16f,
+                0, 1.18f, 0, 0, -16f,
+                0, 0, 1.18f, 0, -16f,
+                0, 0, 0, 1, 0
+        }));
+    }
+
+    private void rememberFaceCenter(FaceDetector.Face face, int frameWidth, int frameHeight) {
+        if (face == null || frameWidth < 2 || frameHeight < 2) {
+            return;
+        }
+        PointF mid = new PointF();
+        face.getMidPoint(mid);
+        float nx = mid.x / frameWidth;
+        float ny = (mid.y + face.eyesDistance() * 0.35f) / frameHeight;
+        smoothFaceCenter(clampUnit(nx), clampUnit(ny));
+    }
+
+    private void locateFaceForCentering(Bitmap source) {
+        long now = SystemClock.uptimeMillis();
+        if (now - lastFaceLocateAt < 220L) {
+            return;
+        }
+        lastFaceLocateAt = now;
+        Bitmap scaled = Bitmap.createScaledBitmap(source, FRAME_WIDTH, FRAME_HEIGHT, true);
+        Bitmap rgb565 = scaled.getConfig() == Bitmap.Config.RGB_565
+                ? scaled
+                : scaled.copy(Bitmap.Config.RGB_565, false);
+        if (rgb565 != scaled) {
+            scaled.recycle();
+        }
+        if (rgb565 == null) {
+            return;
+        }
+        try {
+            if (faceDetector == null) {
+                faceDetector = new FaceDetector(FRAME_WIDTH, FRAME_HEIGHT, 1);
+            }
+            FaceDetector.Face[] faces = new FaceDetector.Face[1];
+            int count = faceDetector.findFaces(rgb565, faces);
+            if (count == 1 && faces[0] != null && faces[0].confidence() >= 0.35f) {
+                rememberFaceCenter(faces[0], rgb565.getWidth(), rgb565.getHeight());
+            } else if (faceCenterKnown) {
+                faceCenterX = faceCenterX * 0.82f + 0.5f * 0.18f;
+                faceCenterY = faceCenterY * 0.82f + 0.5f * 0.18f;
+            }
+        } finally {
+            rgb565.recycle();
+        }
+    }
+
+    private void smoothFaceCenter(float nx, float ny) {
+        if (!faceCenterKnown) {
+            faceCenterX = nx;
+            faceCenterY = ny;
+            faceCenterKnown = true;
+            return;
+        }
+        faceCenterX = faceCenterX * 0.62f + nx * 0.38f;
+        faceCenterY = faceCenterY * 0.62f + ny * 0.38f;
+    }
+
+    private static float clampUnit(float value) {
+        if (value < 0f) {
+            return 0f;
+        }
+        if (value > 1f) {
+            return 1f;
+        }
+        return value;
+    }
+
+    private void releaseToneFrame() {
+        if (tonePreview != null) {
+            tonePreview.setImageBitmap(null);
+        }
+        if (toneFrame != null && !toneFrame.isRecycled()) {
+            toneFrame.recycle();
+        }
+        toneFrame = null;
     }
 
     private void closeCamera() {
@@ -996,8 +1259,22 @@ public final class DmsFaceProfileActivity extends AppCompatActivity
     }
 
     @Override
+    protected void onResume() {
+        super.onResume();
+        clusterPreview.show(this);
+    }
+
+    @Override
+    protected void onPause() {
+        clusterPreview.hide();
+        super.onPause();
+    }
+
+    @Override
     protected void onDestroy() {
         closeCamera();
+        clusterPreview.hide();
+        releaseToneFrame();
         if (cameraManager != null && cameraHandler != null) {
             cameraManager.unregisterAvailabilityCallback(cameraAvailabilityCallback);
         }
@@ -1031,81 +1308,5 @@ public final class DmsFaceProfileActivity extends AppCompatActivity
     private int dp(int value) {
         return Math.round(value * getResources().getDisplayMetrics().density);
     }
-
-    private static final class FaceGuideView extends View {
-        static final int STATE_IDLE = 0;
-        static final int STATE_SCANNING = 1;
-        static final int STATE_DETECTED = 2;
-        static final int STATE_WARN = 3;
-
-        private final Paint ovalPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
-        private final Paint scrimPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
-        private final RectF ovalRect = new RectF();
-        private int state = STATE_IDLE;
-
-        FaceGuideView(Context context) {
-            super(context);
-            float density = context.getResources().getDisplayMetrics().density;
-            ovalPaint.setStyle(Paint.Style.STROKE);
-            ovalPaint.setStrokeWidth(3f * density);
-            scrimPaint.setStyle(Paint.Style.STROKE);
-            scrimPaint.setStrokeWidth(8f * density);
-            updateColors();
-        }
-
-        void setState(int newState) {
-            if (this.state != newState) {
-                this.state = newState;
-                updateColors();
-                invalidate();
-            }
-        }
-
-        private void updateColors() {
-            int mainColor;
-            int glowColor;
-            switch (state) {
-                case STATE_DETECTED:
-                    mainColor = 0xFF22C55E;
-                    glowColor = 0x4422C55E;
-                    break;
-                case STATE_SCANNING:
-                    mainColor = 0xFF3B82F6;
-                    glowColor = 0x443B82F6;
-                    break;
-                case STATE_WARN:
-                    mainColor = 0xFFF59E0B;
-                    glowColor = 0x44F59E0B;
-                    break;
-                case STATE_IDLE:
-                default:
-                    mainColor = 0x8894A3B8;
-                    glowColor = 0x2294A3B8;
-                    break;
-            }
-            ovalPaint.setColor(mainColor);
-            scrimPaint.setColor(glowColor);
-        }
-
-        @Override
-        protected void onDraw(Canvas canvas) {
-            super.onDraw(canvas);
-            int w = getWidth();
-            int h = getHeight();
-            if (w <= 0 || h <= 0) {
-                return;
-            }
-            float ovalH = h * 0.68f;
-            float ovalW = ovalH * 0.76f;
-            if (ovalW > w * 0.65f) {
-                ovalW = w * 0.65f;
-                ovalH = ovalW / 0.76f;
-            }
-            float cx = w / 2f;
-            float cy = h / 2f;
-            ovalRect.set(cx - ovalW / 2f, cy - ovalH / 2f, cx + ovalW / 2f, cy + ovalH / 2f);
-            canvas.drawOval(ovalRect, scrimPaint);
-            canvas.drawOval(ovalRect, ovalPaint);
-        }
-    }
 }
+

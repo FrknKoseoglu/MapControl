@@ -101,7 +101,9 @@ public final class DmsFaceRecognitionManager {
 
     private DmsFaceRecognitionManager(Context context) {
         this.context = context;
-        CarSeatMemoryManager.getInstance(context).ensureInitialized();
+        if (CarSeatMemoryManager.isSeatMemoryAvailable(context)) {
+            CarSeatMemoryManager.getInstance(context).ensureInitialized();
+        }
     }
 
     public static void start(Context context) {
@@ -438,14 +440,21 @@ public final class DmsFaceRecognitionManager {
                     lastPublishedName = match.profile.name;
                     sessionRecognized = true;
                     SharedPreferences prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE);
+                    boolean seatMemory = CarSeatMemoryManager.isSeatMemoryAvailable(context);
+                    int memorySlot = seatMemory ? match.profile.seatMemory : 0;
                     prefs.edit()
                             .putString(PREF_LAST_NAME, match.profile.name)
-                            .putInt(PREF_LAST_MEMORY, match.profile.seatMemory)
+                            .putInt(PREF_LAST_MEMORY, memorySlot)
                             .apply();
-                    String matchedMsg = context.getString(R.string.dms_recognition_match,
-                            match.profile.name, match.profile.seatMemory);
+                    String matchedMsg = seatMemory
+                            ? context.getString(R.string.dms_recognition_match,
+                                    match.profile.name, match.profile.seatMemory)
+                            : context.getString(R.string.dms_recognition_match_name,
+                                    match.profile.name);
                     publishStatus(matchedMsg);
-                    requestSeatMemoryWithRetry(match.profile.seatMemory, 5);
+                    if (seatMemory) {
+                        requestSeatMemoryWithRetry(match.profile.seatMemory, 5);
+                    }
                     // Sürücü tespit edilip hafıza tetiklendiğinde kamerayı hemen serbest bırak
                     closeDmsCamera();
                 }
@@ -458,6 +467,9 @@ public final class DmsFaceRecognitionManager {
     }
 
     private void requestSeatMemoryWithRetry(int seatMemory, int retriesLeft) {
+        if (!CarSeatMemoryManager.isSeatMemoryAvailable(context)) {
+            return;
+        }
         if (seatMemory < 1 || seatMemory > FaceProfileStore.MAX_PROFILES) {
             logOnly(context.getString(R.string.dms_recognition_memory_not_requested,
                     context.getString(R.string.dms_recognition_memory_invalid)));
@@ -536,7 +548,9 @@ public final class DmsFaceRecognitionManager {
                 } catch (RuntimeException ignored) {
                 }
             } else {
-                CarSeatMemoryManager.getInstance(context).ensureInitialized();
+                if (CarSeatMemoryManager.isSeatMemoryAvailable(context)) {
+                    CarSeatMemoryManager.getInstance(context).ensureInitialized();
+                }
                 int[] values = proxy.getItemValues(VDEventCarInfo.MODULE_READONLY_INFO,
                         ReadOnlyID.ID_SYSTEM_POWER_MODE);
                 if (values != null && values.length > 0) {

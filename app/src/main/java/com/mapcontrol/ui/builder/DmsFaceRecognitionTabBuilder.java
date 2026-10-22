@@ -20,6 +20,7 @@ import com.mapcontrol.R;
 import com.mapcontrol.service.DmsFaceRecognitionManager;
 import com.mapcontrol.ui.activity.DmsFaceProfileActivity;
 import com.mapcontrol.ui.theme.UiStyles;
+import com.mapcontrol.vehicle.CarSeatMemoryManager;
 import com.mapcontrol.vehicle.FaceProfileStore;
 
 import java.util.List;
@@ -35,6 +36,8 @@ public final class DmsFaceRecognitionTabBuilder {
     private final SharedPreferences prefs;
     private final Logger logger;
     private SwitchCompat enabledSwitch;
+    private TextView description;
+    private TextView toggleLabel;
     private TextView status;
     private LinearLayout savedProfilesContainer;
     private boolean pendingEnable;
@@ -67,8 +70,7 @@ public final class DmsFaceRecognitionTabBuilder {
         title.setTypeface(null, Typeface.BOLD);
         mainCard.addView(title);
 
-        TextView description = new TextView(activity);
-        description.setText(R.string.dms_recognition_description);
+        description = new TextView(activity);
         description.setTextSize(14);
         description.setTextColor(UiStyles.color(activity, R.color.textSecondaryCool));
         LinearLayout.LayoutParams descriptionLp = new LinearLayout.LayoutParams(
@@ -86,13 +88,13 @@ public final class DmsFaceRecognitionTabBuilder {
         toggleRowLp.topMargin = dp(16);
         mainCard.addView(toggleRow, toggleRowLp);
 
-        TextView toggleLabel = new TextView(activity);
-        toggleLabel.setText(R.string.dms_recognition_enable);
+        toggleLabel = new TextView(activity);
         toggleLabel.setTextSize(15);
         toggleLabel.setTypeface(null, Typeface.BOLD);
         toggleLabel.setTextColor(UiStyles.color(activity, R.color.textPrimary));
         toggleRow.addView(toggleLabel, new LinearLayout.LayoutParams(0,
                 LinearLayout.LayoutParams.WRAP_CONTENT, 1f));
+        applySeatMemoryCopy();
 
         enabledSwitch = new SwitchCompat(activity);
         enabledSwitch.setChecked(DmsFaceRecognitionManager.isEnabled(activity));
@@ -182,14 +184,18 @@ public final class DmsFaceRecognitionTabBuilder {
         if (status == null) {
             return;
         }
+        applySeatMemoryCopy();
         int profileCount = 0;
         try {
             List<FaceProfileStore.Profile> profiles = FaceProfileStore.load(activity);
             profileCount = profiles.size();
             String lastName = prefs.getString(DmsFaceRecognitionManager.PREF_LAST_NAME, "");
             int memory = prefs.getInt(DmsFaceRecognitionManager.PREF_LAST_MEMORY, 0);
+            boolean seatMemoryAvailable = CarSeatMemoryManager.isSeatMemoryAvailable(activity);
             String last = lastName.isEmpty() ? activity.getString(R.string.dms_recognition_no_match_yet)
-                    : activity.getString(R.string.dms_recognition_last_match, lastName, memory);
+                    : seatMemoryAvailable
+                    ? activity.getString(R.string.dms_recognition_last_match, lastName, memory)
+                    : activity.getString(R.string.dms_recognition_last_match_name, lastName);
             String serviceStatus = prefs.getString(DmsFaceRecognitionManager.PREF_STATUS,
                     activity.getString(R.string.dms_recognition_idle));
             boolean enabled = DmsFaceRecognitionManager.isEnabled(activity);
@@ -213,6 +219,20 @@ public final class DmsFaceRecognitionTabBuilder {
         }
     }
 
+    private void applySeatMemoryCopy() {
+        boolean seatMemory = CarSeatMemoryManager.isSeatMemoryAvailable(activity);
+        if (description != null) {
+            description.setText(seatMemory
+                    ? R.string.dms_recognition_description
+                    : R.string.dms_recognition_description_no_memory);
+        }
+        if (toggleLabel != null) {
+            toggleLabel.setText(seatMemory
+                    ? R.string.dms_recognition_enable
+                    : R.string.dms_recognition_enable_no_memory);
+        }
+    }
+
     private void populateSavedProfilesSummary(List<FaceProfileStore.Profile> profiles) {
         if (savedProfilesContainer == null) {
             return;
@@ -220,7 +240,9 @@ public final class DmsFaceRecognitionTabBuilder {
         savedProfilesContainer.removeAllViews();
         if (profiles.isEmpty()) {
             TextView empty = new TextView(activity);
-            empty.setText(R.string.dms_face_no_profiles);
+            empty.setText(CarSeatMemoryManager.isSeatMemoryAvailable(activity)
+                    ? R.string.dms_face_no_profiles
+                    : R.string.dms_face_no_profiles_no_memory);
             empty.setTextSize(14);
             empty.setTextColor(UiStyles.color(activity, R.color.textSecondaryCool));
             savedProfilesContainer.addView(empty);
@@ -248,12 +270,14 @@ public final class DmsFaceRecognitionTabBuilder {
             row.addView(nameTv, new LinearLayout.LayoutParams(
                     0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f));
 
-            TextView badge = new TextView(activity);
-            badge.setText("Koltuk Hafızası " + p.seatMemory);
-            badge.setTextSize(13);
-            badge.setTypeface(null, Typeface.BOLD);
-            badge.setTextColor(0xFF60A5FA);
-            row.addView(badge);
+            if (CarSeatMemoryManager.isSeatMemoryAvailable(activity)) {
+                TextView badge = new TextView(activity);
+                badge.setText("Koltuk Hafızası " + p.seatMemory);
+                badge.setTextSize(13);
+                badge.setTypeface(null, Typeface.BOLD);
+                badge.setTextColor(0xFF60A5FA);
+                row.addView(badge);
+            }
 
             savedProfilesContainer.addView(row, rowLp);
         }

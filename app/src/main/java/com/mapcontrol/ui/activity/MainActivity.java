@@ -1146,9 +1146,7 @@ public class MainActivity extends AppCompatActivity {
         } else if (tabIndex == TAB_EQUALIZER) {
             addTabChild(parent, equalizerTabBuilder.getScrollView(), matchParent);
         } else if (tabIndex == TAB_CLIMATE_AUTOMATION) {
-            if (climateAutomationScrollView == null) {
-                rebuildClimateAutomationTab();
-            }
+            rebuildClimateAutomationTab();
             addTabChild(parent, climateAutomationScrollView, matchParent);
         } else if (tabIndex == TAB_FACE_RECOGNITION) {
             addTabChild(parent, faceRecognitionScrollView, matchParent);

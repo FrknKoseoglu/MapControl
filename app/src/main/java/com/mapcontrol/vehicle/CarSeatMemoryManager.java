@@ -45,6 +45,7 @@ public final class CarSeatMemoryManager {
     };
 
     private static volatile CarSeatMemoryManager instance;
+    private static volatile Context probeContext;
 
     private final Context appContext;
     private final SharedPreferences prefs;
@@ -86,11 +87,23 @@ public final class CarSeatMemoryManager {
         }
     };
 
+    public static boolean isSeatMemoryAvailable() {
+        return true;
+    }
+
+    public static boolean isSeatMemoryAvailable(Context context) {
+        if (context != null) {
+            probeContext = context.getApplicationContext();
+        }
+        return true;
+    }
+
     public static CarSeatMemoryManager getInstance(Context context) {
+        probeContext = context.getApplicationContext();
         if (instance == null) {
             synchronized (CarSeatMemoryManager.class) {
                 if (instance == null) {
-                    instance = new CarSeatMemoryManager(context.getApplicationContext());
+                    instance = new CarSeatMemoryManager(probeContext);
                 }
             }
         }

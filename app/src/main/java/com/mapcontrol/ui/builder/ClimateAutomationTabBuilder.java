@@ -207,18 +207,14 @@ public class ClimateAutomationTabBuilder implements ClimateAutomationEngine.List
                     : context.getString(R.string.climate_auto_log_off));
         });
 
-        // SECTION 1: DRIVER SIDE (SÜRÜCÜ TARAFI) - Ayrı Kart, Isıtma & Havalandırma Yan Yana
         root.addView(buildDualSeatCard(
                 R.string.climate_auto_driver_section,
-                "💺",
                 ClimateAutomationStore.DRIVER_HEAT, R.string.climate_auto_driver_heat, R.drawable.ic_climate_seat_heat,
                 ClimateAutomationStore.DRIVER_VENT, R.string.climate_auto_driver_vent, R.drawable.ic_climate_seat_cooling,
                 density, compactLayout));
 
-        // SECTION 2: PASSENGER SIDE (YOLCU TARAFI) - Ayrı Kart, Isıtma & Havalandırma Yan Yana
         root.addView(buildDualSeatCard(
                 R.string.climate_auto_passenger_section,
-                "💺",
                 ClimateAutomationStore.PASSENGER_HEAT, R.string.climate_auto_passenger_heat, R.drawable.ic_climate_seat_heat,
                 ClimateAutomationStore.PASSENGER_VENT, R.string.climate_auto_passenger_vent, R.drawable.ic_climate_seat_cooling,
                 density, compactLayout));
@@ -234,7 +230,7 @@ public class ClimateAutomationTabBuilder implements ClimateAutomationEngine.List
      * Sürücü veya Yolcu tarafı için büyük modern ana kart oluşturur.
      * İçinde Isıtma ve Havalandırma kutucukları yan yana (2 sütun) konumlandırılır.
      */
-    private LinearLayout buildDualSeatCard(int sectionTitleRes, String iconEmoji,
+    private LinearLayout buildDualSeatCard(int sectionTitleRes,
                                           String heatId, int heatTitleRes, int heatIconRes,
                                           String ventId, int ventTitleRes, int ventIconRes,
                                           float density, boolean compactLayout) {
@@ -288,11 +284,13 @@ public class ClimateAutomationTabBuilder implements ClimateAutomationEngine.List
         FrameLayout heatCard = buildRuleCard(heatId, heatTitleRes, heatIconRes, density, compactLayout);
         FrameLayout ventCard = buildRuleCard(ventId, ventTitleRes, ventIconRes, density, compactLayout);
 
-        LinearLayout.LayoutParams p1 = new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f);
+        LinearLayout.LayoutParams p1 = new LinearLayout.LayoutParams(
+                0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f);
         p1.rightMargin = dp(6, density);
         row.addView(heatCard, p1);
 
-        LinearLayout.LayoutParams p2 = new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f);
+        LinearLayout.LayoutParams p2 = new LinearLayout.LayoutParams(
+                0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f);
         p2.leftMargin = dp(6, density);
         row.addView(ventCard, p2);
 
@@ -411,7 +409,8 @@ public class ClimateAutomationTabBuilder implements ClimateAutomationEngine.List
         AppCompatImageView icon = new AppCompatImageView(context);
         icon.setImageResource(getRuleIconResource(id, rule.tempC, iconRes));
         icon.setScaleType(ImageView.ScaleType.FIT_CENTER);
-        int iconPx = dp(compactLayout ? 44 : 54, density);
+        int iconPx = dp(compactLayout ? 36 : 40, density);
+        int badgePx = dp(compactLayout ? 64 : 72, density);
         FrameLayout iconBadge = new FrameLayout(context);
         GradientDrawable iconBackground = new GradientDrawable();
         iconBackground.setColor(UiStyles.color(context, R.color.automationIconSurface));
@@ -420,25 +419,22 @@ public class ClimateAutomationTabBuilder implements ClimateAutomationEngine.List
         iconBadge.setBackground(iconBackground);
         icon.setImageTintList(null);
         iconBadge.addView(icon, new FrameLayout.LayoutParams(iconPx, iconPx, Gravity.CENTER));
-        LinearLayout.LayoutParams iconBadgeLp = new LinearLayout.LayoutParams(
-                dp(compactLayout ? 64 : 80, density), dp(compactLayout ? 60 : 72, density));
+        LinearLayout.LayoutParams iconBadgeLp = new LinearLayout.LayoutParams(badgePx, badgePx);
+        iconBadgeLp.gravity = Gravity.CENTER_HORIZONTAL;
         iconBadgeLp.bottomMargin = dp(8, density);
         header.addView(iconBadge, iconBadgeLp);
 
-        LinearLayout titleRow = new LinearLayout(context);
-        titleRow.setOrientation(compactLayout ? LinearLayout.VERTICAL : LinearLayout.HORIZONTAL);
-        titleRow.setGravity(compactLayout ? Gravity.CENTER_HORIZONTAL : Gravity.CENTER_VERTICAL);
         TextView name = new TextView(context);
         name.setText(titleRes);
         name.setTextSize(13);
         name.setTypeface(null, Typeface.BOLD);
         name.setTextColor(UiStyles.color(context, R.color.automationText));
         name.setGravity(Gravity.CENTER);
+        name.setTextAlignment(View.TEXT_ALIGNMENT_CENTER);
         name.setMaxLines(2);
-        titleRow.addView(name, compactLayout
-                ? new LinearLayout.LayoutParams(
-                        LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT)
-                : new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f));
+        LinearLayout.LayoutParams nameLp = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
+        header.addView(name, nameLp);
 
         SwitchCompat ruleSwitch = new SwitchCompat(context);
         ruleSwitch.setShowText(false);
@@ -449,18 +445,20 @@ public class ClimateAutomationTabBuilder implements ClimateAutomationEngine.List
         ruleSwitch.setTrackTintList(createSwitchTint(
                 UiStyles.color(context, R.color.assistStrokeActive),
                 UiStyles.color(context, R.color.outline)));
-        LinearLayout.LayoutParams switchLp = new LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT);
-        if (compactLayout) {
-            switchLp.topMargin = dp(4, density);
-        }
-        titleRow.addView(ruleSwitch, switchLp);
-        header.addView(titleRow);
+        LinearLayout switchRow = new LinearLayout(context);
+        switchRow.setGravity(Gravity.CENTER);
+        switchRow.setPadding(0, dp(6, density), 0, 0);
+        switchRow.addView(ruleSwitch, new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT));
+        header.addView(switchRow, new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT));
         card.addView(header);
 
         TextView delayLabel = new TextView(context);
         delayLabel.setTextSize(11);
         delayLabel.setTextColor(UiStyles.color(context, R.color.automationTextMuted));
+        delayLabel.setGravity(Gravity.CENTER);
+        delayLabel.setTextAlignment(View.TEXT_ALIGNMENT_CENTER);
         delayLabel.setPadding(0, dp(8, density), 0, 0);
         delayLabel.setText(formatDelay(rule.delayMinutes));
         card.addView(delayLabel);
@@ -579,19 +577,29 @@ public class ClimateAutomationTabBuilder implements ClimateAutomationEngine.List
             }
         });
 
+        TextView levelLabel = null;
+        SeekBar levelSeek = null;
         if (ClimateAutomationStore.usesHeatLevel(id)) {
-            TextView levelLabel = new TextView(context);
+            levelLabel = new TextView(context);
             levelLabel.setTextSize(11);
             levelLabel.setTextColor(UiStyles.color(context, R.color.automationTextMuted));
+            levelLabel.setGravity(Gravity.CENTER);
+            levelLabel.setTextAlignment(View.TEXT_ALIGNMENT_CENTER);
             levelLabel.setPadding(0, dp(8, density), 0, 0);
             levelLabel.setText(context.getString(R.string.climate_auto_level, rule.level));
+            levelLabel.setVisibility(rule.enabled ? View.VISIBLE : View.GONE);
             card.addView(levelLabel);
-            card.addView(buildSeekBar(ClimateAutomationStore.LEVEL_MIN, ClimateAutomationStore.LEVEL_MAX, rule.level, progress -> {
+            TextView levelLabelRef = levelLabel;
+            levelSeek = buildSeekBar(ClimateAutomationStore.LEVEL_MIN, ClimateAutomationStore.LEVEL_MAX, rule.level, progress -> {
                 rule.level = progress;
-                levelLabel.setText(context.getString(R.string.climate_auto_level, progress));
+                levelLabelRef.setText(context.getString(R.string.climate_auto_level, progress));
                 saveRuleSilently(id, rule);
-            }));
+            });
+            levelSeek.setVisibility(rule.enabled ? View.VISIBLE : View.GONE);
+            card.addView(levelSeek);
         }
+        final TextView shownLevelLabel = levelLabel;
+        final SeekBar shownLevelSeek = levelSeek;
 
         ruleSwitch.setOnCheckedChangeListener((button, enabled) -> {
             if (enabled) {
@@ -605,6 +613,13 @@ public class ClimateAutomationTabBuilder implements ClimateAutomationEngine.List
             }
             rule.enabled = enabled;
             applyCardBackground(card, rule.enabled, density);
+            int levelVisibility = enabled ? View.VISIBLE : View.GONE;
+            if (shownLevelLabel != null) {
+                shownLevelLabel.setVisibility(levelVisibility);
+            }
+            if (shownLevelSeek != null) {
+                shownLevelSeek.setVisibility(levelVisibility);
+            }
             ClimateAutomationStore.putRule(prefs, id, rule);
             if (enabled) {
                 engine.notifyRuleChanged(id);
@@ -622,13 +637,32 @@ public class ClimateAutomationTabBuilder implements ClimateAutomationEngine.List
     }
 
     private SeekBar buildSeekBar(int min, int max, int value, ProgressConsumer consumer) {
+        float density = context.getResources().getDisplayMetrics().density;
         SeekBar bar = new SeekBar(context);
         bar.setMin(min);
         bar.setMax(max);
         bar.setProgress(value);
         int accent = UiStyles.color(context, R.color.oemAccent);
+        int track = dp(8, density);
+        int thumbSize = dp(28, density);
+        bar.setMinHeight(track);
+        bar.setMaxHeight(track);
+        bar.setSplitTrack(false);
         bar.setProgressTintList(ColorStateList.valueOf(accent));
-        bar.setThumbTintList(ColorStateList.valueOf(accent));
+        bar.setProgressBackgroundTintList(ColorStateList.valueOf(
+                UiStyles.color(context, R.color.outline)));
+        GradientDrawable thumb = new GradientDrawable();
+        thumb.setShape(GradientDrawable.OVAL);
+        thumb.setColor(accent);
+        thumb.setSize(thumbSize, thumbSize);
+        bar.setThumb(thumb);
+        bar.setThumbOffset(thumbSize / 2);
+        int side = thumbSize / 2;
+        int vertical = dp(12, density);
+        bar.setPadding(side, vertical, side, vertical);
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, dp(52, density));
+        bar.setLayoutParams(lp);
         if (consumer != null) {
             bar.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
                 @Override

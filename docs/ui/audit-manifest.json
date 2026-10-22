@@ -598,5 +598,153 @@
       "android_failures": 0,
       "screenshots": "output/panel-density"
     }
+  },
+  "ui_only_scope_cleanup": {
+    "date": "2026-10-22",
+    "status": "completed_with_unchanged_ui_test_failures",
+    "base_main_commit": "187093b9e15331c621d79129067086f5445a70cd",
+    "backup_branch": "codex/ui-scope-backup-20261022",
+    "backup_commit": "25fb5291a419b49404f3cd12b9bc748e369f33ff",
+    "scope": "Only UI/UX and Super Mode; restore other feature logic to origin/main.",
+    "source_contract": {
+      "base": "187093b9e15331c621d79129067086f5445a70cd",
+      "backup_branch": "codex/ui-scope-backup-20261022",
+      "main_equal_files": [
+        "app/src/main/java/com/desaysv/ivi/extra/project/carinfo/proxy/CarInfoProxy.java",
+        "app/src/main/java/com/mapcontrol/GlitchTip.java",
+        "app/src/main/java/com/mapcontrol/api/ProfileApiService.java",
+        "app/src/main/java/com/mapcontrol/audio/AudioEqualizerController.java",
+        "app/src/main/java/com/mapcontrol/bean/CameraBean.java",
+        "app/src/main/java/com/mapcontrol/manager/ClusterDisplayManager.java",
+        "app/src/main/java/com/mapcontrol/nav/GoogleMapsNavNotificationParser.java",
+        "app/src/main/java/com/mapcontrol/nav/GoogleMapsNavSnapshot.java",
+        "app/src/main/java/com/mapcontrol/nav/YandexClusterNavOverlay.java",
+        "app/src/main/java/com/mapcontrol/service/BootReceiver.java",
+        "app/src/main/java/com/mapcontrol/service/GlobalBackService.java",
+        "app/src/main/java/com/mapcontrol/ui/activity/CameraActivity.java",
+        "app/src/main/java/com/mapcontrol/util/ApkSessionInstaller.java",
+        "app/src/main/java/com/mapcontrol/util/BootSession.java",
+        "app/src/main/java/com/mapcontrol/util/DisplayHelper.java",
+        "app/src/main/java/com/mapcontrol/util/PermissionProbe.java",
+        "app/src/main/java/com/mapcontrol/util/SilentDexInstaller.java",
+        "app/src/main/java/com/mapcontrol/util/StartupGate.java",
+        "app/src/main/java/com/mapcontrol/vehicle/VehicleMetricsCache.java",
+        "app/src/main/java/com/mapcontrol/vehicle/VehicleMetricsRepository.java",
+        "app/src/main/java/com/mapcontrol/vehicle/VehicleQuickControls.java",
+        "app/src/main/java/com/mapcontrol/vehicle/material/MaterialVehiclePackageResolver.java",
+        "app/src/main/java/com/mapcontrol/vehicle/material/OemEolConfigReader.java",
+        "app/src/main/java/com/mapcontrol/weather/OpenMeteoWeatherClient.java",
+        "app/src/main/res/xml/accessibility_service_config.xml",
+        "app/src/test/java/com/mapcontrol/nav/GoogleMapsNavNotificationParserTest.java",
+        "app/src/test/java/com/mapcontrol/util/StartupGateTest.java"
+      ],
+      "branch_only_functional_files_removed": [
+        "app/src/main/java/com/mapcontrol/nav/NavigationQuantities.java",
+        "app/src/main/java/com/mapcontrol/util/BoundedLogBuffer.java",
+        "app/src/main/java/com/mapcontrol/util/DisplayTaskParser.java",
+        "app/src/main/java/com/mapcontrol/util/OverlayDismissal.java",
+        "app/src/main/java/com/mapcontrol/vehicle/LocationSamplePolicy.java",
+        "app/src/main/java/com/mapcontrol/vehicle/PowerModeSample.java",
+        "app/src/main/java/com/mapcontrol/vehicle/VehicleIdentity.java",
+        "app/src/main/java/com/mapcontrol/vehicle/VehicleIdentityManager.java",
+        "app/src/main/java/com/mapcontrol/vehicle/VehicleLocationProvider.java",
+        "app/src/main/assets/vehicle_models_tr.json",
+        "app/src/androidTest/java/com/mapcontrol/audio/EqualizerDisabledTest.java",
+        "app/src/androidTest/java/com/mapcontrol/bean/CameraResourceTest.java",
+        "app/src/androidTest/java/com/mapcontrol/nav/YandexOverlayUpdateTest.java",
+        "app/src/androidTest/java/com/mapcontrol/util/AccessibilityEntryPointTest.java",
+        "app/src/androidTest/java/com/mapcontrol/util/OverlayDismissalTest.java",
+        "app/src/androidTest/java/com/mapcontrol/util/PassiveDiagnosticsTest.java",
+        "app/src/androidTest/java/com/mapcontrol/util/RecordingWindowManager.java",
+        "app/src/androidTest/java/com/mapcontrol/vehicle/VehicleMetricsLiveHeaderTest.java",
+        "app/src/androidTest/java/com/mapcontrol/weather/WeatherLifecycleTest.java",
+        "app/src/test/java/com/mapcontrol/nav/NavigationQuantitiesTest.java",
+        "app/src/test/java/com/mapcontrol/util/BoundedLogBufferTest.java",
+        "app/src/test/java/com/mapcontrol/util/DisplayTaskParserTest.java",
+        "app/src/test/java/com/mapcontrol/vehicle/LocationSamplePolicyTest.java",
+        "app/src/test/java/com/mapcontrol/vehicle/PowerModeSampleTest.java",
+        "app/src/test/java/com/mapcontrol/vehicle/VehicleIdentityManagerTest.java"
+      ],
+      "vehicle_info_metric_mappings_preserved": 19,
+      "dms_climate_net_diff": "none",
+      "super_mode_policy_unchanged": true,
+      "main_equal_operational_methods": [
+        {
+          "file": "app/src/main/java/com/mapcontrol/ui/activity/MainActivity.java",
+          "method": "private void log(String msg)"
+        },
+        {
+          "file": "app/src/main/java/com/mapcontrol/ui/builder/AppsTabBuilder.java",
+          "method": "private void installApkFile(File apkFile, int queueGeneration)"
+        },
+        {
+          "file": "app/src/main/java/com/mapcontrol/ui/builder/AssistTabBuilder.java",
+          "method": "private void trySendCarInfoValue(String settingKey, boolean disable, String logPrefix)"
+        },
+        {
+          "file": "app/src/main/java/com/mapcontrol/ui/builder/DriveModeTabBuilder.java",
+          "method": "private void applyDriveMode(int mode)"
+        },
+        {
+          "file": "app/src/main/java/com/mapcontrol/ui/builder/LauncherDashboardBuilder.java",
+          "method": "public void start()"
+        },
+        {
+          "file": "app/src/main/java/com/mapcontrol/ui/builder/LauncherDashboardBuilder.java",
+          "method": "public void stop()"
+        }
+      ],
+      "service_difference_only_super_mode_hooks": true
+    },
+    "validation": {
+      "debug_build": "passed",
+      "android_test_build": "passed",
+      "jvm": {
+        "tests": 23,
+        "failures": 0,
+        "errors": 0
+      },
+      "android": {
+        "tests": 18,
+        "passed": 14,
+        "failures": 4,
+        "cases": [
+          [
+            "rejectedPermissionRestoresTheUncheckedCircle",
+            "com.mapcontrol.ui.theme.CompactControlsTest"
+          ],
+          [
+            "gridReflowsFromTwoColumnsToOneWithoutChangingOrder",
+            "com.mapcontrol.ui.theme.CompactControlsTest"
+          ],
+          [
+            "toggleCanBeClearedAndVisualSyncDoesNotCommit",
+            "com.mapcontrol.ui.theme.CompactControlsTest"
+          ],
+          [
+            "disconnectClearsActualModeAndRebuildPreservesOtherStatusValues",
+            "com.mapcontrol.ui.builder.SharedHeaderTest"
+          ]
+        ],
+        "unchanged_implementation_and_tests": [
+          "app/src/main/java/com/mapcontrol/ui/theme/UiStyles.java",
+          "app/src/main/java/com/mapcontrol/ui/theme/FeatureGridLayout.java",
+          "app/src/androidTest/java/com/mapcontrol/ui/theme/CompactControlsTest.java",
+          "app/src/androidTest/java/com/mapcontrol/ui/builder/SharedHeaderTest.java",
+          "app/src/main/java/com/mapcontrol/ui/builder/TopBarBuilder.java",
+          "app/src/main/java/com/mapcontrol/ui/widget/StatusWidgetsView.java"
+        ]
+      },
+      "normal_and_fullscreen_visual_check": "passed",
+      "physical_vehicle_test": false,
+      "apk_sha256": "99581c6f5b8e05d277b9fcad0656bb372bb665f5a3ccaf15fe5bf6fd5120aa4f",
+      "artifacts": "output/ui-scope-cleanup"
+    },
+    "notes": [
+      "No attempt to fix the unrelated UI failures.",
+      "Old archive and inventory remain pre-cleanup historical snapshots.",
+      "Super Mode nullable read is isolated in its controller; shared OEM proxy matches main."
+    ],
+    "asset_packaging_matches_main": true
   }
 }

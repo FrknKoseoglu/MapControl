@@ -179,8 +179,8 @@ public final class VehicleQuickControls {
             centralLocked = false;
             return;
         }
-        int[] values = CarInfoProxy.getInstance().getItemValuesOrNull(MODULE_SETTING, LOCK_CMD_ID);
-        if (values != null && values.length > 0) applyCentralLockValue(values[0], false);
+        int value = CarInfoProxy.getInstance().getItemValue(MODULE_SETTING, LOCK_CMD_ID);
+        applyCentralLockValue(value, false);
     }
 
     private void notifyListeners() {

@@ -74,10 +74,6 @@ android {
             pickFirsts += ['**/libc++_shared.so']
         }
     }
-
-    aaptOptions {
-        ignoreAssetsPattern '!*.bak'
-    }
 }
 
 dependencies {

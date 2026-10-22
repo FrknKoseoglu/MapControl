@@ -326,8 +326,8 @@ public class AssistTabBuilder {
 
     private void trySendCarInfoValue(String settingKey, boolean disable, String logPrefix) {
         try {
-            int currentPowerMode = -1;
-            int[] pwrItems = CarInfoProxy.getInstance().getItemValuesOrNull(
+            int currentPowerMode = prefs.getInt("lastPowerMode", -1);
+            int[] pwrItems = CarInfoProxy.getInstance().getItemValues(
                     VDEventCarInfo.MODULE_READONLY_INFO,
                     ReadOnlyID.ID_SYSTEM_POWER_MODE);
             if (pwrItems != null && pwrItems.length > 0) {

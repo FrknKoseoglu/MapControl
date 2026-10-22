@@ -2,7 +2,6 @@ package com.mapcontrol.vehicle.material;
 
 import android.content.Context;
 import android.os.Bundle;
-import android.os.Looper;
 import android.util.Log;
 
 import com.desaysv.ivi.vdb.client.VDBus;
@@ -19,26 +18,14 @@ import java.lang.reflect.Method;
 public final class OemEolConfigReader {
 
     private static final String TAG = "OemEolConfig";
-    private static final int VDB_BIND_WAIT_MS = 300;
+    private static final int VDB_BIND_WAIT_MS = 2500;
     private static final int VDB_BIND_STEP_MS = 100;
-
-    private static volatile boolean sLoaded;
-    private static volatile int[] sCachedCarConfig3;
-    private static volatile int[] sCachedCarConfig5;
-    private static volatile int[] sCachedComboConfig;
 
     private int[] carConfig3;
     private int[] carConfig5;
     private int[] comboConfig;
 
-    public void load(Context context) {
-        if (sLoaded) {
-            carConfig3 = sCachedCarConfig3;
-            carConfig5 = sCachedCarConfig5;
-            comboConfig = sCachedComboConfig;
-            return;
-        }
-
+    void load(Context context) {
         Context app = context.getApplicationContext();
         VDBus vdbus = VDBus.getDefault();
         vdbus.init(app);
@@ -58,11 +45,6 @@ public final class OemEolConfigReader {
             carConfig3 = hexStringToBytes(readSystemProperty(ReserveKeys.CAR_CONFIG_3));
         }
 
-        sCachedCarConfig3 = carConfig3;
-        sCachedCarConfig5 = carConfig5;
-        sCachedComboConfig = comboConfig;
-        sLoaded = true;
-
         Log.i(TAG, "EOL yüklendi — modelCode=" + getModelCode()
                 + " power=" + getPowerType()
                 + " region=" + getCountryOrRegion()
@@ -77,10 +59,6 @@ public final class OemEolConfigReader {
             return;
         }
         vdbus.bindService(type);
-        if (Looper.myLooper() == Looper.getMainLooper()) {
-            // Asla ana UI thread'inde Thread.sleep ile bloklama (cold start / ANR engelle)
-            return;
-        }
         long deadline = System.currentTimeMillis() + VDB_BIND_WAIT_MS;
         while (System.currentTimeMillis() < deadline) {
             if (vdbus.isServiceConnected(type)) {
@@ -97,18 +75,18 @@ public final class OemEolConfigReader {
         Log.w(TAG, "VDBus VEHICLE_DEVICE bağlantısı zaman aşımı");
     }
 
-    public int getModelCode() {
+    int getModelCode() {
         return comboConfig != null && comboConfig.length >= 2 ? comboConfig[1] : 0;
     }
 
-    public int getPowerType() {
+    int getPowerType() {
         if (carConfig5 == null || carConfig5.length < 8) {
             return 0;
         }
         return (carConfig5[4] >> 4) & 3;
     }
 
-    public int getCountryOrRegion() {
+    int getCountryOrRegion() {
         if (carConfig5 == null || carConfig5.length < 8) {
             return 0;
         }

@@ -2,6 +2,12 @@
 
 **Denetim tarihi:** 22 Ekim 2026. **Hedef:** soldan direksiyonlu (LHD) aracın orta konsolu; yatay 16:9, ultra-wide ve dikey 9:16. Bu set Android Java/XML uygulamasına göre yazılmıştır: CSS, Tailwind, Compose veya React prop API'si kullanılmaz. Yerleşimler çoğunlukla Java `View`/`ViewGroup` ağacıdır; ölçüler `dp`, yazılar `sp`, renkler `R.color` kaynaklarıdır.
 
+## UI/UX kapsamı ve main ile eşitlik — 22 Ekim 2026
+
+İşlevsel sağlamlaştırmalar, yeni model/VIN/yıl çıkarımı ve hesaplama yardımcıları bu daldan çıkarıldı; kaynak taban `origin/main` (`187093b`). Araç veri/komutları, OEM okuma, ses efektleri, açılış/karşılama, navigasyon, hava durumu, kamera, API ve kurulum akışları main davranışına döndürüldü. **İzin verilen tek işlevsel ek Super Mod animasyon kontrolüdür**; politikası ve opt-in akışı korunur. Ortak OEM proxy değiştirilmeden, yalnız Super Mod kendi cevapsız-okuma kontrolünü yapar.
+
+Araç bilgisi kart/filtre düzeni korunur; 19 sinyal/formatter eşleşmesi main ile aynıdır, mühendislik menüsü eylemi vardır. Başlıktaki yeni model/yıl çıkarımı kaldırılmıştır. Durum widget'ları mevcut veriyi ve kayıtlı UI durumunu okur; ortak repository için yeni reconnect/poll algoritması eklemez. `source-inventory.md`, `audit-history.md` ve eski manifest doğrulamaları **temizlik öncesi tarihsel kayıttır**; geri alınan özellikler için güncel uygulama garantisi oluşturmaz. Önceki hâl `codex/ui-scope-backup-20261022` dalında korunur.
+
 ## Güncel widget yerleşimi — 22 Ekim 2026
 
 Normal görünümde canlı durum widget'ları header'ın dışında, sol kenar barının en üstünde sabittir; menü listesi widget'ların altında kayar. İçerik header'ı eski sayfa başlığı/geri düzenindedir; marka/sürüm sağ üstte salt okunur kalır. Tam ekran launcher'da header tamamen gizlenir: widget'lar sol Hızlı Erişim kartında başlığın altında iki sütunda yer alır. “Saat ve durum” etiketi saat kartının sağ üstünde kalır.
@@ -54,22 +60,20 @@ Denetlenen temel revizyon `c7de3ff348f66f5efbb75965aa45e31d58728d08`; çalışma
 
 ## Korunması gereken mimari kararlar
 
-- Uygulama OEM Android IVI içindir; `minSdk 29`, `targetSdk 28`, `compileSdk 34`, Java 8 kaynak uyumu; geliştirmede JDK 17/Gradle 8.2. Standart emülatör OEM servislerini temsil etmez. Paket `com.mapcontrol`, sürüm `1.2.4`/`2` tek başına build kanıtı değildir.
-- Ana ekran Lite saat/hava/ölçüm panelidir; GLB/OEM model desteği kod ve varlıklarda bulunur. README'deki eski 3D CPU/PSS değerleri güncel performans ölçümü değildir. Filament detach kendi engine temizliğini yapıyorsa ikinci `destroy` eklenmez.
-- Güç örneği yokluğu OFF değildir. OEM `0/1/2` korunur; gerçek Activity onayı sonrası açılış tamamlanır; OFF→uyanış rearm, 1→2'de tekrar yok, belirsiz süreç başlangıcında odağı çalma yok. Ses/görsel karşılama bağımsızdır.
-- Canlı mod ve başlangıç tercihi ayrıdır. Sürüş modu retry 30 saniyeyle sınırlıdır, yeni seçim/Hiçbiri/release eski işi iptal eder. Sport gizleme varsayılan kapalıdır: bilinen mod→Sport, ≥600 ms ve taze doğrulama; mevcut 500 ms servis kontrolü; tek paketli kapatma isteği. Başlangıç Sport/yeniden bağlantı tetiklemez. İsteğin gönderilmesi OEM penceresinin kapandığı anlamına gelmez.
-- Üst şerit ve rail sekme geçişi boyunca sabit kalır; içerik örtüsü yalnız `tabContentArea` üzerindedir. Tema değişimi mevcut görünümleri günceller. Görünür Activity abonelikleri, geç servis bağlantısı ve arka plan okuması korunur.
-- Sunucu portu 7462; her açılışta 256 bit anahtar, QR fragment'i ve Origin kontrolü. Anahtar log/query'ye yazılmaz. Multipart toplam istek sınırı 1 GiB; geçici dosya, yol kontrolü, çakışmada dosya koruma ve dinamik metin kaçırma korunur.
-- Hava durumu kullanıcı tercihiyle araç konumunu iki ondalığa yuvarlayıp Open-Meteo'ya gönderir; 15 dk konumlu cache, yaklaşık 60 sn retry; konum yokken sabit şehir yok. Park kaydı isteğe bağlı, bilinen açık→OFF, ≤2 dk/≤250 m örnekle yapılır; koordinat loglanmaz.
-- Pencere kapanışı sahip olduğu eski View/WindowManager'ı yakalar; iptal/fallback dahil bir kez kaldırır. Başka ekrandaki görev cluster sanılmaz; görev keşfi arka planda 2 sn sınırıyla yapılır. Yandex normal içerik güncellemesi pencereyi yeniden eklemez; gerekli dış olay için 250 ms sınırı korunur.
-- EQ kapalıysa global efekt oluşturulmaz; etkinse session 0 özelliği korunur; dış kontrol sahibine karşı 20 sn yık/oluştur döngüsü yoktur. Genel mikrofon tanılaması kayıt açmaz; SKIP donanım başarısı değildir.
-- Kamera izin diyaloğunun CAMERA istemesi OEM donanımına tek başına erişim garantisi değildir. Kaynak 0–3 DMS/OMS/DVR/AVM etiketleri firmware doğrulaması ister. Runtime izin/AppOps/imza/device owner/Binder/SELinux/display farklı katmanlardır. Yeni APK'nın geçerli imzası OEM hak eşitliği değildir; eksik opsiyonel installer DEX için standart kurulum birebir sessiz kurulum garantisi vermez.
+- Android Java/XML IVI uygulaması: minSdk 29, targetSdk 28, compileSdk 34; JDK 17/Gradle 8.2. Emülatör OEM donanımının karşılığı değildir.
+- Launcher Lite saat/hava/ölçüm panelidir; GLB/OEM model desteği kaynaklarda kalır. Eski performans ölçümleri tarihsel veridir.
+- UI refactor'ı araç komutlarını, birim dönüşümlerini, veri filtrelerini, kayıt tercihlerini ve servis yaşam döngülerini değiştirmez. Yeni callback mevcut işlemi çağırır; mevcut parametre eşlemelerini korur.
+- Sport gizleme varsayılan kapalıdır: bilinen mod→Sport, ≥600 ms ve taze doğrulama; 500 ms servis kontrolü; tek paketli kapatma isteği. Başlangıç Sport/yeniden bağlantı tetiklemez. Bu özellik açıkça izin verilen istisnadır.
+- Header/rail konumları ve içerik geçişleri bu UI dalının sorumluluğudur. HeaderStatusMonitor mevcut snapshot ve tercihleri görüntüler; core repository main sürümüdür.
+- Hava durumu ve otomatik park kaydının konum/yenileme kuralları main'e aittir; eski araç-konumu temelli hava durumu yenilemesi artık bu dalın özelliği değildir.
+- Ekolayzer DSP, kamera kaynakları, mikrofon tanısı, APK kurulum kuyruğu, cluster görev tespiti ve boot oturumu main ile korunur. Önceki raporlardaki düzeltme garantileri güncel kabul kriteri sayılamaz.
+- DMS/yüz tanıma ve klima otomasyonu dosyaları main ile aynı kalır. UI tasarım standardı bu özelliklerde otomatik değişiklik yapma izni değildir.
 
 Ayrıntılı izin araştırması, kamera callback yarışı adayları, eski APK farkları ve QA-01…QA-26'nın tamamı [tarihsel kayıtta](audit-history.md) korunmuştur.
 
 ## Kanıt ve kabul
 
-Bu görevde kaynak/doküman/yerel önizleme incelemesi ve belge bütünlüğü kontrolü yapılır; yeni emülatör veya fiziksel araç testi iddia edilmez. Önceki 56/20 ve daha sonra 65 birim/ilgili Android test sonuçları kendi tarih ve revizyonlarıyla arşivdedir. Lint'in temiz olduğu iddia edilmez. Yeni 1–2–3–4 standardının fiziksel kabulü henüz açıktır.
+Güncel kapsam temizliğinde main kaynak eşitliği ve 19 metrik eşleşmesi doğrulandı. Debug APK, test APK ve 23 JVM testi derlendi/geçti. Geniş Android kontrolünde 18 senaryonun 14'ü geçti; değişmeden korunan UI kaynaklarında 4 başarısızlık kaydedildi: CompactControlsTest içindeki iki seçim ve bir grid kontrolü, SharedHeaderTest içindeki disconnect beklentisi. Bunlar kapsam gereği düzeltilmedi; disconnect beklentisi mevcut tercih fallback'iyle uyumsuzdur. Fiziksel araç testi yapılmadı; lint temizliği iddia edilmez. Son doğrulama audit-manifest içindeki ui_only_scope_cleanup alanında tutulur.
 
 UI refactor'ında hem tema hem orientation, %100/%130 yazı, bilinmeyen/bağlantısız veri, hızlı sekme/tema değişimi ve overlay tekrar aç/kapat senaryoları ölçülür. OEM kabulünde model/firmware/display/yoğunluk ve APK hash kaydedilir. Kaynak test yolu [source-inventory.md](source-inventory.md)'de, çalıştırma ve sonuç şablonları [audit-history.md](audit-history.md)'dedir.
 

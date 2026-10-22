@@ -2,6 +2,8 @@ package com.mapcontrol.ui.builder;
 
 import android.content.ComponentName;
 import android.content.Context;
+import android.content.Intent;
+import android.content.pm.PackageManager;
 import android.graphics.Typeface;
 import android.view.Gravity;
 import android.view.View;
@@ -15,8 +17,6 @@ import com.desaysv.ivi.extra.project.carinfo.ReadOnlyID;
 import com.mapcontrol.R;
 import com.mapcontrol.ui.theme.FeatureGridLayout;
 import com.mapcontrol.ui.theme.UiStyles;
-import com.mapcontrol.vehicle.VehicleIdentity;
-import com.mapcontrol.vehicle.VehicleIdentityManager;
 import com.mapcontrol.vehicle.VehicleMetricsFormatter;
 import com.mapcontrol.vehicle.VehicleMetricsRepository;
 import com.mapcontrol.vehicle.VehicleMetricsSnapshot;
@@ -52,7 +52,8 @@ public class VehicleInfoTabBuilder implements VehicleMetricsRepository.Listener 
     private Category selectedCategory = Category.ALL;
     private boolean activeOnlyFilter;
 
-    private TextView identityModelYearText;
+    private static final String ENGMODE_PACKAGE = "com.desaysv.engmode";
+    private static final String ENGMODE_MAIN_ACTIVITY = "com.desaysv.engmode.MainActivity";
 
     private static final class MetricBinding {
         final View card;
@@ -89,7 +90,6 @@ public class VehicleInfoTabBuilder implements VehicleMetricsRepository.Listener 
         if (statusText != null) statusText.setText(R.string.vehicle_info_loading);
         repository.addListener(this);
         repository.refresh();
-        loadVehicleIdentity();
     }
 
     public void stopListening() {
@@ -100,7 +100,6 @@ public class VehicleInfoTabBuilder implements VehicleMetricsRepository.Listener 
     public void refreshSnapshot() {
         if (statusText != null) statusText.setText(R.string.vehicle_info_loading);
         repository.refresh();
-        loadVehicleIdentity();
     }
 
     @Override public void onMetricsUpdated(VehicleMetricsSnapshot snapshot) {
@@ -118,10 +117,8 @@ public class VehicleInfoTabBuilder implements VehicleMetricsRepository.Listener 
         scrollView.addView(content, new ScrollView.LayoutParams(
                 ScrollView.LayoutParams.MATCH_PARENT, ScrollView.LayoutParams.WRAP_CONTENT));
 
-        // Top identity row with model & refresh button
-
-        // Identity Card (Vehicle Model, Year, VIN - software version removed)
-        createIdentityCard(content, pad);
+        // Keep the header card visual; metric values and actions follow main.
+        createHeaderCard(content, pad);
 
         // Category & Filter Bar
         HorizontalScrollView filterScroll = new HorizontalScrollView(uiContext);
@@ -187,7 +184,7 @@ public class VehicleInfoTabBuilder implements VehicleMetricsRepository.Listener 
 
         // General & Fuel
         addMetric(grid, R.string.vehicle_info_fuel_level, EnumSet.of(Category.GENERAL, Category.FUEL),
-                s -> formatter.formatDashboardFuel(s));
+                s -> read(ReadOnlyID.ID_FUEL_PERCENT, formatter::formatFuelLevel));
         addMetric(grid, R.string.vehicle_info_range_remaining, EnumSet.of(Category.GENERAL, Category.TRIP, Category.FUEL),
                 s -> read(ReadOnlyID.ID_ENDURANCE_KM, formatter::formatKm));
         addMetric(grid, R.string.vehicle_info_odo, EnumSet.of(Category.GENERAL, Category.TRIP),
@@ -213,10 +210,7 @@ public class VehicleInfoTabBuilder implements VehicleMetricsRepository.Listener 
 
         // Fuel
         addMetric(grid, R.string.vehicle_info_afc, EnumSet.of(Category.FUEL),
-                s -> read(ReadOnlyID.ID_AVG_FUEL_CONS, raw -> {
-                    String value = formatter.formatDashboardConsumption(raw);
-                    return value.equals("—") ? value : value + " km";
-                }));
+                s -> read(ReadOnlyID.ID_AVG_FUEL_CONS, formatter::formatConsumption));
         addMetric(grid, R.string.vehicle_info_afc_trip, EnumSet.of(Category.FUEL, Category.TRIP),
                 s -> read(ReadOnlyID.ID_AVERAGE_FUEL_CONS_AFTER_RUNNING, formatter::formatConsumption));
         addMetric(grid, R.string.vehicle_info_fuel_used, EnumSet.of(Category.FUEL),
@@ -234,12 +228,13 @@ public class VehicleInfoTabBuilder implements VehicleMetricsRepository.Listener 
         addMetric(grid, R.string.vehicle_info_dis_speed, EnumSet.of(Category.ENGINE),
                 s -> read(ReadOnlyID.ID_SPEED_GAUGE_DISPLAY, formatter::formatSpeed));
 
-        // Engineering mode button removed per request
+        TextView etmNote = text(R.string.vehicle_info_etm_only_body, R.dimen.text_size_small);
+        content.addView(etmNote, new LinearLayout.LayoutParams(-1, -2));
 
         bindMetrics(repository.currentSnapshot());
     }
 
-    private void createIdentityCard(LinearLayout parent, int pad) {
+    private void createHeaderCard(LinearLayout parent, int pad) {
         LinearLayout card = new LinearLayout(uiContext);
         card.setOrientation(LinearLayout.HORIZONTAL);
         card.setGravity(Gravity.CENTER_VERTICAL);
@@ -250,13 +245,13 @@ public class VehicleInfoTabBuilder implements VehicleMetricsRepository.Listener 
         cardLp.setMargins(0, 0, 0, pad);
         parent.addView(card, cardLp);
 
-        identityModelYearText = new TextView(uiContext);
-        UiStyles.setTextSize(identityModelYearText, R.dimen.text_size_large);
-        identityModelYearText.setTypeface(null, Typeface.BOLD);
-        identityModelYearText.setTextColor(UiStyles.color(uiContext, R.color.textPrimary));
-        identityModelYearText.setText("-");
-        identityModelYearText.setSingleLine(true);
-        card.addView(identityModelYearText, new LinearLayout.LayoutParams(
+        TextView title = new TextView(uiContext);
+        UiStyles.setTextSize(title, R.dimen.text_size_large);
+        title.setTypeface(null, Typeface.BOLD);
+        title.setTextColor(UiStyles.color(uiContext, R.color.textPrimary));
+        title.setText(R.string.vehicle_info_title);
+        title.setSingleLine(true);
+        card.addView(title, new LinearLayout.LayoutParams(
                 0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f));
 
         Button refresh = action(R.string.vehicle_info_refresh);
@@ -264,52 +259,20 @@ public class VehicleInfoTabBuilder implements VehicleMetricsRepository.Listener 
         card.addView(refresh, new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT));
 
-        loadVehicleIdentity();
+        Button engMode = action(R.string.vehicle_info_open_engmode);
+        engMode.setOnClickListener(v -> launchEngModeMenu());
+        LinearLayout.LayoutParams engModeLp = new LinearLayout.LayoutParams(-2, -2);
+        engModeLp.setMarginStart(UiStyles.dimenPx(uiContext, R.dimen.spacing_small));
+        card.addView(engMode, engModeLp);
+
     }
 
-    private void loadVehicleIdentity() {
-        VehicleIdentityManager.getInstance().resolveIdentityAsync(uiContext, this::bindIdentity);
-    }
 
-    private void bindIdentity(VehicleIdentity identity) {
-        if (identityModelYearText != null) {
-            if (identity == null) {
-                identityModelYearText.setText("-");
-                return;
-            }
-            String marketName = identity.marketName != null ? identity.marketName.trim() : "";
-            String year = identity.modelYear != null ? identity.modelYear.trim() : "";
 
-            boolean validModel = !marketName.isEmpty()
-                    && !marketName.equals("-")
-                    && !marketName.equals("—")
-                    && !marketName.equalsIgnoreCase("Chery Otomobil")
-                    && !marketName.equalsIgnoreCase("Bilinmiyor");
 
-            boolean validYear = !year.isEmpty()
-                    && !year.equals("-")
-                    && !year.equals("—")
-                    && !year.equalsIgnoreCase("Bilinmiyor");
-
-            if (validModel && validYear) {
-                identityModelYearText.setText(marketName + " - " + year);
-            } else if (validModel) {
-                identityModelYearText.setText(marketName);
-            } else {
-                identityModelYearText.setText("-");
-            }
-        }
-    }
 
     private String read(int id, Function<Integer, String> format) {
-        int raw = repository.getCombined(id);
-        if (!VehicleMetricsSnapshot.isValid(raw)) return "-";
-        String value = format.apply(raw);
-        if (value == null || value.equals("—") || value.trim().isEmpty()
-                || uiContext.getString(R.string.vehicle_info_value_unknown).equals(value)) {
-            return "-";
-        }
-        return value;
+        return format.apply(repository.getCombined(id));
     }
 
     private void addMetric(FeatureGridLayout grid, int labelRes, EnumSet<Category> categories,
@@ -382,6 +345,27 @@ public class VehicleInfoTabBuilder implements VehicleMetricsRepository.Listener 
         return button;
     }
 
+
+    private void launchEngModeMenu() {
+        try {
+            PackageManager pm = uiContext.getPackageManager();
+            pm.getPackageInfo(ENGMODE_PACKAGE, 0);
+            Intent intent = new Intent();
+            intent.setComponent(new ComponentName(ENGMODE_PACKAGE, ENGMODE_MAIN_ACTIVITY));
+            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK
+                    | Intent.FLAG_ACTIVITY_CLEAR_TOP
+                    | Intent.FLAG_ACTIVITY_SINGLE_TOP
+                    | Intent.FLAG_ACTIVITY_REORDER_TO_FRONT);
+            uiContext.startActivity(intent);
+            log("EngMode menüsü açıldı");
+        } catch (PackageManager.NameNotFoundException e) {
+            log(uiContext.getString(R.string.vehicle_info_engmode_launch_fail));
+        } catch (SecurityException e) {
+            log(uiContext.getString(R.string.vehicle_info_engmode_launch_denied) + ": " + e.getMessage());
+        } catch (Exception e) {
+            log(uiContext.getString(R.string.vehicle_info_engmode_launch_fail) + ": " + e.getMessage());
+        }
+    }
 
     private void log(String message) {
         if (callback != null) {

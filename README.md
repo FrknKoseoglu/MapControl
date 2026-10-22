@@ -1,6 +1,6 @@
 # Map Control
 
-> **Geliştirici notu:** Güncel launcher orta kartı Lite paneldir (saat, hava durumu, araç ölçümleri). Aşağıdaki v1.1.4 3D performans ölçümleri tarihsel verilerdir. Son güvenilirlik düzeltmeleri ve fiziksel IVI kabul kontrolleri için [tasarım ve IVI inceleme indeksine](docs/ui/README.md) bakın.
+> **Geliştirici notu:** Güncel launcher orta kartı Lite paneldir (saat, hava durumu, araç ölçümleri). Aşağıdaki v1.1.4 3D performans ölçümleri tarihsel verilerdir. UI tasarım sistemi ve fiziksel IVI kabul hedefleri için [tasarım ve IVI inceleme indeksine](docs/ui/README.md) bakın.
 
  ⚠️ **Bilinen sorunlar / Known issues**
 
@@ -76,8 +76,6 @@ Bu proje **eğlence ve kişisel ihtiyaç** amacıyla geliştirilmiştir.
 
 **Yerel HTTP sunucu (7462):** Cihazla aynı ağdaki telefon veya bilgisayardan tarayıcı ile dosya yükleme, APK kurma, uygulama listeleme/silme/başlatma. Ana ekrandaki QR kod ile sunucu adresine hızlı erişim.
 
-Web yönetimi için araç ekranındaki güncel QR kodunu kullanın. Her sunucu açılışında erişim anahtarı yenilenir; eski tarayıcı oturumu yeniden eşleştirme ister. Dosya yükleme istek sınırı 1 GiB'dir. Hava durumu, mevcut konum izniyle yaklaşık araç konumunu Open-Meteo'ya gönderir; geçerli konum yoksa sabit bir şehir göstermez.
-
 **Wi-Fi:** Ağ aç/kapat, tarama ve bağlanma.
 
 **Profil / bulut:** Harici API (api.vnoisy.dev) ile giriş, araç token’ı; isteğe bağlı araç kapanırken konum kaydetme.
@@ -142,7 +140,7 @@ adb -e install -r app/build/outputs/apk/debug/app-debug.apk
 adb -e shell am start -n com.mapcontrol/.ui.activity.MainActivity
 ```
 
-Debug derlemesi release imzalama anahtarı gerektirmez. `GLITCHTIP_DSN` boşken çökme raporlama başlatılmaz. Standart Android emülatöründe arayüz açılır; DesaySV araç servisleri ve fiziksel gösterge ekranı bulunmadığı için araç kontrolleri çalışmaz.
+Debug derlemesi release imzalama anahtarı gerektirmez. Standart Android emülatöründe arayüz açılır; DesaySV araç servisleri ve fiziksel gösterge ekranı bulunmadığı için araç kontrolleri çalışmaz.
 
 ## Release imzalı build
 

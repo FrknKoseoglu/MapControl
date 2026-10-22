@@ -36,7 +36,6 @@ public class LauncherTabBuilder {
     }
 
     public View build() {
-        release();
         FrameLayout root = new FrameLayout(context);
         root.setBackgroundColor(UiStyles.color(context, R.color.transparent));
         int margin = UiStyles.dimenPx(context, R.dimen.oem_card_margin);
@@ -75,10 +74,6 @@ public class LauncherTabBuilder {
         if (dashboardBuilder != null) {
             dashboardBuilder.stop();
         }
-    }
-
-    public void release() {
-        if (dashboardBuilder != null) dashboardBuilder.release();
     }
 
     /**

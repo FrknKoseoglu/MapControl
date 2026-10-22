@@ -28,9 +28,6 @@ public final class GlitchTip {
     }
 
     public static void start(Context context) {
-        if (BuildConfig.GLITCHTIP_DSN.isEmpty()) {
-            return;
-        }
         SentryAndroid.init(context, options -> {
             options.setDsn(BuildConfig.GLITCHTIP_DSN);
             options.setEnableNdk(false);

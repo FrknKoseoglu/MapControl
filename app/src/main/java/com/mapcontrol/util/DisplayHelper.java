@@ -33,15 +33,14 @@ import java.util.List;
 import com.mapcontrol.ui.theme.UiStyles;
 
 public final class DisplayHelper {
-    private static final android.os.Handler MAIN = new android.os.Handler(android.os.Looper.getMainLooper());
-    private static volatile View preparingMessageView = null;
+    private static View preparingMessageView = null;
     private static android.view.WindowManager preparingWindowManager = null;
     private static android.view.WindowManager.LayoutParams preparingParams = null;
     private static Context displayContext = null;
     private static final List<android.animation.Animator> preparingAnimators = new ArrayList<>();
 
     /** Boot splash — açılışta cluster ekranını siyah bırakmamak için kalıcı, harita temalı overlay. */
-    private static volatile View bootSplashView = null;
+    private static View bootSplashView = null;
     private static android.view.WindowManager bootSplashWindowManager = null;
     private static android.view.WindowManager.LayoutParams bootSplashParams = null;
     private static Context bootSplashDisplayContext = null;
@@ -52,10 +51,6 @@ public final class DisplayHelper {
     private DisplayHelper() {}
 
     public static void showPreparingMessageOnDisplay(Context context, int displayId) {
-        if (android.os.Looper.myLooper() != android.os.Looper.getMainLooper()) {
-            MAIN.post(() -> showPreparingMessageOnDisplay(context, displayId));
-            return;
-        }
         try {
             hidePreparingMessage();
 
@@ -285,18 +280,42 @@ public final class DisplayHelper {
     }
 
     public static void hidePreparingMessage() {
-        if (android.os.Looper.myLooper() != android.os.Looper.getMainLooper()) {
-            MAIN.post(DisplayHelper::hidePreparingMessage);
-            return;
+        try {
+            cancelPreparingAnimations();
+            if (preparingMessageView != null && preparingWindowManager != null) {
+                try {
+                    preparingMessageView.animate()
+                            .alpha(0f)
+                            .setDuration(180)
+                            .withEndAction(() -> {
+                                try {
+                                    if (preparingWindowManager != null && preparingMessageView != null) {
+                                        preparingWindowManager.removeView(preparingMessageView);
+                                    }
+                                } catch (Exception ignored) {
+                                } finally {
+                                    preparingMessageView = null;
+                                    preparingWindowManager = null;
+                                    preparingParams = null;
+                                    displayContext = null;
+                                }
+                            })
+                            .start();
+                    return;
+                } catch (Exception ignored) {
+                }
+
+                preparingWindowManager.removeView(preparingMessageView);
+                preparingMessageView = null;
+            }
+        } catch (Exception ignored) {
+        } finally {
+            cancelPreparingAnimations();
+            preparingMessageView = null;
+            preparingWindowManager = null;
+            preparingParams = null;
+            displayContext = null;
         }
-        View closingView = preparingMessageView;
-        android.view.WindowManager closingManager = preparingWindowManager;
-        preparingMessageView = null;
-        preparingWindowManager = null;
-        preparingParams = null;
-        displayContext = null;
-        cancelPreparingAnimations();
-        OverlayDismissal.dismiss(closingManager, closingView, 180L);
     }
 
     private static void cancelPreparingAnimations() {
@@ -316,10 +335,6 @@ public final class DisplayHelper {
      * yansıtana kadar oradaki siyahlığı doldurur. {@link #hideBootSplash()} çağrılana kadar kalır.
      */
     public static void showBootSplashOnDisplay(Context context, int displayId) {
-        if (android.os.Looper.myLooper() != android.os.Looper.getMainLooper()) {
-            MAIN.post(() -> showBootSplashOnDisplay(context, displayId));
-            return;
-        }
         try {
             if (bootSplashView != null) {
                 return;
@@ -377,19 +392,42 @@ public final class DisplayHelper {
     }
 
     public static void hideBootSplash() {
-        if (android.os.Looper.myLooper() != android.os.Looper.getMainLooper()) {
-            MAIN.post(DisplayHelper::hideBootSplash);
-            return;
+        try {
+            cancelBootSplashAnimations();
+            if (bootSplashView != null && bootSplashWindowManager != null) {
+                try {
+                    bootSplashView.animate()
+                            .alpha(0f)
+                            .setDuration(260)
+                            .withEndAction(() -> {
+                                try {
+                                    if (bootSplashWindowManager != null && bootSplashView != null) {
+                                        bootSplashWindowManager.removeView(bootSplashView);
+                                    }
+                                } catch (Exception ignored) {
+                                } finally {
+                                    bootSplashView = null;
+                                    bootSplashWindowManager = null;
+                                    bootSplashParams = null;
+                                    bootSplashDisplayContext = null;
+                                    bootSplashDisplayId = Display.INVALID_DISPLAY;
+                                }
+                            })
+                            .start();
+                    return;
+                } catch (Exception ignored) {
+                }
+                bootSplashWindowManager.removeView(bootSplashView);
+                bootSplashView = null;
+                bootSplashWindowManager = null;
+                bootSplashParams = null;
+                bootSplashDisplayContext = null;
+                bootSplashDisplayId = Display.INVALID_DISPLAY;
+            }
+        } catch (Exception ignored) {
+        } finally {
+            cancelBootSplashAnimations();
         }
-        View closingView = bootSplashView;
-        android.view.WindowManager closingManager = bootSplashWindowManager;
-        bootSplashView = null;
-        bootSplashWindowManager = null;
-        bootSplashParams = null;
-        bootSplashDisplayContext = null;
-        bootSplashDisplayId = Display.INVALID_DISPLAY;
-        cancelBootSplashAnimations();
-        OverlayDismissal.dismiss(closingManager, closingView, 260L);
     }
 
     /**
@@ -397,10 +435,6 @@ public final class DisplayHelper {
      * güncel {@link Configuration} ile yeniden kurulur; renkler {@code values}/{@code values-night} ile uyumlanır.
      */
     public static void refreshBootSplashAfterConfigurationChange(Context applicationContext) {
-        if (android.os.Looper.myLooper() != android.os.Looper.getMainLooper()) {
-            MAIN.post(() -> refreshBootSplashAfterConfigurationChange(applicationContext));
-            return;
-        }
         if (bootSplashView == null || bootSplashParams == null) {
             return;
         }

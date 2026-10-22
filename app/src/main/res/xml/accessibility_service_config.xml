@@ -7,5 +7,5 @@
     android:notificationTimeout="100"
     android:canPerformGestures="true"
     android:canRetrieveWindowContent="true"
-    android:settingsActivity="com.mapcontrol.ui.activity.MainActivity" />
+    android:settingsActivity="com.mapcontrol.MainActivity" />
 

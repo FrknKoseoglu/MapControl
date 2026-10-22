@@ -50,9 +50,6 @@ public class DriveModeTabBuilder {
     private View bgReveal;
     private Animator activeRevealAnimator;
 
-    private final android.os.Handler retryHandler = new android.os.Handler(android.os.Looper.getMainLooper());
-    private int selectionGeneration;
-    private boolean released;
 
     public DriveModeTabBuilder(Context context, SharedPreferences prefs, DriveModeCallback callback) {
         this.context = context;
@@ -354,8 +351,6 @@ public class DriveModeTabBuilder {
             }
 
             if (selectedIndex >= 0) {
-                selectionGeneration++;
-                retryHandler.removeCallbacksAndMessages(null);
                 prefs.edit().putInt("driveModeSetting", selectedMode).apply();
                 callback.onModeSelected(selectedMode);
                 clearSelection.setVisibility(selectedMode == -1 ? View.GONE : View.VISIBLE);
@@ -502,21 +497,12 @@ public class DriveModeTabBuilder {
     }
 
     private void applyDriveMode(int mode) {
-        applyDriveMode(mode, selectionGeneration, 0);
-    }
-
-    private void applyDriveMode(int mode, int generation, int attempt) {
-        if (released || generation != selectionGeneration) return;
         try {
             CarInfoProxy carInfo = CarInfoProxy.getInstance();
 
             if (!carInfo.isServiceConnnected()) {
                 carInfo.init(context);
-                if (attempt < 60) {
-                    retryHandler.postDelayed(() -> applyDriveMode(mode, generation, attempt + 1), 500);
-                } else {
-                    callback.log("Araç veri hizmeti hazır değil; hafıza modu bu kez uygulanamadı");
-                }
+                new android.os.Handler(android.os.Looper.getMainLooper()).postDelayed(() -> applyDriveMode(mode), 500);
                 return;
             }
 
@@ -532,10 +518,9 @@ public class DriveModeTabBuilder {
         }
     }
 
+
+
     public void release() {
-        released = true;
-        selectionGeneration++;
-        retryHandler.removeCallbacksAndMessages(null);
         if (activeRevealAnimator != null) {
             activeRevealAnimator.cancel();
             activeRevealAnimator = null;

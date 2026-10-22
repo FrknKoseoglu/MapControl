@@ -1,3 +1,5 @@
+> **Kapsam güncellemesi (22 Ekim 2026):** İşlevsel düzeltmeler main'e geri döndürüldü; yalnız UI ve Super Mod istisnası korunur. Aşağıdaki hedef/refactor maddeleri, özellikle veri davranışını değiştirenler, ayrıca kullanıcı talebi olmadan uygulanmaz. Tarihsel envanter güncel işlev garantisi değildir.
+
 # Bileşen standartları ve mevcut durum
 
 [İndeks](README.md) · [Tokenlar](design.md) · [Erişim ve layout](ergonomics-and-layout.md) · [Tam API/kaynak envanteri](source-inventory.md)
@@ -102,7 +104,7 @@ Kurucularda yazan callback türleri ilgili sınıfın iç arayüzüdür. Tam pub
 | Builder / ekran | Kurucu girdileri ve dönüş | Düzen, durum ve sorumluluk |
 |---|---|---|
 | `WifiTabBuilder` | `Context, WifiCallback`; `build(): LinearLayout` | Aç/kapat/tarama, scroll ağ listesi, SSID/şifre dialog; log callback. Ortak header bağlantı durumunu verir |
-| `AppsTabBuilder` | `Context, AppsCallback`; `build(): LinearLayout` | Sunucu/yerel seçimi, yenileme/indirmeler, uygulama kart/liste ve kur/kaldır/onay. Callback ayrıcalıklı paket kontrolü ve log; gerçek session sonucu kuyruğu ilerletir |
+| `AppsTabBuilder` | `Context, AppsCallback`; `build(): LinearLayout` | Sunucu/yerel seçimi, yenileme/indirmeler, uygulama kart/liste ve kur/kaldır/onay. Callback ayrıcalıklı paket kontrolü ve log; kurulum/queue davranışı main sürümüdür |
 | `FileUploadTabBuilder` | `Context, WebServerManager`; `build(): ScrollView` | Sunucuyu aç/kapat, durum, QR ve telefon yönergeleri; `getToggleButton/getStatusText/getQrImageView` |
 | `ProfileTabBuilder` | `Context, SharedPreferences, ProfileApiService, ProfileCallback`; `build(): ScrollView` | Giriş/token/hesap formları; rayda gizli olsa da kod korunur; karmaşık park akışı |
 | `ProjectionTabBuilder` | `Context, SharedPreferences, ProjectionCallback`; `build(): ScrollView` | Cluster aç/kapat, hedef uygulama, ana display'e taşıma, güç tercihi, key listener ve kart offset/size açılır ayarları |
@@ -111,18 +113,18 @@ Kurucularda yazan callback türleri ilgili sınıfın iç arayüzüdür. Tam pub
 | `SettingsTabBuilder` | `Context, SharedPreferences, SettingsCallback`; `build(): ScrollView` | FeatureGrid; locale, nightMode, launcher ve açılış/güç/konum tercihleri. Callback `getCarToken`, `onLocaleChanged`, `onNightModeChanged`, `onLauncherModeChanged`, `log` |
 | `WelcomeSoundTabBuilder` | `AppCompatActivity, SharedPreferences, ActivityResultLauncher<Intent>`; `getScrollView()` | Ses seçme/USB listesi, Çal-Durdur, auto-play, tasarım ve önizleme; oynatıcı lifecycle |
 | `WelcomeSoundScreenBuilder` | Statik `buildTabScrollView(...)`; `Screen` | Ana FeatureGrid iki kart, seçenek grubu 520 dp; 56 dp `actionRow`, dosya adı ≤2 satır; dosya yokken çalma, off tasarımda preview pasif |
-| `EqualizerTabBuilder` | `Context`; `build(): ScrollView`, `rebuild()` | Ses kazancı/preset/bant SeekBar; 112 dp slider, 72 dp thumb, 24 dp track kaynakları. Kapalıyken efekt açılmaz |
-| `VehicleInfoTabBuilder` | `Context, VehicleMetricsRepository, VehicleInfoCallback`; kurucu build eder, `getScrollView()` | Güncel kullanıcı değişiklikleriyle model/yıl kimliği, ALL/GENERAL/TRIP/FUEL/ENGINE filtreleri ve aktif filtre; 19 metrik binding. Snapshot güncellemelerinde View korunur; `startListening/stopListening/release` |
+| `EqualizerTabBuilder` | `Context`; `build(): ScrollView`, `rebuild()` | Ses kazancı/preset/bant SeekBar; 112 dp slider, 72 dp thumb, 24 dp track kaynakları. Efekt oluşturma/uygulama davranışı main sürümüdür |
+| `VehicleInfoTabBuilder` | `Context, VehicleMetricsRepository, VehicleInfoCallback`; kurucu build eder, `getScrollView()` | Main sinyal/formatter eşleşmeleriyle ALL/GENERAL/TRIP/FUEL/ENGINE ve aktif filtre; 19 metrik binding, Yenile ve mühendislik menüsü. Model/yıl çıkarımı yoktur. Snapshot güncellemelerinde View korunur; `startListening/stopListening/release` |
 | `ClimateAutomationTabBuilder` | `Context, SharedPreferences, Callback`; `build(): LinearLayout` | Özel automation paleti, sürücü/yolcu koltuk ve iklim kuralları, gecikme/sıcaklık/seviye kaydırıcıları, çakışma notu; engine Listener |
 | `DmsFaceRecognitionTabBuilder` | `Activity, SharedPreferences, Logger`; `build(): LinearLayout` | Tanıma aç/kapat, kayıtlı profiller, kamera izni ve profil Activity bağlantısı; deneysel menü onayı |
-| `LogTabBuilder` | `Context, LogCallback`; `build(): LinearLayout` | Monospace log, temizleme, TTS metin/ses; onClearLogs/onReadAloud/onWelcomeTts. Tampon 64 KiB; park tanılama |
+| `LogTabBuilder` | `Context, LogCallback`; `build(): LinearLayout` | Monospace log, temizleme, TTS metin/ses; onClearLogs/onReadAloud/onWelcomeTts. Tampon ve güncelleme davranışı main sürümüdür; park tanılama |
 | `LauncherTabBuilder` | `Context, VehicleMetricsRepository, LauncherCallback`; `build(): View` | Dashboard facade; callback `onShortcutSelected`, `onExitLauncherRequested`, `onAppLaunchRequested`, `onClusterProjectionRequested` |
-| `LauncherDashboardBuilder` | `Context, VehicleMetricsRepository, LauncherCallback`; `build(): View` | Quick/Lite/media-drive kartları, medya izin/boş durum ve kontroller. `start/stop/release/reapplyTheme` ile görünürlük ve abonelikler |
+| `LauncherDashboardBuilder` | `Context, VehicleMetricsRepository, LauncherCallback`; `build(): View` | Quick/Lite/media-drive kartları, medya izin/boş durum ve kontroller. `start/stop/reapplyTheme` ile sekme görünürlüğü ve abonelikler; medya/hava yaşam döngüsü main ile korunur |
 | `CameraActivity` | Activity + `activity_camera.xml` | Landscape kilitli, 2 sütun ağırlıklı TextureView grupları; üst solda Geri min48 dp/16 sp; izin ve kaynak temizliği |
 | `DmsFaceProfileActivity`, `DmsClusterPreview` | Activity/önizleme | Yüz kayıt/profil yönetimi ve cluster önizleme; karmaşık park akışları, kamera kaynağı ve hedef display sınırı |
 | `ClusterVDBusTestActivity` | Landscape Activity | OEM bench/tanılama; normal sürüş navigasyonu değildir |
 
-Önemli tarihsel fark: önceki okunabilirlik raporunda araç bilgileri “altı büyük kart + diğer 13 açılır” olarak anlatılır. Güncel çalışma ağacındaki `VehicleInfoTabBuilder` kategori/aktif filtre ve 19 metrik kullanır; eski görünüm güncel ekranın tarifi değildir. Kimlik alanları ve Wi-Fi'daki kullanıcı değişiklikleri bu görevde korunmuştur.
+Önemli tarihsel fark: önceki okunabilirlik raporunda araç bilgileri “altı büyük kart + diğer 13 açılır” olarak anlatılır. Güncel çalışma ağacındaki `VehicleInfoTabBuilder` kategori/aktif filtre ve 19 metrik kullanır; eski görünüm güncel ekranın tarifi değildir. Wi-Fi görünümü korunmuştur; yeni kimlik/model-yıl hesaplaması kapsam temizliğinde kaldırılmıştır.
 
 ## Widget, liste, slider ve görsel yüzeyler
 

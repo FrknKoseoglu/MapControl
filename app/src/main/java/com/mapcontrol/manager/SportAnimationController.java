@@ -47,12 +47,24 @@ public final class SportAnimationController {
             try {
                 CarInfoProxy proxy = CarInfoProxy.getInstance();
                 if (proxy == null || !proxy.isServiceConnnected()) return new Reading(false, -1);
-                int[] values = proxy.getItemValuesOrNull(VDEventCarInfo.MODULE_NEW_ENERGY, NewEnergyID.ID_DRIVE_MODE);
+                int[] values = readDriveModeValues();
                 return new Reading(true, values != null && values.length > 0 ? values[0] : -1);
             } catch (Throwable t) {
                 return new Reading(false, -1);
             }
         }, SystemClock::elapsedRealtime);
+    }
+
+    /** Nullable read belongs only to Super Mode; shared vehicle APIs retain main behavior. */
+    private static int[] readDriveModeValues() {
+        android.os.Bundle request = new android.os.Bundle();
+        request.putInt(com.desaysv.ivi.extra.project.carinfo.proxy.Constants.CMD_ID,
+                NewEnergyID.ID_DRIVE_MODE);
+        com.desaysv.ivi.vdb.event.VDEvent response = com.desaysv.ivi.vdb.client.VDBus.getDefault()
+                .getOnce(new com.desaysv.ivi.vdb.event.VDEvent(VDEventCarInfo.MODULE_NEW_ENERGY, request));
+        return response != null && response.getPayload() != null
+                ? response.getPayload().getIntArray(com.desaysv.ivi.extra.project.carinfo.proxy.Constants.VALUE)
+                : null;
     }
 
     SportAnimationController(Context context, ScheduledExecutorService scheduler, Consumer<String> log,

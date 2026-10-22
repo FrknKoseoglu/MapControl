@@ -41,7 +41,7 @@ public class BootReceiver extends BroadcastReceiver {
             return;
         }
 
-        BootSession.setUiPending(app, prefs.getBoolean(KEY_BOOT_AUTO_LAUNCH_UI, true) && !BootSession.isUiLaunched(app));
+        BootSession.setUiPending(app, prefs.getBoolean(KEY_BOOT_AUTO_LAUNCH_UI, true));
 
         Intent serviceIntent = new Intent(app, MapControlService.class);
         serviceIntent.putExtra(EXTRA_BOOT, true);

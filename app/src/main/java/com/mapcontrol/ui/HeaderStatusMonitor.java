@@ -8,7 +8,6 @@ import android.net.wifi.WifiManager;
 import android.os.Handler;
 import android.os.Looper;
 
-import com.mapcontrol.audio.AudioEqualizerController;
 import com.mapcontrol.ui.builder.TopBarBuilder;
 import com.mapcontrol.util.ClusterNavigationState;
 import com.mapcontrol.vehicle.DriveModeStyle;
@@ -32,7 +31,6 @@ public final class HeaderStatusMonitor {
         @Override public void run() {
             if (!started) return;
             refresh();
-            metrics.refreshDriveMode(); // Retry late connections and modes missed by OEM callbacks, off the UI thread.
             handler.postDelayed(this, 2000);
         }
     };
@@ -63,8 +61,8 @@ public final class HeaderStatusMonitor {
                 }
             }
             sink.setDriveMode(snapshot != null && snapshot.connected, mode);
-            sink.setSoundBoost(AudioEqualizerController.isBoostActive(context),
-                    AudioEqualizerController.getGainMb(context));
+            sink.setSoundBoost(readBoostActive(),
+                    readGainMb());
         }
     }
 
@@ -102,8 +100,8 @@ public final class HeaderStatusMonitor {
                 mode = prefMode;
             }
         }
-        boolean boostActive = AudioEqualizerController.isBoostActive(context);
-        int gainMb = AudioEqualizerController.getGainMb(context);
+        boolean boostActive = readBoostActive();
+        int gainMb = readGainMb();
 
         for (HeaderStatusSink sink : sinks) {
             sink.setWifiState(wifiState);
@@ -128,6 +126,16 @@ public final class HeaderStatusMonitor {
                 sink.setDriveMode(snapshot.connected, mode);
             }
         }
+    }
+
+    private boolean readBoostActive() {
+        return context.getSharedPreferences("MapControlPrefs", Context.MODE_PRIVATE)
+                .getBoolean("equalizerEnabled", false) && readGainMb() > 0;
+    }
+
+    private int readGainMb() {
+        return context.getSharedPreferences("MapControlPrefs", Context.MODE_PRIVATE)
+                .getInt("equalizerGainMb", 0);
     }
 
     private TopBarBuilder.WifiState readWifiState() {

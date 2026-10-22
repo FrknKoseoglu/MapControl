@@ -1,8 +1,10 @@
 package com.mapcontrol.manager;
+import android.app.ActivityManager;
 import android.content.Context;
 import android.content.Intent;
 import android.content.pm.ApplicationInfo;
 import android.content.pm.PackageManager;
+import android.os.Build;
 import android.os.Handler;
 import android.os.Looper;
 import com.desaysv.ivi.vdb.client.VDBus;
@@ -13,6 +15,7 @@ import com.desaysv.ivi.vdb.event.id.carlan.bean.VDNaviDisplayCluster;
 
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
+import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 import com.mapcontrol.util.AppLaunchHelper;
 import com.mapcontrol.util.DisplayHelper;
@@ -27,7 +30,6 @@ public class ClusterDisplayManager {
     private final Context context;
     private final ClusterCallback callback;
     private final Handler handler;
-    private final java.util.concurrent.ExecutorService displayIo = java.util.concurrent.Executors.newSingleThreadExecutor();
     /** Kapatma veya yeni açılış, bekleyen openClusterDisplay postDelayed zincirini iptal eder. */
     private final AtomicInteger openSessionId = new AtomicInteger(0);
 
@@ -39,31 +41,6 @@ public class ClusterDisplayManager {
 
     public void openClusterDisplay() {
         final int session = openSessionId.incrementAndGet();
-        if (displayIo.isShutdown()) return;
-        submitDisplayRead(() -> {
-            if (session != openSessionId.get()) return;
-            String foreground = getAppOnDisplay2();
-            handler.post(() -> {
-                if (session == openSessionId.get()) openClusterDisplayOnMain(session, foreground);
-            });
-        });
-    }
-
-    public void release() {
-        openSessionId.incrementAndGet();
-        handler.removeCallbacksAndMessages(null);
-        displayIo.shutdownNow();
-    }
-
-    private void submitDisplayRead(Runnable read) {
-        try {
-            displayIo.execute(read);
-        } catch (java.util.concurrent.RejectedExecutionException released) {
-            // A concurrent release cancels this operation.
-        }
-    }
-
-    private void openClusterDisplayOnMain(int session, String appOnDisplay2) {
         try {
             int targetDisplay = AppLaunchHelper.getClusterDisplayId(context);
             if (targetDisplay != 0) {
@@ -79,7 +56,7 @@ public class ClusterDisplayManager {
                 handler.postDelayed(timeoutRunnable, 7000);
             }
 
-
+            String appOnDisplay2 = getAppOnDisplay2();
             if (appOnDisplay2 != null && !appOnDisplay2.isEmpty() && !"com.mapcontrol".equals(appOnDisplay2)) {
                 callback.log("Display 2'de açık uygulama bulundu: " + appOnDisplay2 + " - Display 0'a taşınıyor ve kapatılıyor");
                 try {
@@ -175,17 +152,14 @@ public class ClusterDisplayManager {
      * "Ana Ekrana Al" sonrası boş cluster için {@link DisplayHelper#showBootSplashOnDisplay} ile aynı yol.
      */
     public void showBootSplashOnClusterIfNoForegroundApp() {
-        final int session = openSessionId.get();
-        if (displayIo.isShutdown()) return;
-        submitDisplayRead(() -> {
-            String foreground = getAppOnDisplay2();
-            if (foreground == null || !foreground.isEmpty()) return;
-            handler.post(() -> {
-                if (session != openSessionId.get()) return;
-                int clusterId = AppLaunchHelper.getClusterDisplayId(context);
-                if (clusterId != 0) DisplayHelper.showBootSplashOnDisplay(context, clusterId);
-            });
-        });
+        String appOnDisplay2 = getAppOnDisplay2();
+        if (appOnDisplay2 != null && !appOnDisplay2.isEmpty()) {
+            return;
+        }
+        int clusterId = AppLaunchHelper.getClusterDisplayId(context);
+        if (clusterId != 0) {
+            DisplayHelper.showBootSplashOnDisplay(context, clusterId);
+        }
     }
 
     public void closeClusterDisplay(boolean sendBackground) {
@@ -252,38 +226,58 @@ public class ClusterDisplayManager {
     }
 
     private String getAppOnDisplay2() {
-        Process process = null;
-        java.util.concurrent.FutureTask<String> read = null;
         try {
-            process = new ProcessBuilder("dumpsys", "activity", "activities").redirectErrorStream(true).start();
-            final Process child = process;
-            read = new java.util.concurrent.FutureTask<>(() -> {
-                StringBuilder dump = new StringBuilder();
-                try (BufferedReader reader = new BufferedReader(new InputStreamReader(child.getInputStream()))) {
-                    for (String line; (line = reader.readLine()) != null;) {
-                        if (dump.length() + line.length() > 512 * 1024) throw new java.io.IOException("Task dump too large");
-                        dump.append(line).append((char) 10);
+            ActivityManager am = (ActivityManager) context.getSystemService(Context.ACTIVITY_SERVICE);
+            if (am != null && Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+                List<ActivityManager.RunningAppProcessInfo> processes = am.getRunningAppProcesses();
+                if (processes != null) {
+                    for (ActivityManager.RunningAppProcessInfo processInfo : processes) {
+                        if (processInfo.importance == ActivityManager.RunningAppProcessInfo.IMPORTANCE_FOREGROUND
+                                && processInfo.pkgList != null && processInfo.pkgList.length > 0) {
+                            String packageName = processInfo.pkgList[0];
+                            if (!"com.mapcontrol".equals(packageName) && !isSystemOrPrivApp(packageName)) {
+                                return packageName;
+                            }
+                        }
                     }
                 }
-                return dump.toString();
-            });
-            Thread reader = new Thread(read, "MapControl-display-read");
-            reader.setDaemon(true);
-            reader.start();
-            String dump = read.get(2, java.util.concurrent.TimeUnit.SECONDS);
-            int display = AppLaunchHelper.getClusterDisplayId(context);
-            if (!com.mapcontrol.util.DisplayTaskParser.containsDisplay(dump, display)) return null;
-            String pkg = com.mapcontrol.util.DisplayTaskParser.foregroundPackage(dump, display);
-            if (pkg == null) return "";
-            return !"com.mapcontrol".equals(pkg) && !isSystemOrPrivApp(pkg) ? pkg : null;
-        } catch (Exception error) {
-            callback.log("Gösterge ekranındaki uygulama okunamadı: " + error.getClass().getSimpleName());
+            }
+
+            Process process = Runtime.getRuntime().exec("dumpsys activity activities | grep -A 5 'displayId=2'");
+            BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream()));
+            String line;
+            String lastPackage = null;
+            while ((line = reader.readLine()) != null) {
+                if (!line.contains("com.")) {
+                    continue;
+                }
+                int startIndex = line.indexOf("com.");
+                if (startIndex == -1) {
+                    continue;
+                }
+                int endIndex = line.indexOf("/", startIndex);
+                if (endIndex == -1) {
+                    endIndex = line.indexOf(" ", startIndex);
+                }
+                if (endIndex == -1) {
+                    endIndex = line.length();
+                }
+                String packageName = line.substring(startIndex, endIndex).trim();
+                if (!"com.mapcontrol".equals(packageName) && !isSystemOrPrivApp(packageName)) {
+                    lastPackage = packageName;
+                }
+            }
+            reader.close();
+            if (lastPackage != null) {
+                callback.log("Display 2'de uygulama bulundu: " + lastPackage);
+            }
+            return lastPackage;
+        } catch (Exception e) {
+            callback.log("getAppOnDisplay2 hatası: " + e.getMessage());
             return null;
-        } finally {
-            if (process != null) process.destroyForcibly();
-            if (read != null) read.cancel(true);
         }
     }
+
     private boolean isSystemOrPrivApp(String packageName) {
         try {
             if (packageName == null || packageName.isEmpty()) {

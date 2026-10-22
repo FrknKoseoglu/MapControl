@@ -17,7 +17,6 @@ public final class BootSession {
     private static final String KEY_WELCOME = "welcomeGeneration";
     private static final String KEY_UI = "uiGeneration";
     private static final String KEY_UI_PENDING = "uiLaunchRequested";
-    private static volatile String fallbackBootId;
 
     private BootSession() {
     }
@@ -70,23 +69,8 @@ public final class BootSession {
             }
         } catch (Exception ignored) {
         }
-        synchronized (BootSession.class) {
-            if (fallbackBootId == null) {
-                try (java.io.BufferedReader reader = new java.io.BufferedReader(
-                        new java.io.FileReader("/proc/sys/kernel/random/boot_id"))) {
-                    String id = reader.readLine();
-                    if (id != null && id.matches("[a-fA-F0-9-]{36}")) fallbackBootId = "kernel-" + id;
-                } catch (java.io.IOException ignored) { }
-                if (fallbackBootId == null) {
-                    long estimate = System.currentTimeMillis() - SystemClock.elapsedRealtime();
-                    long stored = prefs(context).getLong("fallbackBootWallTime", Long.MIN_VALUE);
-                    long bootTime = stored != Long.MIN_VALUE && Math.abs(estimate - stored) < 5000L ? stored : estimate;
-                    prefs(context).edit().putLong("fallbackBootWallTime", bootTime).apply();
-                    fallbackBootId = "wall-" + bootTime;
-                }
-            }
-            return fallbackBootId;
-        }
+        long wallAtBoot = System.currentTimeMillis() - SystemClock.elapsedRealtime();
+        return "wall-" + wallAtBoot;
     }
 
     private static SharedPreferences prefs(Context context) {

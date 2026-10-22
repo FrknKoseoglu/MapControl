@@ -7,6 +7,3 @@
 # Release keystore passwords (required for signed release builds)
 RELEASE_STORE_PASSWORD=your_keystore_password
 RELEASE_KEY_PASSWORD=your_key_password
-
-# Optional crash reporting. Leave empty for local development.
-GLITCHTIP_DSN=

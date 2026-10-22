@@ -209,7 +209,6 @@ public final class LauncherDashboardBuilder implements
     }
 
     public void start() {
-        if (listening) return;
         if (litePanelView != null) {
             litePanelView.start();
         }
@@ -234,11 +233,6 @@ public final class LauncherDashboardBuilder implements
         }
         listening = false;
         repository.removeListener(this);
-    }
-
-    public void release() {
-        stop();
-        if (litePanelView != null) litePanelView.destroy();
     }
 
     /** Light/dark değişiminde cam kart + metin/ikon renklerini yeniler. */

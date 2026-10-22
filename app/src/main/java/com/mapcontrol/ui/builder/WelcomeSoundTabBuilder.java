@@ -351,7 +351,6 @@ public class WelcomeSoundTabBuilder {
         playbackLabel.setText(active ? R.string.welcome_sound_stop : R.string.welcome_sound_play);
         boolean ready = selectedFilePath != null && !selectedFilePath.isEmpty();
         playbackRow.setAlpha(ready ? 1f : 0.45f);
-        playbackRow.setEnabled(ready);
     }
 
     private void saveSelectedFilePath(String filePath) {

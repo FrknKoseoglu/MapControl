@@ -76,16 +76,14 @@ public class MapControlService extends Service {
     private static final String EXTRA_LOG_MESSAGE = "log_message";
     private ScheduledExecutorService scheduler;
     private Handler handler;
-    private volatile boolean destroyed;
-    private MediaPlayer welcomePlayer;
     /** Yansıtma paneli / yüzen kontroller / power modu ile aynı cluster VDBus ve taşıma mantığı ({@link ClusterDisplayManager}). */
     private ClusterDisplayManager clusterDisplayHelper;
     private int lastPowerMode = -1;
     /** Hoşgeldin: ekran güç alınca bir kez. 1→2 geçişinde tekrar açılmaz. */
-    private volatile int lastWelcomePowerMode = -1;
+    private int lastWelcomePowerMode = -1;
     private int lastAppliedDriveMode = -1; // Son uygulanan sürüş modu (tekrar uygulamayı önlemek için)
-    private volatile int uiLaunchAttempts;
-    private volatile long nextUiLaunchAt;
+    private int uiLaunchAttempts;
+    private long nextUiLaunchAt;
     private CarSystemGestureController carSystemGestureController;
     private SportAnimationController sportAnimationController;
     private SharedPreferences.OnSharedPreferenceChangeListener gesturePrefListener;
@@ -99,7 +97,6 @@ public class MapControlService extends Service {
         
         // MainActivity'ye broadcast gönder
         Intent intent = new Intent(ACTION_LOG);
-        intent.setPackage(getPackageName());
         intent.putExtra(EXTRA_LOG_MESSAGE, msg);
         sendBroadcast(intent);
     }
@@ -286,12 +283,10 @@ public class MapControlService extends Service {
 
     @Override
     public void onDestroy() {
-        destroyed = true;
         if (sportAnimationController != null) {
             sportAnimationController.release();
             sportAnimationController = null;
         }
-        releaseWelcomeAudio();
         if (gesturePrefListener != null) {
             TargetPackageStore.prefs(this).unregisterOnSharedPreferenceChangeListener(gesturePrefListener);
             gesturePrefListener = null;
@@ -304,9 +299,9 @@ public class MapControlService extends Service {
         ClimateAutomationEngine.getInstance(this).stop();
         DmsFaceRecognitionManager.stop(this);
         super.onDestroy();
-        if (scheduler != null) scheduler.shutdownNow();
-        if (handler != null) handler.removeCallbacksAndMessages(null);
-        if (clusterDisplayHelper != null) clusterDisplayHelper.release();
+        if (scheduler != null) {
+            scheduler.shutdown();
+        }
         MapControlVDBusKeyBridge.release(this);
     }
 
@@ -359,12 +354,12 @@ public class MapControlService extends Service {
                     return;
                 }
 
-                int[] pwrItems = CarInfoProxy.getInstance().getItemValuesOrNull(
+                int[] pwrItems = CarInfoProxy.getInstance().getItemValues(
                         VDEventCarInfo.MODULE_READONLY_INFO,
                         ReadOnlyID.ID_SYSTEM_POWER_MODE);
 
-                int currentPowerMode = com.mapcontrol.vehicle.PowerModeSample.read(pwrItems);
-                if (currentPowerMode >= 0) {
+                if (pwrItems != null && pwrItems.length > 0) {
+                    int currentPowerMode = pwrItems[0];
                     
                     // Power mode değişti mi kontrol et
                     if (lastPowerMode != currentPowerMode) {
@@ -431,7 +426,6 @@ public class MapControlService extends Service {
                                 log("⚠️ Araç hazır durumda ama ayar farklı, açılmıyor. PowerMode: " + currentPowerMode);
                             }
                         } else if (currentPowerMode == 0) {
-                            releaseWelcomeAudio();
                             // Power mode 0 = OFF
                             log("Araç kapatıldı! PowerMode: " + currentPowerMode);
                             
@@ -448,7 +442,7 @@ public class MapControlService extends Service {
                             
                             // Otomatik konum kaydetme kontrolü
                             boolean autoLocationSaveOnPowerOff = prefs.getBoolean("autoLocationSaveOnPowerOff", false);
-                            if (autoLocationSaveOnPowerOff && previousPowerMode > 0) {
+                            if (autoLocationSaveOnPowerOff) {
                                 // ProfileApiService ile giriş kontrolü yap
                                 ProfileApiService profileApiService = new ProfileApiService(MapControlService.this);
                                 if (profileApiService.isLoggedIn()) {
@@ -487,11 +481,13 @@ public class MapControlService extends Service {
                 }
                 return;
             }
-            int[] pwrItems = CarInfoProxy.getInstance().getItemValuesOrNull(
+            int[] pwrItems = CarInfoProxy.getInstance().getItemValues(
                     VDEventCarInfo.MODULE_READONLY_INFO,
                     ReadOnlyID.ID_SYSTEM_POWER_MODE);
-            int mode = com.mapcontrol.vehicle.PowerModeSample.read(pwrItems);
-            if (mode < 0) return;
+            if (pwrItems == null || pwrItems.length == 0) {
+                return;
+            }
+            int mode = pwrItems[0];
             int previous = lastWelcomePowerMode;
             if (previous == mode && mode < 1) {
                 return;
@@ -506,21 +502,14 @@ public class MapControlService extends Service {
                     mode,
                     BootSession.isWelcomeShown(this),
                     designEnabled,
-                    BootSession.isUiPending(this),
-                    getSharedPreferences(BootReceiver.PREFS_NAME, MODE_PRIVATE)
-                            .getBoolean(BootReceiver.KEY_BOOT_AUTO_LAUNCH_UI, true));
-            if (gate.rearmUi) {
-                BootSession.setUiPending(this, true);
-                uiLaunchAttempts = 0;
-                nextUiLaunchAt = 0L;
-            }
+                    BootSession.isUiPending(this));
             if (gate.clearWelcome) {
                 BootSession.clearWelcomeShown(this);
                 uiLaunchAttempts = 0;
             }
-            if (gate.playWelcome) {
+            if (gate.showWelcome) {
                 playWelcomeAudio();
-                if (gate.showWelcome) WelcomeScreenPresenter.showSaved(this);
+                WelcomeScreenPresenter.showSaved(this);
                 BootSession.markWelcomeShown(this);
             }
             if (gate.launchUi) {
@@ -536,7 +525,7 @@ public class MapControlService extends Service {
             return;
         }
         SharedPreferences prefs = getSharedPreferences(BootReceiver.PREFS_NAME, MODE_PRIVATE);
-        boolean ui = prefs.getBoolean(BootReceiver.KEY_BOOT_AUTO_LAUNCH_UI, true) && !BootSession.isUiLaunched(this);
+        boolean ui = prefs.getBoolean(BootReceiver.KEY_BOOT_AUTO_LAUNCH_UI, true);
         BootSession.setUiPending(this, ui);
         if (!ui) {
             return;
@@ -565,7 +554,7 @@ public class MapControlService extends Service {
     }
 
     private void tryLaunchHome() {
-        if (destroyed || lastWelcomePowerMode < 1 || !BootSession.isUiPending(this)) {
+        if (!BootSession.isUiPending(this)) {
             return;
         }
         SharedPreferences prefs = getSharedPreferences(BootReceiver.PREFS_NAME, MODE_PRIVATE);
@@ -578,10 +567,11 @@ public class MapControlService extends Service {
             activityIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK
                     | Intent.FLAG_ACTIVITY_CLEAR_TOP
                     | Intent.FLAG_ACTIVITY_SINGLE_TOP);
-            uiLaunchAttempts++;
             startActivity(activityIntent);
+            BootSession.setUiPending(this, false);
+            uiLaunchAttempts = 0;
         } catch (Exception e) {
-            log("Ana ekran başlatılamadı: " + e.getMessage());
+            uiLaunchAttempts++;
         }
     }
 
@@ -1129,15 +1119,33 @@ public class MapControlService extends Service {
     private void saveLocationAutomatically(ProfileApiService profileApiService) {
         new Thread(() -> {
             try {
-                android.location.Location lastLocation = com.mapcontrol.vehicle.VehicleLocationProvider.lastKnown(
-                        MapControlService.this, 2L * 60L * 1000L, 250f);
-                if (destroyed) return;
-
+                // LocationManager ile konum al
+                android.location.LocationManager locationManager = (android.location.LocationManager) getSystemService(Context.LOCATION_SERVICE);
+                if (locationManager == null) {
+                    log("❌ LocationManager bulunamadı");
+                    return;
+                }
+                
+                // Konum izni kontrolü
+                if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.M) {
+                    if (checkSelfPermission(android.Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED &&
+                        checkSelfPermission(android.Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+                        log("❌ Konum izni yok, otomatik konum kaydedilemedi");
+                        return;
+                    }
+                }
+                
+                // Mevcut konumu al
+                android.location.Location lastLocation = locationManager.getLastKnownLocation(android.location.LocationManager.GPS_PROVIDER);
+                if (lastLocation == null) {
+                    lastLocation = locationManager.getLastKnownLocation(android.location.LocationManager.NETWORK_PROVIDER);
+                }
+                
                 if (lastLocation != null) {
                     double latitude = lastLocation.getLatitude();
                     double longitude = lastLocation.getLongitude();
                     
-                    log("📍 Otomatik konum kaydediliyor");
+                    log("📍 Otomatik konum kaydediliyor: " + latitude + ", " + longitude);
                     
                     profileApiService.saveCoordinates(latitude, longitude, "Auto Location (Power Off)", "Araç kapanınca otomatik kaydedilen konum", new ProfileApiService.ApiCallback() {
                         @Override
@@ -1167,45 +1175,57 @@ public class MapControlService extends Service {
      * Hoşgeldin ses dosyasını çal. Ekran güç alınca (mod 1 veya 2) bir kez.
      */
     private void playWelcomeAudio() {
-        SharedPreferences prefs = getSharedPreferences("MapControlPrefs", MODE_PRIVATE);
-        if (!prefs.getBoolean("welcomeAudioAutoPlay", false) || destroyed) return;
-        String path = prefs.getString("welcomeAudioFilePath", null);
-        if (path == null || !new File(path).isFile()) return;
-        handler.post(() -> {
-            if (destroyed) return;
-            releaseWelcomeAudio();
-            MediaPlayer player = new MediaPlayer();
-            synchronized (this) { welcomePlayer = player; }
-            player.setOnCompletionListener(mp -> {
-                if (welcomePlayer == mp) releaseWelcomeAudio();
-            });
-            player.setOnErrorListener((mp, what, extra) -> {
-                log("Hoşgeldin sesi oynatılamadı: " + what);
-                if (welcomePlayer == mp) releaseWelcomeAudio();
-                return true;
-            });
-            player.setOnPreparedListener(mp -> {
-                if (welcomePlayer != mp) return;
-                if (destroyed) releaseWelcomeAudio(); else mp.start();
-            });
-            try {
-                player.setDataSource(path);
-                player.prepareAsync();
-            } catch (Exception error) {
-                log("Hoşgeldin ses dosyası açılamadı: " + error.getMessage());
-                releaseWelcomeAudio();
+        try {
+            SharedPreferences prefs = getSharedPreferences("MapControlPrefs", MODE_PRIVATE);
+            boolean autoPlayEnabled = prefs.getBoolean("welcomeAudioAutoPlay", false);
+            
+            if (!autoPlayEnabled) {
+                return; // Otomatik çal kapalı
             }
-        });
-    }
-
-    private synchronized void releaseWelcomeAudio() {
-        if (handler != null && Looper.myLooper() != Looper.getMainLooper()) {
-            handler.post(this::releaseWelcomeAudio);
-            return;
+            
+            String filePath = prefs.getString("welcomeAudioFilePath", null);
+            if (filePath == null || filePath.isEmpty()) {
+                return; // Dosya yolu yok
+            }
+            
+            File audioFile = new File(filePath);
+            if (!audioFile.exists()) {
+                log("⚠️ Hoşgeldin ses dosyası bulunamadı: " + filePath);
+                return;
+            }
+            
+            // MediaPlayer'ı arka planda çalıştır
+            new Thread(() -> {
+                try {
+                    MediaPlayer mediaPlayer = new MediaPlayer();
+                    mediaPlayer.setDataSource(filePath);
+                    mediaPlayer.prepare();
+                    mediaPlayer.start();
+                    
+                    // Çalma bitince temizle
+                    mediaPlayer.setOnCompletionListener(mp -> {
+                        mp.release();
+                        log("✅ Hoşgeldin ses dosyası çalındı");
+                    });
+                    
+                    // Hata durumunda
+                    mediaPlayer.setOnErrorListener((mp, what, extra) -> {
+                        log("❌ Hoşgeldin ses çalma hatası: " + what);
+                        mp.release();
+                        return true;
+                    });
+                    
+                    log("🔊 Hoşgeldin ses dosyası çalınıyor: " + audioFile.getName());
+                } catch (IOException e) {
+                    log("❌ Hoşgeldin ses dosyası açılamadı: " + e.getMessage());
+                } catch (Exception e) {
+                    log("❌ Hoşgeldin ses hatası: " + e.getMessage());
+                }
+            }).start();
+            
+        } catch (Exception e) {
+            log("❌ Hoşgeldin ses kontrol hatası: " + e.getMessage());
         }
-        if (welcomePlayer != null) {
-            welcomePlayer.release();
-            welcomePlayer = null;
-        }
     }
+    
 }

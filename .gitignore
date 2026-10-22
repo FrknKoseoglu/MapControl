@@ -11,7 +11,8 @@ outputs/
 output/
 
 # Documentation & UI Previews
-docs/
+/docs/*
+!/docs/ui/
 
 # Android Studio
 .idea/

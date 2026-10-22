@@ -458,9 +458,8 @@ public class MainActivity extends AppCompatActivity {
         topBarTitle = topBarBuilder.getTitleView();
         topBarBuilder.setLauncherBackButtonListener(v -> returnToLauncherHome());
         
-        mainContent.addView(topBar, new LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT,
-                LinearLayout.LayoutParams.WRAP_CONTENT));
+        sideRailBuilder.setStatusWidgets(topBarBuilder.getStatusWidgets());
+        mainContent.addView(topBar, new LinearLayout.LayoutParams(-1, -2));
 
         // Tab içerik alanı (FrameLayout: launcher park ederken SurfaceView GONE olmasın)
         tabContentArea = new FrameLayout(this);
@@ -1219,9 +1218,7 @@ public class MainActivity extends AppCompatActivity {
             topBarBuilder.setTopBarVisible(notLauncher);
             boolean sidebarOpen = (sideRailBuilder != null && !sideRailBuilder.isLauncherModeActive());
             topBarBuilder.setLauncherBackButtonVisible(!sidebarOpen && notLauncher);
-            if (notLauncher) {
-                topBarBuilder.setTitle(tabTitle(tabIndex));
-            }
+            topBarBuilder.setTitle(tabTitle(tabIndex));
         }
         if (tabIndex == 0 && wifiTabBuilder != null) {
             wifiTabBuilder.updateWifiStatus();

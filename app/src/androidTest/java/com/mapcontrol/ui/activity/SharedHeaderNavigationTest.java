@@ -4,7 +4,11 @@ import android.app.Instrumentation;
 import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
+import android.graphics.Bitmap;
+import java.io.File;
+import java.io.FileOutputStream;
 import android.view.View;
+import android.view.ViewGroup;
 import android.widget.TextView;
 import androidx.test.ext.junit.runners.AndroidJUnit4;
 import androidx.test.platform.app.InstrumentationRegistry;
@@ -31,6 +35,17 @@ public class SharedHeaderNavigationTest {
             method.invoke(activity, value);
         } catch (Exception failure) { throw new AssertionError(failure); }
     }
+    private void screenshot(Instrumentation instrumentation, Context context, String name) throws Exception {
+        instrumentation.waitForIdleSync();
+        Bitmap screenshot = instrumentation.getUiAutomation().takeScreenshot();
+        assertNotNull(screenshot);
+        File folder = new File(context.getFilesDir(), "ui-qa");
+        assertTrue(folder.isDirectory() || folder.mkdirs());
+        try (FileOutputStream out = new FileOutputStream(new File(folder, name))) {
+            screenshot.compress(Bitmap.CompressFormat.PNG, 100, out);
+        } finally { screenshot.recycle(); }
+    }
+
     @Test public void categoryTransitionCoversOnlyBodyAndKeepsHeaderInstance() throws Exception {
         Instrumentation instrumentation = InstrumentationRegistry.getInstrumentation();
         Context context = instrumentation.getTargetContext();
@@ -54,8 +69,9 @@ public class SharedHeaderNavigationTest {
             assertNotNull(header[0]);
             instrumentation.waitForIdleSync();
             Object[] modeBackground = new Object[1];
+            View[] pinnedWidgets = new View[1];
             instrumentation.runOnMainSync(() -> {
-                modeBackground[0] = header[0].findViewWithTag("header_mode").getBackground();
+                modeBackground[0] = host.getWindow().getDecorView().findViewWithTag("header_mode").getBackground();
                 call(host, "crossfadeContent", Runnable.class, (Runnable) () -> call(host, "switchTab", int.class, 6));
                 try {
                     Map<?, ?> veils = (Map<?, ?>) field(host, "transitionVeils");
@@ -69,11 +85,62 @@ public class SharedHeaderNavigationTest {
                 assertSame(header[0], host.getWindow().getDecorView().findViewWithTag("shared_header"));
                 assertEquals(host.getString(R.string.side_rail_drive_mode),
                         ((TextView) header[0].findViewWithTag("header_title")).getText().toString());
-                assertSame(modeBackground[0], header[0].findViewWithTag("header_mode").getBackground());
+                assertSame(modeBackground[0], host.getWindow().getDecorView().findViewWithTag("header_mode").getBackground());
                 call(host, "switchTab", int.class, 9);
                 assertSame(header[0], host.getWindow().getDecorView().findViewWithTag("shared_header"));
                 assertEquals(host.getString(R.string.side_rail_vehicle_info),
                         ((TextView) header[0].findViewWithTag("header_title")).getText().toString());
+            });
+            screenshot(instrumentation, context, "normal-header.png");
+            instrumentation.runOnMainSync(() -> {
+                assertNull(header[0].findViewWithTag("header_statuses"));
+                try {
+                    View rail = (View) field(host, "sideRail");
+                    View widgets = rail.findViewWithTag("header_statuses");
+                    assertNotNull(widgets);
+                    pinnedWidgets[0] = widgets;
+                    assertSame(rail, widgets.getParent());
+                    Field launcherTab = MainActivity.class.getDeclaredField("TAB_LAUNCHER");
+                    launcherTab.setAccessible(true);
+                    call(host, "applyLauncherChrome", boolean.class, true);
+                    call(host, "switchTab", int.class, launcherTab.getInt(null));
+                    assertEquals(View.GONE, header[0].getVisibility());
+                    View clockTitle = host.getWindow().getDecorView().findViewWithTag("launcher_clock_title");
+                    View clockWidgets = host.getWindow().getDecorView().findViewWithTag("launcher_status_statuses");
+                    assertNotNull(clockTitle);
+                    assertNotNull(clockWidgets);
+                    assertNotSame(clockTitle.getParent(), clockWidgets.getParent());
+                    View quickScroll = host.getWindow().getDecorView().findViewWithTag("launcher_quick_access_scroll");
+                    assertSame(clockWidgets, quickScroll.findViewWithTag("launcher_status_statuses"));
+                    ViewGroup shortcuts = host.getWindow().getDecorView().findViewWithTag("launcher_shortcuts_grid");
+                    assertEquals(5, shortcuts.getChildCount());
+                    for (int tab : new int[]{0, 1, 3, 6}) {
+                        assertNull(shortcuts.findViewWithTag("launcher_shortcut_" + tab));
+                    }
+                    assertEquals(View.VISIBLE, clockWidgets.getVisibility());
+                } catch (Exception failure) { throw new AssertionError(failure); }
+            });
+            instrumentation.waitForIdleSync();
+            instrumentation.runOnMainSync(() -> {
+                ViewGroup widgets = host.getWindow().getDecorView().findViewWithTag("launcher_status_statuses");
+                View wifi = widgets.findViewWithTag("launcher_status_wifi");
+                View mode = widgets.findViewWithTag("launcher_status_mode");
+                View phone = widgets.findViewWithTag("launcher_status_phone");
+                View projection = widgets.findViewWithTag("launcher_status_projection");
+                assertTrue(wifi.getWidth() > 0);
+                assertEquals(wifi.getTop(), mode.getTop());
+                assertEquals(phone.getTop(), projection.getTop());
+                assertTrue(phone.getTop() > wifi.getBottom());
+                assertTrue(mode.getLeft() > wifi.getRight());
+            });
+            screenshot(instrumentation, context, "fullscreen-clock-widgets.png");
+            instrumentation.runOnMainSync(() -> {
+                try {
+                    call(host, "switchTab", int.class, 9);
+                    call(host, "applyLauncherChrome", boolean.class, false);
+                    assertEquals(View.VISIBLE, header[0].getVisibility());
+                    assertSame(pinnedWidgets[0], host.getWindow().getDecorView().findViewWithTag("header_statuses"));
+                } catch (Exception failure) { throw new AssertionError(failure); }
             });
         } finally {
             if (activity != null) {

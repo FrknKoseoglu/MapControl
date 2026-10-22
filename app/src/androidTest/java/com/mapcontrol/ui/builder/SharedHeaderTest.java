@@ -3,6 +3,8 @@ package com.mapcontrol.ui.builder;
 import android.content.Context;
 import android.content.res.Configuration;
 import android.graphics.drawable.GradientDrawable;
+import android.graphics.Rect;
+import android.widget.LinearLayout;
 import android.view.ContextThemeWrapper;
 import android.view.View;
 import android.view.ViewGroup;
@@ -33,6 +35,18 @@ public class SharedHeaderTest {
             public void onStatusSelected(int tab) { selected.set(tab); }
         });
     }
+    private View headerWithWidgets(Context context, TopBarBuilder builder) {
+        LinearLayout root = new LinearLayout(context);
+        root.setOrientation(LinearLayout.VERTICAL);
+        View widgets = builder.getStatusWidgets();
+        if (widgets.getParent() instanceof ViewGroup) {
+            ((ViewGroup) widgets.getParent()).removeView(widgets);
+        }
+        root.addView(widgets, new LinearLayout.LayoutParams(-1, -2));
+        root.addView(builder.build(), new LinearLayout.LayoutParams(-1, -2));
+        return root;
+    }
+
     private void layout(View view, Context context, int widthDp) {
         int width = Math.round(widthDp * context.getResources().getDisplayMetrics().density);
         view.measure(View.MeasureSpec.makeMeasureSpec(width, View.MeasureSpec.EXACTLY),
@@ -42,9 +56,17 @@ public class SharedHeaderTest {
     private void assertTextFits(View view) {
         if (view instanceof TextView) {
             TextView text = (TextView) view;
-            assertTrue(text.getText() + " does not fit its status cell",
-                    text.getPaint().measureText(text.getText().toString()) <=
-                            text.getWidth() - text.getCompoundPaddingLeft() - text.getCompoundPaddingRight() + 1);
+            assertNotNull(text.getLayout());
+            for (int line = 0; line < text.getLayout().getLineCount(); line++) {
+                assertTrue(text.getText() + " tag=" + text.getTag() + " line=" + line
+                                + " measured=" + text.getLayout().getLineMax(line)
+                                + " available=" + (text.getWidth() - text.getCompoundPaddingLeft() - text.getCompoundPaddingRight())
+                                + " fontScale=" + text.getResources().getConfiguration().fontScale,
+                        text.getLayout().getLineMax(line) <= text.getWidth()
+                                - text.getCompoundPaddingLeft() - text.getCompoundPaddingRight() + 1);
+                assertEquals("Status or branding text must not be truncated", 0,
+                        text.getLayout().getEllipsisCount(line));
+            }
         }
         if (view instanceof ViewGroup) {
             ViewGroup group = (ViewGroup) view;
@@ -59,7 +81,7 @@ public class SharedHeaderTest {
             for (String language : new String[]{"tr", "en"}) {
                 Context context = context(language);
                 TopBarBuilder builder = builder(context, new AtomicInteger());
-                View header = builder.build();
+                View header = headerWithWidgets(context, builder);
                 layout(header, context, 1400);
                 int height = header.getHeight();
                 for (int title : new int[]{R.string.side_rail_wifi, R.string.side_rail_apps,
@@ -84,11 +106,103 @@ public class SharedHeaderTest {
         });
     }
 
+    @Test public void widgetsStayOutsideHeaderAndAboveScrollingRailInBothOrientations() {
+        InstrumentationRegistry.getInstrumentation().runOnMainSync(() -> {
+            for (String language : new String[]{"tr", "en", "ar"}) {
+                for (float fontScale : new float[]{1f, 1.3f}) {
+                    Context base = context(language);
+                    Configuration config = new Configuration(base.getResources().getConfiguration());
+                    config.fontScale = fontScale;
+                    Context themed = new ContextThemeWrapper(base.createConfigurationContext(config),
+                            R.style.Theme_MapControl);
+                    TopBarBuilder builder = builder(themed, new AtomicInteger());
+                    View header = builder.build();
+                    View widgets = builder.getStatusWidgets();
+                    assertNull(header.findViewWithTag("header_statuses"));
+                    SideRailBuilder railBuilder = new SideRailBuilder(themed,
+                            themed.getSharedPreferences("MapControlPrefs", Context.MODE_PRIVATE),
+                            new SideRailBuilder.SideRailCallback() {
+                                public void onTabSelected(int tab, String title) {}
+                                public void onAppManagementRequested() {}
+                                public void log(String message) {}
+                            });
+                    railBuilder.setStatusWidgets(widgets);
+                    builder.setWifiState(TopBarBuilder.WifiState.DISCONNECTED);
+                    builder.setSoundBoost(true, 250);
+                    for (boolean portrait : new boolean[]{false, true, false}) {
+                        ViewGroup rail = portrait ? railBuilder.buildPortrait() : railBuilder.build();
+                        assertSame(widgets, rail.getChildAt(0));
+                        assertSame(rail, widgets.getParent());
+                        for (int width : new int[]{520, 300, 720}) {
+                            layout(rail, themed, width);
+                            assertTrue(widgets.getHeight() > 0);
+                            assertEquals(0, widgets.getTop());
+                            ViewGroup row = (ViewGroup) widgets;
+                            int commonTop = row.getChildAt(0).getTop();
+                            for (int index = 0; index < row.getChildCount(); index++) {
+                                View chip = row.getChildAt(index);
+                                if (chip.getVisibility() == View.GONE) continue;
+                                assertEquals("Panel widgets must share one row", commonTop, chip.getTop());
+                                assertTrue(chip.getRight() <= widgets.getWidth() - widgets.getPaddingRight());
+                            }
+                            assertTextFits(widgets);
+                            assertEquals(themed.getString(R.string.header_disconnected),
+                                    ((TextView) widgets.findViewWithTag("header_wifi_value")).getText().toString());
+                        }
+                    }
+                    builder.release();
+                }
+            }
+        });
+    }
+
+    @Test public void launcherStatusCardsKeepTwoColumnsAndNavigationAtDifferentWidths() {
+        InstrumentationRegistry.getInstrumentation().runOnMainSync(() -> {
+            for (String language : new String[]{"tr", "en", "ar"}) {
+                for (float scale : new float[]{1f, 1.3f}) {
+                    Context base = context(language);
+                    Configuration config = new Configuration(base.getResources().getConfiguration());
+                    config.fontScale = scale;
+                    Context themed = new ContextThemeWrapper(base.createConfigurationContext(config), R.style.Theme_MapControl);
+                    AtomicInteger selected = new AtomicInteger(-1);
+                    com.mapcontrol.ui.widget.StatusWidgetsView widgets =
+                            new com.mapcontrol.ui.widget.StatusWidgetsView(themed, "launcher_status", selected::set);
+                    widgets.setColumnCount(2);
+                    widgets.setWifiState(TopBarBuilder.WifiState.DISCONNECTED);
+                    widgets.setDriveMode(true, DriveModeStyle.NORMAL);
+                    widgets.setServerRunning(true);
+                    widgets.setProjectionActive(true);
+                    for (boolean sound : new boolean[]{false, true, false}) {
+                        widgets.setSoundBoost(sound, 250);
+                        for (int width : new int[]{400, 300, 1000, 400}) {
+                            layout(widgets, themed, width);
+                            View wifi = widgets.getChildAt(0), mode = widgets.getChildAt(1);
+                            View phone = widgets.getChildAt(2), projection = widgets.getChildAt(3);
+                            assertEquals(wifi.getTop(), mode.getTop());
+                            assertEquals(phone.getTop(), projection.getTop());
+                            assertTrue(phone.getTop() > wifi.getBottom());
+                            assertTrue(mode.getLeft() > wifi.getRight());
+                            assertTextFits(widgets);
+                            for (int i = 0; i < widgets.getChildCount(); i++) {
+                                View chip = widgets.getChildAt(i);
+                                if (chip.getVisibility() == View.GONE) continue;
+                                assertTrue(chip.getRight() <= widgets.getWidth());
+                                assertTrue(chip.getHeight() >= Math.round(64 * themed.getResources().getDisplayMetrics().density));
+                                chip.performClick();
+                                assertEquals(new int[]{0, 6, 1, 3, 11}[i], selected.get());
+                            }
+                        }
+                    }
+                }
+            }
+        });
+    }
+
     @Test public void disconnectClearsActualModeAndRebuildPreservesOtherStatusValues() {
         InstrumentationRegistry.getInstrumentation().runOnMainSync(() -> {
             Context context = context("tr");
             TopBarBuilder builder = builder(context, new AtomicInteger());
-            View header = builder.build();
+            View header = headerWithWidgets(context, builder);
             builder.setDriveMode(true, DriveModeStyle.ECO);
             assertEquals("ECO", ((TextView) header.findViewWithTag("header_mode_value")).getText().toString());
             builder.setDriveMode(false, DriveModeStyle.ECO);
@@ -99,7 +213,7 @@ public class SharedHeaderTest {
             builder.setServerRunning(true);
             builder.setProjectionActive(true);
             builder.setWifiState(TopBarBuilder.WifiState.CONNECTED);
-            header = builder.build();
+            header = headerWithWidgets(context, builder);
             assertEquals("SNOW", ((TextView) header.findViewWithTag("header_mode_value")).getText().toString());
             assertEquals(context.getString(R.string.header_running),
                     ((TextView) header.findViewWithTag("header_phone_value")).getText().toString());
@@ -122,7 +236,7 @@ public class SharedHeaderTest {
             Context context = context("tr");
             AtomicInteger selected = new AtomicInteger(-1);
             TopBarBuilder builder = builder(context, selected);
-            View header = builder.build();
+            View header = headerWithWidgets(context, builder);
             String[] tags = {"header_wifi", "header_mode", "header_phone", "header_projection"};
             int[] tabs = {0, 6, 1, 3};
             for (int i = 0; i < tags.length; i++) {
@@ -137,7 +251,7 @@ public class SharedHeaderTest {
         InstrumentationRegistry.getInstrumentation().runOnMainSync(() -> {
             Context context = context("tr");
             TopBarBuilder builder = builder(context, new AtomicInteger());
-            View header = builder.build();
+            View header = headerWithWidgets(context, builder);
             View wifi = header.findViewWithTag("header_wifi");
             View mode = header.findViewWithTag("header_mode");
             View phone = header.findViewWithTag("header_phone");

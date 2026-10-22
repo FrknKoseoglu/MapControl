@@ -11,15 +11,18 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.widget.LinearLayout;
 import android.widget.TextView;
+import android.text.Spannable;
+import android.text.SpannableString;
+import android.text.style.RelativeSizeSpan;
+import android.text.style.StyleSpan;
+import com.mapcontrol.BuildConfig;
+import com.mapcontrol.ui.widget.StatusWidgetsView;
 import androidx.appcompat.widget.AppCompatImageButton;
-import androidx.appcompat.widget.AppCompatImageView;
-import androidx.core.graphics.ColorUtils;
 import com.mapcontrol.R;
 import com.mapcontrol.ui.HeaderStatusSink;
 import com.mapcontrol.ui.theme.UiStyles;
-import com.mapcontrol.vehicle.DriveModeStyle;
 
-/** Shared page title and live status strip. Page actions belong inside their own page. */
+/** Page title/back and passive branding. Live status widgets are hosted separately. */
 public class TopBarBuilder implements HeaderStatusSink {
     public enum WifiState { CONNECTED, DISCONNECTED, OFF, UNKNOWN }
 
@@ -37,19 +40,15 @@ public class TopBarBuilder implements HeaderStatusSink {
     private boolean isLogTabVisible;
     private LinearLayout topBar;
     private TextView titleView;
+    private TextView brandView;
     private AppCompatImageButton launcherBackButton;
     private View topBarDivider;
-    private StatusChip wifiChip, modeChip, phoneChip, projectionChip, soundChip;
-    private WifiState wifiState = WifiState.UNKNOWN;
-    private boolean vehicleConnected;
-    private int driveMode = Integer.MIN_VALUE;
-    private boolean serverRunning, projectionActive;
-    private boolean soundBoostActive;
-    private int soundGainMb;
+    private final StatusWidgetsView statusWidgets;
 
     public TopBarBuilder(Context context, TopBarCallback callback) {
         this.context = context;
         this.callback = callback;
+        statusWidgets = new StatusWidgetsView(context, "header", callback::onStatusSelected);
     }
 
     public LinearLayout build() {
@@ -58,10 +57,8 @@ public class TopBarBuilder implements HeaderStatusSink {
         topBar.setOrientation(LinearLayout.VERTICAL);
         HeaderRow row = new HeaderRow();
         row.setPadding(dp(20), dp(16), dp(16), dp(16));
-        row.setGravity(Gravity.CENTER_VERTICAL);
         LinearLayout titleArea = new LinearLayout(context);
         titleArea.setGravity(Gravity.CENTER_VERTICAL);
-        row.addView(titleArea);
 
         titleArea.setOrientation(LinearLayout.HORIZONTAL);
 
@@ -89,21 +86,25 @@ public class TopBarBuilder implements HeaderStatusSink {
         titleArea.addView(titleView, new LinearLayout.LayoutParams(0,
                 LinearLayout.LayoutParams.MATCH_PARENT, 1));
 
-        StatusGrid statuses = new StatusGrid();
-        row.addView(statuses);
-        wifiChip = new StatusChip("header_wifi", R.string.header_wifi, R.drawable.ic_mdi_wifi, 0);
-        modeChip = new StatusChip("header_mode", R.string.header_mode, R.drawable.ic_mdi_car, 6);
-        phoneChip = new StatusChip("header_phone", R.string.header_phone, R.drawable.ic_mdi_cellphone, 1);
-        projectionChip = new StatusChip("header_projection", R.string.header_projection,
-                R.drawable.ic_hub_monitor, 3);
-        soundChip = new StatusChip("header_sound", R.string.side_rail_equalizer,
-                R.drawable.ic_mdi_volume_plus, 11);
-        soundChip.setVisibility(View.GONE);
-        statuses.addView(wifiChip);
-        statuses.addView(modeChip);
-        statuses.addView(phoneChip);
-        statuses.addView(projectionChip);
-        statuses.addView(soundChip);
+        row.addView(titleArea);
+
+        brandView = new TextView(context);
+        brandView.setTag("header_brand");
+        SpannableString brand = new SpannableString("MapControl by vNoisy (" + BuildConfig.VERSION_NAME + ")");
+        int author = brand.toString().indexOf("vNoisy");
+        brand.setSpan(new StyleSpan(Typeface.ITALIC), author, author + "vNoisy".length(),
+                Spannable.SPAN_EXCLUSIVE_EXCLUSIVE);
+        int version = brand.toString().indexOf('(');
+        brand.setSpan(new RelativeSizeSpan(.82f), version, brand.length(),
+                Spannable.SPAN_EXCLUSIVE_EXCLUSIVE);
+        brandView.setText(brand);
+        UiStyles.setTextSize(brandView, R.dimen.text_size_normal);
+        brandView.setTypeface(null, Typeface.BOLD);
+        brandView.setGravity(Gravity.RIGHT | Gravity.TOP);
+        brandView.setTextDirection(View.TEXT_DIRECTION_LTR);
+        brandView.setClickable(false);
+        brandView.setFocusable(false);
+        row.addView(brandView);
         topBar.addView(row, new LinearLayout.LayoutParams(-1, -2));
         topBarDivider = new View(context);
         topBar.addView(topBarDivider, new LinearLayout.LayoutParams(-1, Math.max(1, dp(1))));
@@ -122,108 +123,17 @@ public class TopBarBuilder implements HeaderStatusSink {
         return topBar;
     }
 
-    public void setWifiState(WifiState state) {
-        if (state == wifiState) return;
-        wifiState = state;
-        refreshWifi();
-    }
-
-    public void setDriveMode(boolean connected, int mode) {
-        if (!DriveModeStyle.isThemed(mode)) {
-            int prefMode = context.getSharedPreferences("MapControlPrefs", Context.MODE_PRIVATE)
-                    .getInt("driveModeSetting", -1);
-            if (DriveModeStyle.isThemed(prefMode)) {
-                mode = prefMode;
-            }
-        }
-        if (connected == vehicleConnected && mode == driveMode) return;
-        vehicleConnected = connected;
-        driveMode = mode;
-        refreshMode();
-    }
-
-    public void setServerRunning(boolean running) {
-        if (serverRunning == running) return;
-        serverRunning = running;
-        refreshPhone();
-    }
-
-    public void setProjectionActive(boolean active) {
-        if (projectionActive == active) return;
-        projectionActive = active;
-        refreshProjection();
-    }
-
-    @Override
-    public void setSoundBoost(boolean active, int gainMb) {
-        if (soundBoostActive == active && soundGainMb == gainMb) return;
-        soundBoostActive = active;
-        soundGainMb = gainMb;
-        refreshSound();
-    }
+    public StatusWidgetsView getStatusWidgets() { return statusWidgets; }
+    @Override public void setWifiState(WifiState state) { statusWidgets.setWifiState(state); }
+    @Override public void setDriveMode(boolean connected, int mode) { statusWidgets.setDriveMode(connected, mode); }
+    @Override public void setServerRunning(boolean running) { statusWidgets.setServerRunning(running); }
+    @Override public void setProjectionActive(boolean active) { statusWidgets.setProjectionActive(active); }
+    @Override public void setSoundBoost(boolean active, int gainMb) { statusWidgets.setSoundBoost(active, gainMb); }
 
     public void setTitle(int titleRes) {
         if (titleView == null) return;
         String title = context.getString(titleRes);
         if (!android.text.TextUtils.equals(titleView.getText(), title)) titleView.setText(title);
-    }
-
-    private void refreshStatuses() {
-        refreshWifi();
-        refreshMode();
-        refreshPhone();
-        refreshProjection();
-        refreshSound();
-    }
-
-    private void refreshWifi() {
-        if (wifiChip == null) return;
-        int label = R.string.header_unknown;
-        if (wifiState == WifiState.CONNECTED) label = R.string.header_connected;
-        else if (wifiState == WifiState.DISCONNECTED) label = R.string.header_disconnected;
-        else if (wifiState == WifiState.OFF) label = R.string.header_off;
-        wifiChip.bind(context.getString(label), UiStyles.color(context,
-                wifiState == WifiState.CONNECTED ? R.color.statusSuccess
-                : wifiState == WifiState.DISCONNECTED ? R.color.statusWarning : R.color.textSecondary));
-    }
-
-    private void refreshMode() {
-        if (modeChip == null) return;
-        int mode = driveMode;
-        if (!DriveModeStyle.isThemed(mode)) {
-            int prefMode = context.getSharedPreferences("MapControlPrefs", Context.MODE_PRIVATE)
-                    .getInt("driveModeSetting", -1);
-            if (DriveModeStyle.isThemed(prefMode)) {
-                mode = prefMode;
-            }
-        }
-        boolean knownMode = DriveModeStyle.isThemed(mode);
-        modeChip.bind(knownMode ? DriveModeStyle.shortLabel(mode) : "—",
-                knownMode ? DriveModeStyle.accentColor(context, mode)
-                        : UiStyles.color(context, R.color.textSecondary));
-    }
-
-    private void refreshPhone() {
-        if (phoneChip == null) return;
-        phoneChip.bind(context.getString(serverRunning ? R.string.header_running : R.string.header_stopped),
-                UiStyles.color(context, serverRunning ? R.color.statusSuccess : R.color.textSecondary));
-    }
-
-    private void refreshProjection() {
-        if (projectionChip == null) return;
-        projectionChip.bind(context.getString(projectionActive ? R.string.header_active : R.string.header_off),
-                UiStyles.color(context, projectionActive ? R.color.statusSuccess : R.color.textSecondary));
-    }
-
-    private void refreshSound() {
-        if (soundChip == null) return;
-        if (soundBoostActive && soundGainMb > 0) {
-            soundChip.setVisibility(View.VISIBLE);
-            String val = String.format(java.util.Locale.US, "+%.1f dB", soundGainMb / 100.0f);
-            soundChip.bind(val, UiStyles.color(context, R.color.oemAccent));
-        } else {
-            soundChip.setVisibility(View.GONE);
-        }
     }
 
     public void setLauncherBackButtonVisible(boolean visible) {
@@ -249,128 +159,57 @@ public class TopBarBuilder implements HeaderStatusSink {
             topBar.setBackground(bg);
         }
         if (titleView != null) titleView.setTextColor(UiStyles.color(context, R.color.textPrimary));
+        if (brandView != null) brandView.setTextColor(UiStyles.color(context, R.color.textSecondary));
         if (launcherBackButton != null) {
             UiStyles.setGlassCardBackground(launcherBackButton);
             launcherBackButton.setImageTintList(ColorStateList.valueOf(UiStyles.color(context, R.color.textPrimary)));
         }
         if (topBarDivider != null) UiStyles.setBackgroundRes(topBarDivider, R.drawable.bg_topbar_divider);
-        refreshStatuses();
-    }
-
-    private int statusCellHeight() {
-        return dp(68 * Math.max(1f, context.getResources().getConfiguration().fontScale));
+        statusWidgets.reapplyTheme();
     }
 
     private int dp(float value) { return Math.round(value * context.getResources().getDisplayMetrics().density); }
 
-    private final class StatusChip extends LinearLayout {
-        private final AppCompatImageView icon;
-        private final TextView label, value;
-        private final int labelRes;
-        StatusChip(String tag, int labelRes, int iconRes, int tabIndex) {
-            super(context);
-            this.labelRes = labelRes;
-            setTag(tag);
-            setGravity(Gravity.CENTER_VERTICAL);
-            setPadding(dp(12), dp(8), dp(12), dp(8));
-            setFocusable(true);
-            setOnClickListener(v -> callback.onStatusSelected(tabIndex));
-            icon = new AppCompatImageView(context);
-            icon.setImageResource(iconRes);
-            addView(icon, new LinearLayout.LayoutParams(dp(24), dp(24)));
-            setClipChildren(false);
-            setClipToPadding(false);
-            LinearLayout texts = new LinearLayout(context);
-            texts.setOrientation(VERTICAL);
-            texts.setGravity(Gravity.CENTER_VERTICAL);
-            texts.setClipChildren(false);
-            texts.setClipToPadding(false);
-            LinearLayout.LayoutParams textParams = new LinearLayout.LayoutParams(0, -2, 1);
-            textParams.setMarginStart(dp(6));
-            addView(texts, textParams);
-            label = new TextView(context);
-            label.setText(labelRes);
-            label.setSingleLine(true);
-            label.setIncludeFontPadding(true);
-            label.setTextSize(android.util.TypedValue.COMPLEX_UNIT_SP, 12.5f);
-            texts.addView(label);
-            value = new TextView(context);
-            value.setTag(tag + "_value");
-            value.setSingleLine(true);
-            value.setTypeface(null, Typeface.BOLD);
-            value.setIncludeFontPadding(true);
-            value.setTextSize(android.util.TypedValue.COMPLEX_UNIT_SP, 16.5f);
-            texts.addView(value);
-        }
-        void bind(String text, int accent) {
-            label.setTextColor(UiStyles.color(context, R.color.textSecondary));
-            value.setText(text);
-            value.setTextColor(accent);
-            icon.setImageTintList(ColorStateList.valueOf(accent));
-            GradientDrawable background = new GradientDrawable();
-            background.setCornerRadius(dp(14));
-            background.setColor(ColorUtils.blendARGB(UiStyles.color(context, R.color.surfaceCardInner), accent, .07f));
-            setBackground(background);
-            setContentDescription(labelRes == R.string.header_phone
-                    ? context.getString(R.string.header_phone_description, text)
-                    : context.getString(labelRes) + ": " + text);
-        }
-    }
+    /** Physical LHD corners stay fixed, including in RTL locales and narrow windows. */
+    private final class HeaderRow extends ViewGroup {
+        private boolean titleBelow;
+        private int titleWidth, brandWidth, topHeight;
 
-    /** One fixed row on the IVI; title and statuses stack when the window is narrow. */
-    private final class HeaderRow extends LinearLayout {
-        private Boolean lastStacked;
         HeaderRow() { super(context); }
-        @Override protected void onMeasure(int widthSpec, int heightSpec) {
-            boolean stacked = MeasureSpec.getSize(widthSpec) - getPaddingLeft() - getPaddingRight() < dp(900);
-            if (lastStacked == null || lastStacked != stacked) {
-                lastStacked = stacked;
-                setOrientation(stacked ? VERTICAL : HORIZONTAL);
-                getChildAt(0).setLayoutParams(new LinearLayout.LayoutParams(stacked ? -1 : 0,
-                    -2, stacked ? 0 : 1));
-                getChildAt(1).setLayoutParams(new LinearLayout.LayoutParams(stacked ? -1 : dp(660), -2));
-            }
-            super.onMeasure(widthSpec, heightSpec);
-        }
-    }
 
-    private final class StatusGrid extends ViewGroup {
-        private int columns, cellWidth;
-        StatusGrid() { super(context); }
         @Override protected void onMeasure(int widthSpec, int heightSpec) {
             int width = MeasureSpec.getSize(widthSpec);
-            int visibleCount = 0;
-            for (int i = 0; i < getChildCount(); i++) {
-                if (getChildAt(i).getVisibility() != View.GONE) visibleCount++;
-            }
-            if (visibleCount == 0) {
-                setMeasuredDimension(width, 0);
-                return;
-            }
-            int maxPossibleCols = Math.max(1, (width + dp(8)) / dp(110));
-            columns = Math.min(visibleCount, Math.max(2, maxPossibleCols));
-            cellWidth = Math.max(0, (width - dp(8) * (columns - 1)) / columns);
-            for (int i = 0; i < getChildCount(); i++) {
-                View child = getChildAt(i);
-                if (child.getVisibility() == View.GONE) continue;
-                child.measure(
-                        MeasureSpec.makeMeasureSpec(cellWidth, MeasureSpec.EXACTLY),
-                        MeasureSpec.makeMeasureSpec(statusCellHeight(), MeasureSpec.EXACTLY));
-            }
-            int rows = (visibleCount + columns - 1) / columns;
-            int height = rows * statusCellHeight() + (rows - 1) * dp(8);
-            setMeasuredDimension(width, height);
+            int available = Math.max(0, width - getPaddingLeft() - getPaddingRight());
+            int gap = dp(16);
+            int half = Math.max(0, (available - gap) / 2);
+            View title = getChildAt(0), brand = getChildAt(1);
+            brand.measure(MeasureSpec.makeMeasureSpec(half, MeasureSpec.AT_MOST),
+                    MeasureSpec.makeMeasureSpec(0, MeasureSpec.UNSPECIFIED));
+            brandWidth = brand.getMeasuredWidth();
+            int middle = Math.max(0, available - brandWidth - gap);
+            titleBelow = middle < dp(360 * Math.max(1f,
+                    getResources().getConfiguration().fontScale));
+            titleWidth = titleBelow ? available : middle;
+            title.measure(MeasureSpec.makeMeasureSpec(titleWidth, MeasureSpec.EXACTLY),
+                    MeasureSpec.makeMeasureSpec(0, MeasureSpec.UNSPECIFIED));
+            topHeight = brand.getMeasuredHeight();
+            if (!titleBelow) topHeight = Math.max(topHeight, title.getMeasuredHeight());
+            int height = getPaddingTop() + topHeight + getPaddingBottom();
+            if (titleBelow) height += dp(12) + title.getMeasuredHeight();
+            setMeasuredDimension(width, resolveSize(height, heightSpec));
         }
+
         @Override protected void onLayout(boolean changed, int l, int t, int r, int b) {
-            int visibleIdx = 0;
-            for (int i = 0; i < getChildCount(); i++) {
-                View child = getChildAt(i);
-                if (child.getVisibility() == View.GONE) continue;
-                int x = (visibleIdx % columns) * (cellWidth + dp(8));
-                int y = (visibleIdx / columns) * (statusCellHeight() + dp(8));
-                child.layout(x, y, x + cellWidth, y + statusCellHeight());
-                visibleIdx++;
-            }
+            int left = getPaddingLeft(), top = getPaddingTop();
+            View title = getChildAt(0), brand = getChildAt(1);
+            int brandLeft = getWidth() - getPaddingRight() - brandWidth;
+            brand.layout(brandLeft, top, brandLeft + brandWidth, top + brand.getMeasuredHeight());
+            int titleLeft = left;
+            int titleTop = titleBelow ? top + topHeight + dp(12)
+                    : top + (topHeight - title.getMeasuredHeight()) / 2;
+            title.layout(titleLeft, titleTop, titleLeft + titleWidth,
+                    titleTop + title.getMeasuredHeight());
         }
     }
+
 }

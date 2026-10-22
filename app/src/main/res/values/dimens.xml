@@ -74,6 +74,11 @@
     <dimen name="launcher_dashboard_control_size">56dp</dimen>
     <dimen name="launcher_dashboard_quick_slot_size">72dp</dimen>
     <dimen name="launcher_dashboard_quick_icon_size">44dp</dimen>
+    <!-- MapControl shortcuts only: icons/slots -10%, labels -25%. -->
+    <dimen name="launcher_mapcontrol_slot_size">64.8dp</dimen>
+    <dimen name="launcher_mapcontrol_icon_size">39.6dp</dimen>
+    <dimen name="launcher_mapcontrol_label_text">16.875sp</dimen>
+    <dimen name="launcher_mapcontrol_label_min_height">32dp</dimen>
     <dimen name="launcher_dashboard_model_loading_icon">40dp</dimen>
     <dimen name="launcher_dashboard_model_loading_bar_width">160dp</dimen>
     <dimen name="launcher_dashboard_lite_clock">70sp</dimen>

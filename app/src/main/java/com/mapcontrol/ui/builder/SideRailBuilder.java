@@ -2,14 +2,9 @@ package com.mapcontrol.ui.builder;
 import android.app.AlertDialog;
 import android.content.Context;
 import android.content.SharedPreferences;
-import android.content.pm.PackageManager;
 import android.content.res.ColorStateList;
 import android.graphics.Color;
 import android.graphics.Typeface;
-import android.text.Spannable;
-import android.text.SpannableString;
-import android.text.style.RelativeSizeSpan;
-import android.text.style.StyleSpan;
 import android.view.Gravity;
 import android.view.View;
 import android.text.TextUtils;
@@ -24,6 +19,7 @@ import androidx.core.content.ContextCompat;
 
 import com.mapcontrol.R;
 import com.mapcontrol.ui.theme.UiStyles;
+import com.mapcontrol.ui.widget.StatusWidgetsView;
 
 public class SideRailBuilder {
     public interface SideRailCallback {
@@ -63,7 +59,7 @@ public class SideRailBuilder {
     private LinearLayout menuProfile;
     private LinearLayout menuVehicleInfo;
     private LinearLayout sideRail;
-    private TextView appTitleText;
+    private View statusWidgets;
     private LinearLayout selectedMenuRow;
     private boolean launcherModeActive;
 
@@ -73,54 +69,27 @@ public class SideRailBuilder {
         this.callback = callback;
     }
 
+    public void setStatusWidgets(View widgets) { statusWidgets = widgets; }
+
+    private void attachStatusWidgets() {
+        if (statusWidgets == null) return;
+        if (statusWidgets instanceof StatusWidgetsView) {
+            ((StatusWidgetsView) statusWidgets).setSingleRow(true);
+        }
+        if (statusWidgets.getParent() instanceof android.view.ViewGroup) {
+            ((android.view.ViewGroup) statusWidgets.getParent()).removeView(statusWidgets);
+        }
+        int pad = Math.round(12 * context.getResources().getDisplayMetrics().density);
+        statusWidgets.setPadding(pad, pad, pad, pad);
+        sideRail.addView(statusWidgets, new LinearLayout.LayoutParams(-1, -2));
+    }
+
     public LinearLayout build() {
         sideRail = new LinearLayout(context);
         sideRail.setOrientation(LinearLayout.VERTICAL);
         UiStyles.setRailPanelBackground(sideRail);
         sideRail.setPadding(0, 0, 0, 0);
-
-        LinearLayout sideRailTopBar = new LinearLayout(context);
-        sideRailTopBar.setOrientation(LinearLayout.HORIZONTAL);
-        sideRailTopBar.setBackgroundColor(Color.TRANSPARENT);
-        sideRailTopBar.setPadding(36, 26, 28, 22);
-        sideRailTopBar.setGravity(Gravity.CENTER_VERTICAL);
-        sideRailTopBar.setMinimumHeight((int) (76 * context.getResources().getDisplayMetrics().density));
-
-        appTitleText = new TextView(context);
-        try {
-            String versionName = context.getPackageManager().getPackageInfo(context.getPackageName(), 0).versionName;
-            SpannableString spannableText = new SpannableString("MapControl by vNoisy (" + versionName + ")");
-            int vNoisyStart = spannableText.toString().indexOf("vNoisy");
-            int vNoisyEnd = vNoisyStart + "vNoisy".length();
-            if (vNoisyStart >= 0) {
-                spannableText.setSpan(new StyleSpan(android.graphics.Typeface.ITALIC),
-                        vNoisyStart, vNoisyEnd, Spannable.SPAN_EXCLUSIVE_EXCLUSIVE);
-            }
-            int versionStart = spannableText.toString().indexOf("(");
-            int versionEnd = spannableText.length();
-            if (versionStart >= 0) {
-                spannableText.setSpan(new RelativeSizeSpan(0.82f),
-                        versionStart, versionEnd, Spannable.SPAN_EXCLUSIVE_EXCLUSIVE);
-            }
-            appTitleText.setText(spannableText);
-        } catch (PackageManager.NameNotFoundException e) {
-            SpannableString spannableText = new SpannableString("MapControl by vNoisy");
-            int vNoisyStart = spannableText.toString().indexOf("vNoisy");
-            int vNoisyEnd = vNoisyStart + "vNoisy".length();
-            if (vNoisyStart >= 0) {
-                spannableText.setSpan(new StyleSpan(android.graphics.Typeface.ITALIC),
-                        vNoisyStart, vNoisyEnd, Spannable.SPAN_EXCLUSIVE_EXCLUSIVE);
-            }
-            appTitleText.setText(spannableText);
-        }
-        appTitleText.setTextSize(28);
-        appTitleText.setTextColor(UiStyles.color(context, R.color.textPrimary));
-        appTitleText.setTypeface(null, android.graphics.Typeface.BOLD);
-        sideRailTopBar.addView(appTitleText);
-
-        sideRail.addView(sideRailTopBar, new LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT,
-                LinearLayout.LayoutParams.WRAP_CONTENT));
+        attachStatusWidgets();
 
         ScrollView menuScrollView = new ScrollView(context);
         menuScrollView.setBackgroundColor(Color.TRANSPARENT);
@@ -187,6 +156,7 @@ public class SideRailBuilder {
         sideRail = new LinearLayout(context);
         sideRail.setOrientation(LinearLayout.VERTICAL);
         UiStyles.setRailPanelBackground(sideRail);
+        attachStatusWidgets();
 
         HorizontalScrollView menuScroll = new HorizontalScrollView(context);
         menuScroll.setHorizontalScrollBarEnabled(false);
@@ -325,9 +295,6 @@ public class SideRailBuilder {
     public void reapplyTheme() {
         if (sideRail != null) {
             UiStyles.setRailPanelBackground(sideRail);
-        }
-        if (appTitleText != null) {
-            appTitleText.setTextColor(UiStyles.color(context, R.color.textPrimary));
         }
         LinearLayout[] rows = menuRows();
         for (LinearLayout row : rows) {

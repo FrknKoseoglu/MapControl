@@ -1,6 +1,6 @@
 # Map Control
 
-> **Geliştirici notu:** Güncel launcher orta kartı Lite paneldir (saat, hava durumu, araç ölçümleri). Aşağıdaki v1.1.4 3D performans ölçümleri tarihsel verilerdir. Son güvenilirlik düzeltmeleri ve fiziksel IVI kabul kontrolleri için [inceleme raporuna](docs/ivi-reliability-review.md) bakın.
+> **Geliştirici notu:** Güncel launcher orta kartı Lite paneldir (saat, hava durumu, araç ölçümleri). Aşağıdaki v1.1.4 3D performans ölçümleri tarihsel verilerdir. Son güvenilirlik düzeltmeleri ve fiziksel IVI kabul kontrolleri için [tasarım ve IVI inceleme indeksine](docs/ui/README.md) bakın.
 
  ⚠️ **Bilinen sorunlar / Known issues**
 

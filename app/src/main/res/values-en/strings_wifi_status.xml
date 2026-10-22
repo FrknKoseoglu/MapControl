@@ -1,9 +1,0 @@
-<?xml version="1.0" encoding="utf-8"?>
-<resources>
-    <string name="wifi_global_stabilize_eyebrow">WI-FI</string>
-    <string name="wifi_global_stabilize_title">Preparing Wi-Fi connection…</string>
-    <string name="wifi_global_toast_eyebrow_ok">CONNECTED</string>
-    <string name="wifi_global_status_internet_ok">Internet connection is ready.</string>
-    <string name="wifi_global_toast_eyebrow_fail">CONNECTION ERROR</string>
-    <string name="wifi_global_status_wifi_failed">Wi-Fi connection failed.</string>
-</resources>

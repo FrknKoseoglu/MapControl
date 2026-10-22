@@ -807,36 +807,7 @@
     </div>
     
     <script>
-        const serverUrl = window.location.origin;
-        const fragmentKey = new URLSearchParams(window.location.hash.slice(1)).get('key');
-        const accessKey = fragmentKey || sessionStorage.getItem('mapcontrol.webKey') || '';
-        if (/^[a-f0-9]{64}$/.test(accessKey)) sessionStorage.setItem('mapcontrol.webKey', accessKey);
-        if (fragmentKey) history.replaceState(null, '', window.location.pathname + window.location.search);
-        let pairingNoticeShown = false;
-        function pairingNotice() {
-            if (pairingNoticeShown) return;
-            pairingNoticeShown = true;
-            const notice = document.createElement('div');
-            notice.setAttribute('role', 'status');
-            notice.style.cssText = 'padding:16px;text-align:center;background:#fff3cd;color:#332701';
-            notice.textContent = 'Bağlanmak için araç ekranındaki güncel QR kodunu tarayın. / Scan the current QR code on the vehicle screen to connect.';
-            document.body.prepend(notice);
-        }
-        async function apiFetch(url, options = {}) {
-            if (!/^[a-f0-9]{64}$/.test(accessKey)) {
-                pairingNotice();
-                throw new Error('Scan the QR code on the vehicle screen.');
-            }
-            const headers = new Headers(options.headers || {});
-            headers.set('X-MapControl-Key', accessKey);
-            const response = await fetch(url, { ...options, headers });
-            if (response.status === 401 || response.status === 403) {
-                sessionStorage.removeItem('mapcontrol.webKey');
-                pairingNotice();
-                throw new Error('Scan the current QR code on the vehicle screen.');
-            }
-            return response;
-        }
+        const serverUrl = '{{SERVER_URL}}';
         const LANG_KEY = 'mc_web_lang';
         const I18N = {
             tr: {
@@ -1086,6 +1057,9 @@
                 showWebPanel(btn.getAttribute('data-panel'));
             });
         }
+        function jsQuote(s) {
+            return String(s).replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/\n/g, ' ');
+        }
         if (mapOpenBtn) {
             mapOpenBtn.addEventListener('click', async () => {
                 const url = (mapUrlInput && mapUrlInput.value) ? mapUrlInput.value.trim() : '';
@@ -1095,7 +1069,7 @@
                 }
                 mapOpenBtn.disabled = true;
                 try {
-                    const response = await apiFetch(serverUrl + '/action/open-maps', {
+                    const response = await fetch(serverUrl + '/action/open-maps', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ url: url })
@@ -1132,7 +1106,7 @@
             }
             keyboardSendAbort = new AbortController();
             const signal = keyboardSendAbort.signal;
-            const response = await apiFetch(serverUrl + '/action/keyboard', {
+            const response = await fetch(serverUrl + '/action/keyboard', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ text: text == null ? '' : text, notify: notifyDevice }),
@@ -1301,7 +1275,6 @@
                 xhr.addEventListener('load', function() {
                     clearInterval(progressInterval);
                     updateProgress(100);
-                    if (xhr.status === 401 || xhr.status === 403) pairingNotice();
                     
                     if (xhr.status === 200) {
                         setTimeout(() => {
@@ -1326,8 +1299,6 @@
                 });
                 
                 xhr.open('POST', serverUrl + '/upload');
-                if (!/^[a-f0-9]{64}$/.test(accessKey)) { clearInterval(progressInterval); pairingNotice(); resetForm(); return; }
-                xhr.setRequestHeader('X-MapControl-Key', accessKey);
                 xhr.send(formData);
                 
             } catch (error) {
@@ -1344,7 +1315,7 @@
             filesList.innerHTML = '<div class="loading"><span class="loading-spinner"></span>' + escapeHtml(t('loading')) + '</div>';
             
             try {
-                const response = await apiFetch(serverUrl + '/files');
+                const response = await fetch(serverUrl + '/files');
                 const data = await response.json();
                 
                 if (data.files && data.files.length > 0) {
@@ -1358,7 +1329,7 @@
                             
                             const isApk = file.name.toLowerCase().endsWith('.apk');
                             const installButton = isApk ? `
-                                <button class="install-btn">
+                                <button class="install-btn" onclick="installApk('${escapeHtml(file.name)}')">
                                     <span>📱</span>
                                     <span>${escapeHtml(t('install'))}</span>
                                 </button>
@@ -1367,19 +1338,16 @@
                             fileItem.innerHTML = `
                                 <div class="file-item-info">
                                     <div class="file-item-name">${escapeHtml(file.name)}</div>
-                                    <div class="file-item-meta">${escapeHtml(file.sizeFormatted)}</div>
+                                    <div class="file-item-meta">${file.sizeFormatted}</div>
                                 </div>
                                 <div class="file-item-actions">
                                     ${installButton}
-                                    <button class="delete-btn">
+                                    <button class="delete-btn" onclick="deleteFile('${escapeHtml(file.name)}')">
                                         <span>🗑️</span>
                                         <span>${escapeHtml(t('delete'))}</span>
                                     </button>
                                 </div>
                             `;
-                            const install = fileItem.querySelector('.install-btn');
-                            if (install) install.addEventListener('click', () => installApk(file.name));
-                            fileItem.querySelector('.delete-btn').addEventListener('click', () => deleteFile(file.name));
                             filesList.appendChild(fileItem);
                             
                             // Fade in animasyonu
@@ -1408,7 +1376,7 @@
             if (!confirmed) return;
             
             try {
-                const response = await apiFetch(serverUrl + '/files?filename=' + encodeURIComponent(fileName), {
+                const response = await fetch(serverUrl + '/files?filename=' + encodeURIComponent(fileName), {
                     method: 'DELETE'
                 });
                 
@@ -1429,7 +1397,7 @@
             try {
                 showToast(t('installStarting'), 'info');
                 
-                const response = await apiFetch(serverUrl + '/install?filename=' + encodeURIComponent(fileName), {
+                const response = await fetch(serverUrl + '/install?filename=' + encodeURIComponent(fileName), {
                     method: 'POST'
                 });
                 
@@ -1482,11 +1450,10 @@
             
             toast.innerHTML = `
                 <span class="toast-icon">${icons[type] || icons.info}</span>
-                <span class="toast-message">${escapeHtml(message)}</span>
-                <button class="toast-close" >×</button>
+                <span class="toast-message">${message}</span>
+                <button class="toast-close" onclick="this.parentElement.remove()">×</button>
             `;
             
-            toast.querySelector('.toast-close').addEventListener('click', () => toast.remove());
             toastContainer.appendChild(toast);
             
             // Otomatik kaldır
@@ -1560,7 +1527,7 @@
             appsList.innerHTML = '<div class="loading"><span class="loading-spinner"></span>' + escapeHtml(t('loading')) + '</div>';
             
             try {
-                const response = await apiFetch(serverUrl + '/apps');
+                const response = await fetch(serverUrl + '/apps');
                 const data = await response.json();
                 
                 if (data.apps && data.apps.length > 0) {
@@ -1574,22 +1541,19 @@
                             const locked = app.locked === true;
                             const delHtml = locked
                                 ? '<span class="lock-badge" title="' + escapeHtml(t('lockedTitle')) + '">' + escapeHtml(t('locked')) + '</span>'
-                                : `<button class="delete-btn">${escapeHtml(t('delete'))}</button>`;
+                                : `<button class="delete-btn" onclick="deleteApp('${jsQuote(app.package)}', '${jsQuote(app.name)}')">${escapeHtml(t('delete'))}</button>`;
                             appItem.innerHTML = `
                                 <div class="file-item-info">
                                     <div class="file-item-name">${escapeHtml(app.name)}</div>
                                     <div class="file-item-meta">${escapeHtml(app.package)}</div>
                                 </div>
                                 <div class="file-item-actions">
-                                    <button class="install-btn">
+                                    <button class="install-btn" onclick="launchApp('${jsQuote(app.package)}')">
                                         <span>${escapeHtml(t('openApp'))}</span>
                                     </button>
                                     ${delHtml}
                                 </div>
                             `;
-                            appItem.querySelector('.install-btn').addEventListener('click', () => launchApp(app.package));
-                            const remove = appItem.querySelector('.delete-btn');
-                            if (remove) remove.addEventListener('click', () => deleteApp(app.package, app.name));
                             appsList.appendChild(appItem);
                             
                             // Fade in animasyonu
@@ -1618,7 +1582,7 @@
             if (!confirmed) return;
             
             try {
-                const response = await apiFetch(serverUrl + '/app/delete?package=' + encodeURIComponent(packageName), {
+                const response = await fetch(serverUrl + '/app/delete?package=' + encodeURIComponent(packageName), {
                     method: 'POST'
                 });
                 
@@ -1641,7 +1605,7 @@
             try {
                 showToast(t('appOpening'), 'info');
                 
-                const response = await apiFetch(serverUrl + '/app/launch?package=' + encodeURIComponent(packageName), {
+                const response = await fetch(serverUrl + '/app/launch?package=' + encodeURIComponent(packageName), {
                     method: 'POST'
                 });
                 

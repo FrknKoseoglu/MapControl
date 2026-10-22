@@ -178,7 +178,8 @@ public class MainActivity extends AppCompatActivity {
     private WebServerManager webServerManager; // HTTP Server Manager
     private Button btnWebServerToggle; // Web Server aç/kapat butonu
     private TextView webServerStatusText; // Web Server durum metni
-    private android.widget.ImageView qrCodeImageView; // QR kod görseli
+    private android.widget.ImageView qrCodeImageView;
+    private String currentServerUrl; // QR kod görseli
     private ServiceInitializer serviceInitializer;
     private SideRailBuilder sideRailBuilder;
     /** {@link ClusterVDBusTestActivity} bench — yalnızca görünürken; {@link #onResume()} atanır. */
@@ -193,6 +194,7 @@ public class MainActivity extends AppCompatActivity {
     private FrameLayout mainRootContainer;
     /** Gece/gündüz uiMode — Activity recreate etmeden soft tema yenilemek için. */
     private int lastNightModeUiBits = -1;
+    private final boolean[] tabNeedsUiModeRebuild = new boolean[16];
     /** Son uygulanan yön; configChanges orientation activity'yi yeniden kurmaz. */
     private int lastOrientation = -1;
     private LinearLayout shellHost;
@@ -476,7 +478,8 @@ public class MainActivity extends AppCompatActivity {
             @Override
             public void onServerStarted(int port, String localIp) {
                 handler.post(() -> {
-                    String serverUrl = webServerManager.getAccessUrl(localIp);
+                    String serverUrl = "http://" + localIp + ":" + port;
+                    currentServerUrl = serverUrl;
                     if (webServerStatusText != null) {
                         webServerStatusText.setText(serverUrl);
                         webServerStatusText.setTextColor(UiStyles.color(MainActivity.this, R.color.accentHighlight));
@@ -487,7 +490,7 @@ public class MainActivity extends AppCompatActivity {
                     // QR kod oluştur
                     if (fileUploadTabBuilder != null) fileUploadTabBuilder.generateQRCode(serverUrl);
                     if (headerStatusMonitor != null) headerStatusMonitor.refresh();
-                    log("Web Server başlatıldı: http://" + localIp + ":" + port);
+                    log("Web Server başlatıldı: " + serverUrl);
                 });
             }
 
@@ -505,6 +508,7 @@ public class MainActivity extends AppCompatActivity {
                         btnWebServerToggle.setText(R.string.web_server_start);
                     }
                     if (headerStatusMonitor != null) headerStatusMonitor.refresh();
+                    currentServerUrl = null;
                     log("Web Server durduruldu");
                 });
             }
@@ -834,7 +838,7 @@ public class MainActivity extends AppCompatActivity {
 
                     @Override
                     public void onNightModeChanged(int mode) {
-                        MainActivity.this.recreate();
+                        handler.post(() -> applyNightModeDynamically(mode));
                     }
                 });
         settingsScrollView = settingsTabBuilder.getScrollView();
@@ -1099,6 +1103,11 @@ public class MainActivity extends AppCompatActivity {
      * 0=Wi-Fi, 1=Web, 2=Profil, 3=Yansıtma, 4=LOG, 5=Uygulamalar, 6=Hafıza, 7=Ayarlar, 8=Açılış Sesi, 9=Araç Bilgi, 11=Ekolayzer
      */
     private void switchTab(int tabIndex) {
+        if (tabIndex >= 0 && tabIndex < tabNeedsUiModeRebuild.length && tabNeedsUiModeRebuild[tabIndex]) {
+            rebuildTabForUiMode(tabIndex);
+            tabNeedsUiModeRebuild[tabIndex] = false;
+        }
+
         if (tabContentArea == null || projectionTabContent == null || wifiTabContent == null || logTabContent == null || appsTabContent == null || driveModeTabContent == null || fileUploadTabContent == null || welcomeSoundTabBuilder == null || equalizerTabBuilder == null || vehicleInfoScrollView == null) {
             return;
         }
@@ -1569,7 +1578,32 @@ public class MainActivity extends AppCompatActivity {
         reapplyUiModeTheme();
     }
 
-    /** Sistem light/dark değişince chrome + tüm sekmeleri yeniler. */
+    /**
+     * Karanlık mod ayarı değiştiğinde Activity'yi kapatıp açmadan (recreate etmeden)
+     * temayı dinamik ve anında uygular.
+     */
+    public void applyNightModeDynamically(int mode) {
+        int targetNightBits = (mode == androidx.appcompat.app.AppCompatDelegate.MODE_NIGHT_YES)
+                ? Configuration.UI_MODE_NIGHT_YES
+                : Configuration.UI_MODE_NIGHT_NO;
+        Configuration currentConfig = getResources().getConfiguration();
+        Configuration newConfig = new Configuration(currentConfig);
+        newConfig.uiMode = (currentConfig.uiMode & ~Configuration.UI_MODE_NIGHT_MASK) | targetNightBits;
+        lastNightModeUiBits = targetNightBits;
+        UiStyles.setUiModeOverride(newConfig);
+        try {
+            getResources().updateConfiguration(newConfig, getResources().getDisplayMetrics());
+        } catch (Throwable ignored) {
+        }
+        try {
+            getDelegate().setLocalNightMode(mode);
+        } catch (Throwable ignored) {
+        }
+        applyThemedWindowBackground();
+        reapplyUiModeTheme();
+    }
+
+    /** Sistem light/dark değişince chrome + aktif sekmeyi anında yeniler; diğer sekmeler lazy kurulur. */
     private void reapplyUiModeTheme() {
         if (mainRootContainer != null) {
             UiStyles.setRootBackground(mainRootContainer);
@@ -1580,13 +1614,16 @@ public class MainActivity extends AppCompatActivity {
 
         rebuildSideRailForUiMode();
         rebuildTopBarForUiMode();
-        rebuildNonLauncherTabsForUiMode();
 
-        if (launcherTabBuilder != null) {
-            launcherTabBuilder.onUiModeChanged();
-        }
+        // Diğer sekmeleri bayrakla, yalnızca o an açık olan sekmeyi hemen güncelle (anında geçiş)
+        java.util.Arrays.fill(tabNeedsUiModeRebuild, true);
 
         int tab = currentTab;
+        rebuildTabForUiMode(tab);
+        if (tab >= 0 && tab < tabNeedsUiModeRebuild.length) {
+            tabNeedsUiModeRebuild[tab] = false;
+        }
+
         boolean launcherMode = LauncherModeManager.isEnabled(this);
         applyLauncherChrome(launcherMode);
         if (sideRailBuilder != null && tab != TAB_LAUNCHER) {
@@ -1705,86 +1742,130 @@ public class MainActivity extends AppCompatActivity {
         topBarBuilder.setTitle(tabTitle(currentTab));
     }
 
-    /** Launcher dışındaki sekmeleri taze renklerle yeniden kurar. */
-    private void rebuildNonLauncherTabsForUiMode() {
-        if (profileTabBuilder != null) {
-            profileScrollView = profileTabBuilder.build();
-        }
-        if (wifiTabBuilder != null) {
-            wifiTabContent = wifiTabBuilder.build();
-        }
-        if (fileUploadTabBuilder != null) {
-            fileUploadScrollView = fileUploadTabBuilder.build();
-            fileUploadTabContent = fileUploadTabBuilder.getFileUploadTabContent();
-            btnWebServerToggle = fileUploadTabBuilder.getToggleButton();
-            webServerStatusText = fileUploadTabBuilder.getStatusText();
-            qrCodeImageView = fileUploadTabBuilder.getQrImageView();
-            if (webServerManager != null && webServerManager.isRunning()) {
-                if (btnWebServerToggle != null) {
-                    btnWebServerToggle.setText(R.string.web_server_stop);
+    /** Belirtilen sekmeyi yeni tema renkleriyle izole ve anında yeniden kurar (lazy theme loading). */
+    private void rebuildTabForUiMode(int tabIndex) {
+        switch (tabIndex) {
+            case 0:
+                if (wifiTabBuilder != null) {
+                    wifiTabContent = wifiTabBuilder.build();
                 }
-                if (webServerStatusText != null) {
-                    webServerStatusText.setTextColor(UiStyles.color(this, R.color.accentHighlight));
-                    webServerStatusText.setText(webServerManager.getAccessUrl());
+                break;
+            case 1:
+                if (fileUploadTabBuilder != null) {
+                    fileUploadScrollView = fileUploadTabBuilder.build();
+                    fileUploadTabContent = fileUploadTabBuilder.getFileUploadTabContent();
+                    btnWebServerToggle = fileUploadTabBuilder.getToggleButton();
+                    webServerStatusText = fileUploadTabBuilder.getStatusText();
+                    qrCodeImageView = fileUploadTabBuilder.getQrImageView();
+                    if (webServerManager != null && webServerManager.isRunning()) {
+                        if (btnWebServerToggle != null) {
+                            btnWebServerToggle.setText(R.string.web_server_stop);
+                        }
+                        if (webServerStatusText != null) {
+                            webServerStatusText.setTextColor(UiStyles.color(this, R.color.accentHighlight));
+                            if (currentServerUrl != null) webServerStatusText.setText(currentServerUrl);
+                        }
+                        if (currentServerUrl != null) fileUploadTabBuilder.generateQRCode(currentServerUrl);
+                    }
                 }
-                fileUploadTabBuilder.generateQRCode(webServerManager.getAccessUrl());
-            }
-        }
-        if (projectionTabBuilder != null) {
-            projectionScrollView = projectionTabBuilder.build();
-            projectionTabContent = projectionTabBuilder.getProjectionTabContent();
-            targetAppLabel = projectionTabBuilder.getTargetAppLabel();
-            updateTargetLabel();
-            projectionTabBuilder.refreshProjectionStatusUi();
-        }
-        if (driveModeTabBuilder != null && assistTabBuilder != null) {
-            driveModeScrollView = driveModeTabBuilder.build();
-            driveModeTabContent = driveModeTabBuilder.getTabContent();
-            driveModeTabContent.addView(assistTabBuilder.build(), new LinearLayout.LayoutParams(
-                    LinearLayout.LayoutParams.MATCH_PARENT,
-                    LinearLayout.LayoutParams.WRAP_CONTENT));
-        }
-        if (logTabBuilder != null) {
-            CharSequence logs = tvLogs != null ? tvLogs.getText() : logBuffer.toString();
-            logTabContent = logTabBuilder.build();
-            tvLogs = logTabBuilder.getLogsTextView();
-            scrollView = logTabBuilder.getScrollView();
-            if (tvLogs != null && logs != null) {
-                tvLogs.setText(logs);
-            }
-        }
-        if (appsTabBuilder != null) {
-            appsTabContent = appsTabBuilder.build();
-            appsTabBuilder.loadAppsFromServer();
-        }
-        if (settingsTabBuilder != null) {
-            settingsScrollView = settingsTabBuilder.build();
-            settingsTabContent = settingsTabBuilder.getSettingsTabContent();
-            settingsTabBuilder.syncLauncherModeFromPrefs();
-        }
-        if (welcomeSoundTabBuilder != null) {
-            welcomeSoundTabBuilder.rebuild();
-        }
-        if (equalizerTabBuilder != null) {
-            equalizerTabBuilder.rebuild();
-        }
-        if (climateAutomationTabBuilder != null) {
-            rebuildClimateAutomationTab();
-        }
-        if (vehicleInfoTabBuilder != null) {
-            boolean listening = currentTab == 9;
-            if (listening) {
-                vehicleInfoTabBuilder.stopListening();
-            }
-            vehicleInfoTabBuilder.rebuild();
-            vehicleInfoScrollView = vehicleInfoTabBuilder.getScrollView();
-            if (listening) {
-                vehicleInfoTabBuilder.startListening();
-            }
+                break;
+            case 2:
+                if (profileTabBuilder != null) {
+                    profileScrollView = profileTabBuilder.build();
+                }
+                break;
+            case 3:
+                if (projectionTabBuilder != null) {
+                    projectionScrollView = projectionTabBuilder.build();
+                    projectionTabContent = projectionTabBuilder.getProjectionTabContent();
+                    targetAppLabel = projectionTabBuilder.getTargetAppLabel();
+                    updateTargetLabel();
+                    projectionTabBuilder.refreshProjectionStatusUi();
+                }
+                break;
+            case 4:
+                if (logTabBuilder != null) {
+                    CharSequence logs = tvLogs != null ? tvLogs.getText() : logBuffer.toString();
+                    logTabContent = logTabBuilder.build();
+                    tvLogs = logTabBuilder.getLogsTextView();
+                    scrollView = logTabBuilder.getScrollView();
+                    if (tvLogs != null && logs != null) {
+                        tvLogs.setText(logs);
+                    }
+                }
+                break;
+            case 5:
+                if (appsTabBuilder != null) {
+                    appsTabContent = appsTabBuilder.build();
+                }
+                break;
+            case 6:
+                if (driveModeTabBuilder != null && assistTabBuilder != null) {
+                    driveModeScrollView = driveModeTabBuilder.build();
+                    driveModeTabContent = driveModeTabBuilder.getTabContent();
+                    driveModeTabContent.addView(assistTabBuilder.build(), new LinearLayout.LayoutParams(
+                            LinearLayout.LayoutParams.MATCH_PARENT,
+                            LinearLayout.LayoutParams.WRAP_CONTENT));
+                }
+                break;
+            case 7:
+                int settingsScrollY = (settingsScrollView != null) ? settingsScrollView.getScrollY() : 0;
+                if (settingsTabBuilder != null) {
+                    settingsScrollView = settingsTabBuilder.build();
+                    settingsTabContent = settingsTabBuilder.getSettingsTabContent();
+                    settingsTabBuilder.syncLauncherModeFromPrefs();
+                    if (settingsScrollY > 0 && settingsScrollView != null) {
+                        final int finalScrollY = settingsScrollY;
+                        settingsScrollView.post(() -> settingsScrollView.scrollTo(0, finalScrollY));
+                    }
+                }
+                break;
+            case 8:
+                if (welcomeSoundTabBuilder != null) {
+                    welcomeSoundTabBuilder.rebuild();
+                }
+                break;
+            case 9:
+                if (vehicleInfoTabBuilder != null) {
+                    boolean listening = currentTab == 9;
+                    if (listening) {
+                        vehicleInfoTabBuilder.stopListening();
+                    }
+                    vehicleInfoTabBuilder.rebuild();
+                    vehicleInfoScrollView = vehicleInfoTabBuilder.getScrollView();
+                    if (listening) {
+                        vehicleInfoTabBuilder.startListening();
+                    }
+                }
+                break;
+            case TAB_EQUALIZER:
+                if (equalizerTabBuilder != null) {
+                    equalizerTabBuilder.rebuild();
+                }
+                break;
+            case TAB_CLIMATE_AUTOMATION:
+                if (climateAutomationTabBuilder != null) {
+                    rebuildClimateAutomationTab();
+                }
+                break;
+            case TAB_FACE_RECOGNITION:
+                if (dmsFaceRecognitionTabBuilder != null && faceRecognitionScrollView != null) {
+                    faceRecognitionScrollView.removeAllViews();
+                    faceRecognitionScrollView.addView(dmsFaceRecognitionTabBuilder.build(),
+                            new ScrollView.LayoutParams(
+                                    ScrollView.LayoutParams.MATCH_PARENT,
+                                    ScrollView.LayoutParams.WRAP_CONTENT));
+                }
+                break;
+            case TAB_LAUNCHER:
+                if (launcherTabBuilder != null) {
+                    launcherTabBuilder.onUiModeChanged();
+                }
+                break;
         }
     }
 
-        private void rebuildClimateAutomationTab() {
+    private void rebuildClimateAutomationTab() {
         if (climateAutomationTabBuilder == null) {
             return;
         }

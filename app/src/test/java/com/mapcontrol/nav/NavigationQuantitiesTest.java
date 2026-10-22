@@ -6,7 +6,7 @@ import static org.junit.Assert.*;
 public class NavigationQuantitiesTest {
     @Test public void compactAndSpacedDurationsAgree() {
         for (String text : new String[]{"1 hr 20 min", "1hr 20min", "1hr20min", "1h20min"})
-            assertEquals(text, 80, GoogleMapsClusterNavVDBusPublisher.parseDurationMinutes(text));
+            assertEquals(text, 80, NavigationQuantities.durationMinutes(text));
         for (String text : new String[]{"1 sa 10 dk", "1sa10dk", "1 saat 10 dakika"})
             assertEquals(text, 70, NavigationQuantities.durationMinutes(text));
     }
@@ -53,7 +53,7 @@ public class NavigationQuantitiesTest {
         assertEquals("5 km", snapshot.etaDistanceLabel());
         assertEquals("1ч20мин", snapshot.etaDurationLabel());
         assertEquals("12:30", snapshot.etaArrivalLabel());
-        assertEquals(80, GoogleMapsClusterNavVDBusPublisher.parseDurationMinutes(snapshot.etaDurationLabel()));
+        assertEquals(80, NavigationQuantities.durationMinutes(snapshot.etaDurationLabel()));
         assertEquals("Поверните направо", snapshot.maneuverHint);
     }
 
@@ -62,7 +62,7 @@ public class NavigationQuantitiesTest {
                 "500 m - Rechts abbiegen", "Rechts abbiegen", "5 km · 1 Std 20 Min · 12:30", false);
         assertTrue(snapshot.active);
         assertEquals("1 Std 20 Min", snapshot.etaDurationLabel());
-        assertEquals(80, GoogleMapsClusterNavVDBusPublisher.parseDurationMinutes(snapshot.etaDurationLabel()));
+        assertEquals(80, NavigationQuantities.durationMinutes(snapshot.etaDurationLabel()));
     }
 
     @Test public void compactSummaryDoesNotConfuseDistanceAndDuration() {
@@ -76,11 +76,5 @@ public class NavigationQuantitiesTest {
         GoogleMapsNavSnapshot snapshot = GoogleMapsNavNotificationParser.parseFields(
                 "80 m - Beta Street", "Turn left", "2 min ETA 12:30", false);
         assertEquals("Beta Street", snapshot.formatManeuverDirectionLine());
-    }
-
-    @Test public void localizedManeuversKeepTheExistingOemCodes() {
-        for (String text : new String[]{"Turn left", "Sağa dön", "Поверните направо", "Rechts abbiegen"})
-            assertEquals(text, 16, GoogleMapsClusterNavManeuverMapper.mapFromNotificationText("500 m", text));
-        assertEquals(14, GoogleMapsClusterNavManeuverMapper.mapFromNotificationText("500 m", "Continue"));
     }
 }

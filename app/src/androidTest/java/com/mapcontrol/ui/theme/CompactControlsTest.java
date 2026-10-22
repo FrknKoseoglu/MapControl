@@ -45,11 +45,14 @@ public class CompactControlsTest {
             List<CompoundButton> controls = choices(parent);
             assertEquals(1, controls.size());
             CompoundButton button = controls.get(0);
+            View card = (View) button.getParent();
+            assertTrue(card.isClickable());
+            assertFalse(button.isClickable());
             assertFalse(button.isChecked());
-            button.performClick();
+            card.performClick();
             assertTrue(button.isChecked());
             assertTrue(handle.isLeftSelected());
-            button.performClick();
+            card.performClick();
             assertFalse(button.isChecked());
             assertEquals(2, commits.get());
             handle.syncVisualWithoutCommit(true);
@@ -58,6 +61,9 @@ public class CompactControlsTest {
             assertEquals(2, commits.get());
             handle.setInteractionEnabled(false);
             assertFalse(button.isEnabled());
+            card.performClick();
+            assertTrue(handle.isLeftSelected());
+            assertEquals(2, commits.get());
         });
     }
 
@@ -74,7 +80,8 @@ public class CompactControlsTest {
                         if (enabled) handle[0].setLeftSelected(false);
                     });
             CompoundButton button = choices(parent).get(0);
-            button.performClick();
+            View card = (View) button.getParent();
+            card.performClick();
             assertFalse(button.isChecked());
             assertFalse(handle[0].isLeftSelected());
             assertEquals(2, commits.get());
@@ -102,6 +109,20 @@ public class CompactControlsTest {
         });
     }
 
+    private void layoutGrid(FeatureGridLayout grid, Context context, int widthDp) {
+        int width = Math.round(widthDp * context.getResources().getDisplayMetrics().density);
+        grid.measure(View.MeasureSpec.makeMeasureSpec(width, View.MeasureSpec.EXACTLY),
+                View.MeasureSpec.makeMeasureSpec(2400, View.MeasureSpec.AT_MOST));
+        grid.layout(0, 0, width, grid.getMeasuredHeight());
+        for (int i = 0; i < grid.getChildCount(); i++) {
+            View child = grid.getChildAt(i);
+            if (child.getVisibility() == View.GONE) continue;
+            assertTrue(child.getWidth() > 0);
+            assertTrue(child.getLeft() >= 0);
+            assertTrue(child.getRight() <= width);
+        }
+    }
+
     @Test public void gridReflowsFromTwoColumnsToOneWithoutChangingOrder() {
         InstrumentationRegistry.getInstrumentation().runOnMainSync(() -> {
             Context context = context();
@@ -112,19 +133,51 @@ public class CompactControlsTest {
                 card.setMinimumHeight(100);
                 grid.addCard(card);
             }
-            float density = context.getResources().getDisplayMetrics().density;
-            int wide = Math.round(1200 * density);
-            int narrow = Math.round(400 * density);
-            grid.measure(View.MeasureSpec.makeMeasureSpec(wide, View.MeasureSpec.EXACTLY),
-                    View.MeasureSpec.makeMeasureSpec(2400, View.MeasureSpec.AT_MOST));
-            grid.layout(0, 0, wide, grid.getMeasuredHeight());
-            assertEquals(grid.getChildAt(0).getTop(), grid.getChildAt(1).getTop());
-            assertTrue(grid.getChildAt(1).getLeft() > grid.getChildAt(0).getLeft());
-            grid.measure(View.MeasureSpec.makeMeasureSpec(narrow, View.MeasureSpec.EXACTLY),
-                    View.MeasureSpec.makeMeasureSpec(2400, View.MeasureSpec.AT_MOST));
-            grid.layout(0, 0, narrow, grid.getMeasuredHeight());
-            assertTrue(grid.getChildAt(1).getTop() > grid.getChildAt(0).getTop());
-            assertEquals("Feature 1", ((TextView) grid.getChildAt(1)).getText().toString());
+            for (int width : new int[]{1200, 400, 1200, 400, 1200}) {
+                layoutGrid(grid, context, width);
+                assertEquals(width >= 840 ? 2 : 1, grid.getColumnCount());
+                if (width >= 840) {
+                    assertEquals(grid.getChildAt(0).getTop(), grid.getChildAt(1).getTop());
+                    assertTrue(grid.getChildAt(1).getLeft() > grid.getChildAt(0).getLeft());
+                } else {
+                    assertTrue(grid.getChildAt(1).getTop() > grid.getChildAt(0).getTop());
+                }
+                assertEquals("Feature 1", ((TextView) grid.getChildAt(1)).getText().toString());
+            }
+
+            // Filtering and newly added cards must also invalidate cached spans.
+            grid.getChildAt(1).setVisibility(View.GONE);
+            for (int width : new int[]{1200, 400, 1200}) {
+                layoutGrid(grid, context, width);
+                if (width >= 840) {
+                    assertEquals(grid.getChildAt(0).getTop(), grid.getChildAt(2).getTop());
+                    assertTrue(grid.getChildAt(2).getLeft() > grid.getChildAt(0).getLeft());
+                } else {
+                    assertTrue(grid.getChildAt(2).getTop() > grid.getChildAt(0).getTop());
+                }
+            }
+            TextView added = new TextView(context);
+            added.setText("Feature 4");
+            added.setMinimumHeight(100);
+            grid.addCard(added);
+            grid.getChildAt(1).setVisibility(View.VISIBLE);
+            for (int width : new int[]{400, 1200, 400}) {
+                layoutGrid(grid, context, width);
+                assertEquals(5, grid.getChildCount());
+                assertTrue(added.getTop() > grid.getChildAt(3).getTop());
+            }
+            for (int i = 0; i < grid.getChildCount(); i++) grid.getChildAt(i).setVisibility(View.GONE);
+            layoutGrid(grid, context, 1200);
+            layoutGrid(grid, context, 400);
+            for (int i = 0; i < grid.getChildCount(); i++) grid.getChildAt(i).setVisibility(View.VISIBLE);
+            layoutGrid(grid, context, 1200);
+            assertEquals("Feature 4", ((TextView) grid.getChildAt(4)).getText().toString());
+            grid.removeView(added);
+            layoutGrid(grid, context, 1200);
+            assertEquals(2, grid.getRowCount());
+            grid.removeAllViews();
+            layoutGrid(grid, context, 400);
+            assertEquals(1, grid.getRowCount());
         });
     }
 }

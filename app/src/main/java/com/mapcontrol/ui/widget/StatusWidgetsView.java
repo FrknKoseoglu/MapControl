@@ -82,13 +82,6 @@ public final class StatusWidgetsView extends ViewGroup implements HeaderStatusSi
     }
 
     public void setDriveMode(boolean connected, int mode) {
-        if (!DriveModeStyle.isThemed(mode)) {
-            int prefMode = context.getSharedPreferences("MapControlPrefs", Context.MODE_PRIVATE)
-                    .getInt("driveModeSetting", -1);
-            if (DriveModeStyle.isThemed(prefMode)) {
-                mode = prefMode;
-            }
-        }
         if (connected == vehicleConnected && mode == driveMode) return;
         vehicleConnected = connected;
         driveMode = mode;
@@ -137,14 +130,7 @@ public final class StatusWidgetsView extends ViewGroup implements HeaderStatusSi
     private void refreshMode() {
         if (modeChip == null) return;
         int mode = driveMode;
-        if (!DriveModeStyle.isThemed(mode)) {
-            int prefMode = context.getSharedPreferences("MapControlPrefs", Context.MODE_PRIVATE)
-                    .getInt("driveModeSetting", -1);
-            if (DriveModeStyle.isThemed(prefMode)) {
-                mode = prefMode;
-            }
-        }
-        boolean knownMode = DriveModeStyle.isThemed(mode);
+        boolean knownMode = vehicleConnected && DriveModeStyle.isThemed(mode);
         modeChip.bind(knownMode ? DriveModeStyle.shortLabel(mode) : "—",
                 knownMode ? DriveModeStyle.accentColor(context, mode)
                         : UiStyles.color(context, R.color.textSecondary));

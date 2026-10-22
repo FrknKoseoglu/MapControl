@@ -1,7 +1,6 @@
 package com.mapcontrol.ui.theme;
 
 import android.content.Context;
-import android.view.Gravity;
 import android.view.View;
 import android.widget.GridLayout;
 
@@ -36,23 +35,46 @@ public final class FeatureGridLayout extends GridLayout {
         int columns = available >= Math.round(twoColumnMinWidthDp * density) ? 2 : 1;
 
         int visibleIndex = 0;
+        boolean rearrange = arrangedColumns != columns;
         for (int i = 0; i < getChildCount(); i++) {
             View child = getChildAt(i);
             LayoutParams lp = (LayoutParams) child.getLayoutParams();
-            if (child.getVisibility() == View.GONE) {
+            boolean visible = child.getVisibility() != View.GONE;
+            int column = visible ? visibleIndex % columns : 0;
+            int row = visible ? visibleIndex / columns : 0;
+            rearrange |= !lp.columnSpec.equals(spec(column, FILL))
+                    || !lp.rowSpec.equals(spec(row, FILL));
+            if (visible) visibleIndex++;
+        }
+        int totalRows = Math.max(1, (visibleIndex + columns - 1) / columns);
+        rearrange |= getRowCount() != totalRows;
+        if (rearrange) {
+            // GridLayout caches the old maximum span. Invalidate it before shrinking either axis.
+            for (int i = 0; i < getChildCount(); i++) {
+                View child = getChildAt(i);
+                LayoutParams lp = (LayoutParams) child.getLayoutParams();
                 lp.columnSpec = spec(UNDEFINED);
                 lp.rowSpec = spec(UNDEFINED);
-                continue;
+                child.setLayoutParams(lp);
             }
-            lp.columnSpec = spec(visibleIndex % columns);
-            lp.rowSpec = spec(visibleIndex / columns);
-            lp.setGravity(Gravity.FILL);
-            lp.width = Math.max(0, available / columns - lp.leftMargin - lp.rightMargin);
-            visibleIndex++;
+            setColumnCount(columns);
+            setRowCount(totalRows);
         }
-        setColumnCount(columns);
-        int totalRows = Math.max(1, (visibleIndex + columns - 1) / columns);
-        setRowCount(totalRows);
+
+        visibleIndex = 0;
+        for (int i = 0; i < getChildCount(); i++) {
+            View child = getChildAt(i);
+            LayoutParams lp = (LayoutParams) child.getLayoutParams();
+            boolean visible = child.getVisibility() != View.GONE;
+            int childWidth = Math.max(0, available / columns - lp.leftMargin - lp.rightMargin);
+            if (rearrange || lp.width != childWidth) {
+                lp.columnSpec = spec(visible ? visibleIndex % columns : 0, FILL);
+                lp.rowSpec = spec(visible ? visibleIndex / columns : 0, FILL);
+                lp.width = childWidth;
+                child.setLayoutParams(lp);
+            }
+            if (visible) visibleIndex++;
+        }
         arrangedColumns = columns;
 
         super.onMeasure(widthSpec, heightSpec);

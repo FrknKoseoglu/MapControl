@@ -44,7 +44,7 @@ Panel widget'ları tek satıra sığdırılır; dar hücrede simge ve durum değ
 
 **MEVCUT:** Koddan doğrulanmış davranış ve değerler. **HEDEF:** Bu görevle getirilen HMI ürün kuralları. **AÇIK BULGU:** Mevcut kodun hedefe uymadığı veya eski raporla çeliştiği alan. İlk denetim yalnız dokümantasyon ve eski belge temizliğidir; sonraki ortak başlık değişikliği yukarıdaki güncellemede ayrıca belirtilmiştir. Diğer uygulama refactor'ları yapılmış sayılmaz.
 
-Denetlenen temel revizyon `c7de3ff348f66f5efbb75965aa45e31d58728d08`; çalışma ağacında önceden değişmiş araç kimliği/ölçümler, Wi-Fi ve araç bilgileri dosyaları da okunmuştur. Belge kaynak gerçeği çalışma ağacıdır. Güncel `TopBarBuilder` mod tercihi fallback'i gibi tarihsel raporlarla çelişen durumlarda [bulgular](components.md#refactor-checklist) esas alınır.
+Denetlenen temel revizyon `c7de3ff348f66f5efbb75965aa45e31d58728d08`; çalışma ağacında önceden değişmiş araç kimliği/ölçümler, Wi-Fi ve araç bilgileri dosyaları da okunmuştur. Belge kaynak gerçeği çalışma ağacıdır. 23 Ekim düzeltmesiyle mod göstergesi yalnız canlı ve bağlı modu gösterir; önceki tercih fallback'i güncel davranış değildir. [Güncel bileşen kuralları](components.md#refactor-checklist) esas alınır.
 
 ### Kod haritası
 
@@ -73,7 +73,7 @@ Ayrıntılı izin araştırması, kamera callback yarışı adayları, eski APK 
 
 ## Kanıt ve kabul
 
-Güncel kapsam temizliğinde main kaynak eşitliği ve 19 metrik eşleşmesi doğrulandı. Debug APK, test APK ve 23 JVM testi derlendi/geçti. Geniş Android kontrolünde 18 senaryonun 14'ü geçti; değişmeden korunan UI kaynaklarında 4 başarısızlık kaydedildi: CompactControlsTest içindeki iki seçim ve bir grid kontrolü, SharedHeaderTest içindeki disconnect beklentisi. Bunlar kapsam gereği düzeltilmedi; disconnect beklentisi mevcut tercih fallback'iyle uyumsuzdur. Fiziksel araç testi yapılmadı; lint temizliği iddia edilmez. Son doğrulama audit-manifest içindeki ui_only_scope_cleanup alanında tutulur.
+Main kaynak eşitliği ve 19 metrik eşleşmesi kapsam temizliğinde doğrulandı. Temizlik sırasında kaydedilen dört UI test başarısızlığı, 23 Ekim tarihli kullanıcı talebiyle yalnız UI/test katmanında düzeltildi: kart tıklama hedefleri, tekrarlı grid daralması ve bağlantısız/bilinmeyen modun nötr gösterimi. Debug APK/test APK derlendi; **23 JVM testi ve 19 ilgili Android UI/Super Mod testi başarılıdır**. Fiziksel araç testi yapılmadı; lint temizliği iddia edilmez. Önceki başarısızlık kaydı `ui_only_scope_cleanup`, güncel sonuç `ui_four_failure_fixes` manifest alanındadır.
 
 UI refactor'ında hem tema hem orientation, %100/%130 yazı, bilinmeyen/bağlantısız veri, hızlı sekme/tema değişimi ve overlay tekrar aç/kapat senaryoları ölçülür. OEM kabulünde model/firmware/display/yoğunluk ve APK hash kaydedilir. Kaynak test yolu [source-inventory.md](source-inventory.md)'de, çalıştırma ve sonuç şablonları [audit-history.md](audit-history.md)'dedir.
 

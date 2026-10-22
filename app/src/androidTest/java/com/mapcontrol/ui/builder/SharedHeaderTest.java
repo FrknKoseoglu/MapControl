@@ -201,33 +201,90 @@ public class SharedHeaderTest {
     @Test public void disconnectClearsActualModeAndRebuildPreservesOtherStatusValues() {
         InstrumentationRegistry.getInstrumentation().runOnMainSync(() -> {
             Context context = context("tr");
-            TopBarBuilder builder = builder(context, new AtomicInteger());
-            View header = headerWithWidgets(context, builder);
-            builder.setDriveMode(true, DriveModeStyle.ECO);
-            assertEquals("ECO", ((TextView) header.findViewWithTag("header_mode_value")).getText().toString());
-            builder.setDriveMode(false, DriveModeStyle.ECO);
-            assertEquals("—", ((TextView) header.findViewWithTag("header_mode_value")).getText().toString());
-            builder.setDriveMode(true, 6);
-            assertEquals("—", ((TextView) header.findViewWithTag("header_mode_value")).getText().toString());
-            builder.setDriveMode(true, DriveModeStyle.SNOW);
-            builder.setServerRunning(true);
-            builder.setProjectionActive(true);
-            builder.setWifiState(TopBarBuilder.WifiState.CONNECTED);
-            header = headerWithWidgets(context, builder);
-            assertEquals("SNOW", ((TextView) header.findViewWithTag("header_mode_value")).getText().toString());
-            assertEquals(context.getString(R.string.header_running),
-                    ((TextView) header.findViewWithTag("header_phone_value")).getText().toString());
-            assertEquals(context.getString(R.string.header_active),
-                    ((TextView) header.findViewWithTag("header_projection_value")).getText().toString());
-            Configuration night = new Configuration(context.getResources().getConfiguration());
-            night.uiMode = (night.uiMode & ~Configuration.UI_MODE_NIGHT_MASK) | Configuration.UI_MODE_NIGHT_YES;
+            android.content.SharedPreferences prefs = context.getSharedPreferences("MapControlPrefs", Context.MODE_PRIVATE);
+            boolean hadMode = prefs.contains("driveModeSetting");
+            int rememberedMode = prefs.getInt("driveModeSetting", -1);
+            AtomicInteger selected = new AtomicInteger(-1);
+            TopBarBuilder builder = builder(context, selected);
             try {
-                UiStyles.setUiModeOverride(night);
+                prefs.edit().putInt("driveModeSetting", DriveModeStyle.SPORT).commit();
+                View header = headerWithWidgets(context, builder);
+                TextView mode = header.findViewWithTag("header_mode_value");
                 builder.reapplyTheme();
-                TextView value = header.findViewWithTag("header_mode_value");
-                assertEquals("SNOW", value.getText().toString());
-                assertEquals(DriveModeStyle.accentColor(context, DriveModeStyle.SNOW), value.getCurrentTextColor());
-            } finally { UiStyles.setUiModeOverride(null); }
+                assertEquals("—", mode.getText().toString());
+                builder.setDriveMode(true, DriveModeStyle.ECO);
+                assertEquals("ECO", mode.getText().toString());
+                builder.setDriveMode(false, DriveModeStyle.ECO);
+                assertEquals("—", mode.getText().toString());
+                assertEquals(UiStyles.color(context, R.color.textSecondary), mode.getCurrentTextColor());
+                builder.reapplyTheme();
+                assertEquals("—", mode.getText().toString());
+                builder.setDriveMode(true, 6);
+                assertEquals("—", mode.getText().toString());
+                builder.setDriveMode(true, DriveModeStyle.SNOW);
+                builder.setServerRunning(true);
+                builder.setProjectionActive(true);
+                builder.setWifiState(TopBarBuilder.WifiState.CONNECTED);
+                header = headerWithWidgets(context, builder);
+                assertEquals("SNOW", ((TextView) header.findViewWithTag("header_mode_value")).getText().toString());
+                assertEquals(context.getString(R.string.header_running),
+                        ((TextView) header.findViewWithTag("header_phone_value")).getText().toString());
+                assertEquals(context.getString(R.string.header_active),
+                        ((TextView) header.findViewWithTag("header_projection_value")).getText().toString());
+                Configuration night = new Configuration(context.getResources().getConfiguration());
+                night.uiMode = (night.uiMode & ~Configuration.UI_MODE_NIGHT_MASK) | Configuration.UI_MODE_NIGHT_YES;
+                try {
+                    UiStyles.setUiModeOverride(night);
+                    builder.reapplyTheme();
+                    TextView value = header.findViewWithTag("header_mode_value");
+                    assertEquals("SNOW", value.getText().toString());
+                    assertEquals(DriveModeStyle.accentColor(context, DriveModeStyle.SNOW), value.getCurrentTextColor());
+                } finally { UiStyles.setUiModeOverride(null); }
+                assertEquals(DriveModeStyle.SPORT, prefs.getInt("driveModeSetting", -1));
+                assertEquals("Status rendering must not navigate or select a drive mode", -1, selected.get());
+            } finally {
+                builder.release();
+                if (hadMode) prefs.edit().putInt("driveModeSetting", rememberedMode).commit();
+                else prefs.edit().remove("driveModeSetting").commit();
+            }
+        });
+    }
+
+    @Test public void statusMonitorDoesNotSubstituteSavedPreferenceForMissingLiveMode() {
+        InstrumentationRegistry.getInstrumentation().runOnMainSync(() -> {
+            Context context = context("tr");
+            android.content.SharedPreferences prefs = context.getSharedPreferences("MapControlPrefs", Context.MODE_PRIVATE);
+            boolean hadMode = prefs.contains("driveModeSetting");
+            int rememberedMode = prefs.getInt("driveModeSetting", -1);
+            com.mapcontrol.vehicle.VehicleMetricsRepository metrics =
+                    new com.mapcontrol.vehicle.VehicleMetricsRepository(context);
+            AtomicInteger lastMode = new AtomicInteger(Integer.MAX_VALUE);
+            AtomicInteger updates = new AtomicInteger();
+            com.mapcontrol.ui.HeaderStatusSink sink = new com.mapcontrol.ui.HeaderStatusSink() {
+                public void setWifiState(TopBarBuilder.WifiState state) {}
+                public void setDriveMode(boolean connected, int mode) { lastMode.set(mode); updates.incrementAndGet(); }
+                public void setServerRunning(boolean running) {}
+                public void setProjectionActive(boolean active) {}
+                public void setSoundBoost(boolean active, int gainMb) {}
+            };
+            com.mapcontrol.ui.HeaderStatusMonitor monitor =
+                    new com.mapcontrol.ui.HeaderStatusMonitor(context, null, metrics, () -> false);
+            try {
+                prefs.edit().putInt("driveModeSetting", DriveModeStyle.SPORT).commit();
+                int liveMode = metrics.currentSnapshot().driveMode;
+                assertFalse(DriveModeStyle.isThemed(liveMode));
+                monitor.addSink(sink);
+                assertEquals(liveMode, lastMode.get());
+                monitor.refresh();
+                assertEquals(liveMode, lastMode.get());
+                assertEquals(2, updates.get());
+                assertEquals(DriveModeStyle.SPORT, prefs.getInt("driveModeSetting", -1));
+            } finally {
+                monitor.stop();
+                metrics.release();
+                if (hadMode) prefs.edit().putInt("driveModeSetting", rememberedMode).commit();
+                else prefs.edit().remove("driveModeSetting").commit();
+            }
         });
     }
 

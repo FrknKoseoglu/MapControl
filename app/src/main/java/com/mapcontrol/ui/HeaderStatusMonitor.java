@@ -10,7 +10,6 @@ import android.os.Looper;
 
 import com.mapcontrol.ui.builder.TopBarBuilder;
 import com.mapcontrol.util.ClusterNavigationState;
-import com.mapcontrol.vehicle.DriveModeStyle;
 import com.mapcontrol.vehicle.VehicleMetricsRepository;
 import com.mapcontrol.vehicle.VehicleMetricsSnapshot;
 
@@ -53,13 +52,6 @@ public final class HeaderStatusMonitor {
             sink.setProjectionActive(ClusterNavigationState.getLastKnownOpen());
             VehicleMetricsSnapshot snapshot = metrics.currentSnapshot();
             int mode = snapshot != null ? snapshot.driveMode : Integer.MIN_VALUE;
-            if (!DriveModeStyle.isThemed(mode)) {
-                int prefMode = context.getSharedPreferences("MapControlPrefs", Context.MODE_PRIVATE)
-                        .getInt("driveModeSetting", -1);
-                if (DriveModeStyle.isThemed(prefMode)) {
-                    mode = prefMode;
-                }
-            }
             sink.setDriveMode(snapshot != null && snapshot.connected, mode);
             sink.setSoundBoost(readBoostActive(),
                     readGainMb());
@@ -93,13 +85,6 @@ public final class HeaderStatusMonitor {
         VehicleMetricsSnapshot snapshot = metrics.currentSnapshot();
         boolean connected = snapshot != null && snapshot.connected;
         int mode = snapshot != null ? snapshot.driveMode : Integer.MIN_VALUE;
-        if (!DriveModeStyle.isThemed(mode)) {
-            int prefMode = context.getSharedPreferences("MapControlPrefs", Context.MODE_PRIVATE)
-                    .getInt("driveModeSetting", -1);
-            if (DriveModeStyle.isThemed(prefMode)) {
-                mode = prefMode;
-            }
-        }
         boolean boostActive = readBoostActive();
         int gainMb = readGainMb();
 
@@ -115,13 +100,6 @@ public final class HeaderStatusMonitor {
     private void bindMetrics(VehicleMetricsSnapshot snapshot) {
         if (started && snapshot != null) {
             int mode = snapshot.driveMode;
-            if (!DriveModeStyle.isThemed(mode)) {
-                int prefMode = context.getSharedPreferences("MapControlPrefs", Context.MODE_PRIVATE)
-                        .getInt("driveModeSetting", -1);
-                if (DriveModeStyle.isThemed(prefMode)) {
-                    mode = prefMode;
-                }
-            }
             for (HeaderStatusSink sink : sinks) {
                 sink.setDriveMode(snapshot.connected, mode);
             }

@@ -746,5 +746,35 @@
       "Super Mode nullable read is isolated in its controller; shared OEM proxy matches main."
     ],
     "asset_packaging_matches_main": true
+  },
+  "ui_four_failure_fixes": {
+    "date": "2026-10-23",
+    "status": "passed",
+    "previous_commit": "cb4c088",
+    "scope": "UI grid span invalidation, card-click test targets and live-mode readout; no vehicle command or calculation changes.",
+    "validation": {
+      "debug_build": "passed",
+      "android_test_build": "passed",
+      "jvm": {
+        "tests": 23,
+        "failures": 0,
+        "errors": 0
+      },
+      "android_tests": 19,
+      "android_failures": 0,
+      "core_files_equal_to_main": 27,
+      "super_mode_and_service_unchanged": true,
+      "physical_vehicle_test": false,
+      "apk_sha256": "6b9db5aa6f417c4b2d520b239ab74ec6807870a334830d1d1ffac1b71c78b93c",
+      "artifacts": "output/ui-four-fixes"
+    },
+    "coverage": [
+      "card click/disable/permission rollback",
+      "repeated two-to-one-to-two column transitions, removal and empty grid",
+      "hidden/restored cards, all hidden and new cards",
+      "unknown/disconnected mode, reconnect and theme refresh",
+      "saved preference unchanged and no navigation during display updates",
+      "UI monitor forwards raw mode without saved-preference substitution"
+    ]
   }
 }

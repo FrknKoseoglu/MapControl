@@ -804,6 +804,38 @@
       "unknown/disconnected mode stays neutral; reconnect shows reported mode",
       "stop cancels pending and periodic reads; restart refreshes",
       "saved preference remains unchanged"
+    ],
+    "physical_vehicle_followup": "User reports still showing a dash; superseded by widget_mode_raw_source."
+  },
+  "widget_mode_raw_source": {
+    "date": "2026-10-23",
+    "status": "automated_passed_vehicle_pending",
+    "user_report": "Previous APK still shows a dash in both rail and fullscreen, including after real mode changes.",
+    "scope": "UI-only read of the OEM mode reply, independent of proxy connection flag and full metric loading; no vehicle writes, core changes or preference fallback.",
+    "validation": {
+      "jvm": {
+        "tests": 23,
+        "failures": 0,
+        "errors": 0
+      },
+      "android_tests": 26,
+      "android_failures": 0,
+      "core_files_equal_to_main": 27,
+      "super_mode_service_drive_commands_unchanged": true,
+      "physical_vehicle_test": false,
+      "debug_apk_sha256": "75cf5af28d368a703e262d8579cc0d4b5d3fe38f381e9fb84441dea6b1d0e367",
+      "distribution_apk": "MapControl.apk",
+      "distribution_signature_matches_previous": true,
+      "artifacts": "output/widget-mode-raw-source"
+    },
+    "coverage": [
+      "production UI constructor with raw OEM bus replies while proxy reports disconnected",
+      "unrelated metric read exception does not block mode display",
+      "initial dash, late SPORT, subsequent ECO, missing reply, recovery SNOW in both widgets",
+      "null, empty and wrong replies stay unknown; valid zero is ECO; multibyte decoding preserved",
+      "no OEM I/O on main thread; at most one pending read",
+      "stop invalidates late replies; restart can read again",
+      "same-event refresh coalescing; saved preference unchanged"
     ]
   }
 }

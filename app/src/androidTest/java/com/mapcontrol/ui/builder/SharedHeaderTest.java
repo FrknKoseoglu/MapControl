@@ -256,8 +256,6 @@ public class SharedHeaderTest {
             android.content.SharedPreferences prefs = context.getSharedPreferences("MapControlPrefs", Context.MODE_PRIVATE);
             boolean hadMode = prefs.contains("driveModeSetting");
             int rememberedMode = prefs.getInt("driveModeSetting", -1);
-            com.mapcontrol.vehicle.VehicleMetricsRepository metrics =
-                    new com.mapcontrol.vehicle.VehicleMetricsRepository(context);
             AtomicInteger lastMode = new AtomicInteger(Integer.MAX_VALUE);
             AtomicInteger updates = new AtomicInteger();
             com.mapcontrol.ui.HeaderStatusSink sink = new com.mapcontrol.ui.HeaderStatusSink() {
@@ -268,10 +266,10 @@ public class SharedHeaderTest {
                 public void setSoundBoost(boolean active, int gainMb) {}
             };
             com.mapcontrol.ui.HeaderStatusMonitor monitor =
-                    new com.mapcontrol.ui.HeaderStatusMonitor(context, null, metrics, () -> false);
+                    new com.mapcontrol.ui.HeaderStatusMonitor(context, null, () -> false);
             try {
                 prefs.edit().putInt("driveModeSetting", DriveModeStyle.SPORT).commit();
-                int liveMode = metrics.currentSnapshot().driveMode;
+                int liveMode = Integer.MIN_VALUE;
                 assertFalse(DriveModeStyle.isThemed(liveMode));
                 monitor.addSink(sink);
                 assertEquals(liveMode, lastMode.get());
@@ -281,7 +279,6 @@ public class SharedHeaderTest {
                 assertEquals(DriveModeStyle.SPORT, prefs.getInt("driveModeSetting", -1));
             } finally {
                 monitor.stop();
-                metrics.release();
                 if (hadMode) prefs.edit().putInt("driveModeSetting", rememberedMode).commit();
                 else prefs.edit().remove("driveModeSetting").commit();
             }

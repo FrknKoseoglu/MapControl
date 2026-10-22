@@ -776,7 +776,7 @@ public class MainActivity extends AppCompatActivity {
                         ScrollView.LayoutParams.WRAP_CONTENT));
 
         vehicleMetricsRepository = new VehicleMetricsRepository(getApplicationContext());
-        headerStatusMonitor = new HeaderStatusMonitor(this, topBarBuilder, vehicleMetricsRepository,
+        headerStatusMonitor = new HeaderStatusMonitor(this, topBarBuilder,
                 () -> webServerManager != null && webServerManager.isRunning());
         if (activityStarted) headerStatusMonitor.start();
 

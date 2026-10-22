@@ -360,9 +360,7 @@ public final class LauncherDashboardBuilder implements
         if (litePanelView != null) {
             litePanelView.bindVehicleMetrics(snapshot);
         }
-        if (snapshot != null && DriveModeStyle.isThemed(snapshot.driveMode)) {
-            setDriveMode(snapshot.connected, snapshot.driveMode);
-        }
+        // The shared UI monitor owns the mode chip; general metric snapshots may be stale.
     }
 
     private void applyMediaState(LauncherMediaController.MediaState state) {

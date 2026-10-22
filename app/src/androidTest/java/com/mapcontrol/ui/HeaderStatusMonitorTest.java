@@ -10,10 +10,9 @@ import androidx.test.platform.app.InstrumentationRegistry;
 import com.mapcontrol.R;
 import com.mapcontrol.ui.widget.StatusWidgetsView;
 import com.mapcontrol.vehicle.DriveModeStyle;
-import com.mapcontrol.vehicle.VehicleMetricsRepository;
-import com.mapcontrol.vehicle.VehicleMetricsSnapshot;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.function.Consumer;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import org.junit.Test;
@@ -27,29 +26,27 @@ public class HeaderStatusMonitorTest {
                 R.style.Theme_MapControl);
     }
 
-    private static VehicleMetricsSnapshot snapshot(boolean connected, int mode) {
-        return new VehicleMetricsSnapshot(connected,
-                0, 0, 0, 0, 0, 0, 0, 0,
-                0, 0, 0, 0, 0, 0, 0, mode);
+    private static HeaderStatusMonitor.ModeReading snapshot(boolean connected, int mode) {
+        return new HeaderStatusMonitor.ModeReading(connected, mode);
     }
 
-    private static final class Source implements HeaderStatusMonitor.MetricsSource {
-        VehicleMetricsSnapshot current = snapshot(true, DriveModeStyle.NORMAL);
-        VehicleMetricsSnapshot next = current;
+    private static final class Source implements HeaderStatusMonitor.ModeSource {
+        HeaderStatusMonitor.ModeReading current = snapshot(true, DriveModeStyle.NORMAL);
+        HeaderStatusMonitor.ModeReading next = current;
         int refreshes;
         Runnable onRefresh = () -> {};
-        final List<VehicleMetricsRepository.Listener> listeners = new ArrayList<>();
-        public VehicleMetricsSnapshot currentSnapshot() { return current; }
-        public void addListener(VehicleMetricsRepository.Listener listener) {
+        final List<Consumer<HeaderStatusMonitor.ModeReading>> listeners = new ArrayList<>();
+        public HeaderStatusMonitor.ModeReading currentReading() { return current; }
+        public void addListener(Consumer<HeaderStatusMonitor.ModeReading> listener) {
             listeners.add(listener);
-            listener.onMetricsUpdated(current);
+            listener.accept(current);
         }
-        public void removeListener(VehicleMetricsRepository.Listener listener) { listeners.remove(listener); }
+        public void removeListener(Consumer<HeaderStatusMonitor.ModeReading> listener) { listeners.remove(listener); }
         public void refresh() {
             refreshes++;
             current = next;
-            for (VehicleMetricsRepository.Listener listener : new ArrayList<>(listeners)) {
-                listener.onMetricsUpdated(current);
+            for (Consumer<HeaderStatusMonitor.ModeReading> listener : new ArrayList<>(listeners)) {
+                listener.accept(current);
             }
             onRefresh.run();
         }

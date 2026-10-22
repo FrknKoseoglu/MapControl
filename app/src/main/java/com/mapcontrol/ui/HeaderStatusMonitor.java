@@ -10,29 +10,37 @@ import android.os.Looper;
 
 import com.mapcontrol.ui.builder.TopBarBuilder;
 import com.mapcontrol.util.ClusterNavigationState;
-import com.mapcontrol.vehicle.VehicleMetricsRepository;
-import com.mapcontrol.vehicle.VehicleMetricsSnapshot;
 
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.function.BooleanSupplier;
+import java.util.function.Consumer;
 
-/** Reads cached/service state while the activity is visible, including missed background changes. */
+/** Updates UI chips while visible; mode uses its own read-only OEM query. */
 public final class HeaderStatusMonitor {
     private final Context context;
     private final List<HeaderStatusSink> sinks = new CopyOnWriteArrayList<>();
-    private final MetricsSource metrics;
+    private final ModeSource modeSource;
     private final BooleanSupplier serverRunning;
     private final Handler handler = new Handler(Looper.getMainLooper());
     private boolean started;
-    private final VehicleMetricsRepository.Listener metricsListener = this::bindMetrics;
+    private final Consumer<ModeReading> modeListener = this::bindMode;
     // Run after the current UI event (and its existing vehicle command) has completed.
-    private final Runnable refreshMetricsTask;
+    private final Runnable refreshModeTask;
 
-    interface MetricsSource {
-        VehicleMetricsSnapshot currentSnapshot();
-        void addListener(VehicleMetricsRepository.Listener listener);
-        void removeListener(VehicleMetricsRepository.Listener listener);
+    static final class ModeReading {
+        final boolean connected;
+        final int driveMode;
+        ModeReading(boolean connected, int driveMode) {
+            this.connected = connected;
+            this.driveMode = driveMode;
+        }
+    }
+
+    interface ModeSource {
+        ModeReading currentReading();
+        void addListener(Consumer<ModeReading> listener);
+        void removeListener(Consumer<ModeReading> listener);
         void refresh();
     }
 
@@ -44,26 +52,20 @@ public final class HeaderStatusMonitor {
         }
     };
 
-    public HeaderStatusMonitor(Context context, HeaderStatusSink initialSink, VehicleMetricsRepository metrics,
-            BooleanSupplier serverRunning) {
-        this(context, initialSink, new MetricsSource() {
-            public VehicleMetricsSnapshot currentSnapshot() { return metrics.currentSnapshot(); }
-            public void addListener(VehicleMetricsRepository.Listener listener) { metrics.addListener(listener); }
-            public void removeListener(VehicleMetricsRepository.Listener listener) { metrics.removeListener(listener); }
-            public void refresh() { metrics.refresh(); }
-        }, serverRunning);
+    public HeaderStatusMonitor(Context context, HeaderStatusSink initialSink, BooleanSupplier serverRunning) {
+        this(context, initialSink, new WidgetDriveModeSource(context), serverRunning);
     }
 
-    HeaderStatusMonitor(Context context, HeaderStatusSink initialSink, MetricsSource metrics,
+    HeaderStatusMonitor(Context context, HeaderStatusSink initialSink, ModeSource modeSource,
             BooleanSupplier serverRunning) {
         this.context = context.getApplicationContext();
         if (initialSink != null) {
             this.sinks.add(initialSink);
         }
-        this.metrics = metrics;
+        this.modeSource = modeSource;
         this.serverRunning = serverRunning;
-        refreshMetricsTask = () -> {
-            if (started) metrics.refresh();
+        refreshModeTask = () -> {
+            if (started) modeSource.refresh();
         };
     }
 
@@ -73,9 +75,9 @@ public final class HeaderStatusMonitor {
             sink.setWifiState(readWifiState());
             sink.setServerRunning(serverRunning.getAsBoolean());
             sink.setProjectionActive(ClusterNavigationState.getLastKnownOpen());
-            VehicleMetricsSnapshot snapshot = metrics.currentSnapshot();
-            int mode = snapshot != null ? snapshot.driveMode : Integer.MIN_VALUE;
-            sink.setDriveMode(snapshot != null && snapshot.connected, mode);
+            ModeReading reading = modeSource.currentReading();
+            int mode = reading != null ? reading.driveMode : Integer.MIN_VALUE;
+            sink.setDriveMode(reading != null && reading.connected, mode);
             sink.setSoundBoost(readBoostActive(),
                     readGainMb());
         }
@@ -90,7 +92,7 @@ public final class HeaderStatusMonitor {
     public void start() {
         if (started) return;
         started = true;
-        metrics.addListener(metricsListener);
+        modeSource.addListener(modeListener);
         handler.post(refreshTask);
     }
 
@@ -98,17 +100,17 @@ public final class HeaderStatusMonitor {
         if (!started) return;
         started = false;
         handler.removeCallbacks(refreshTask);
-        handler.removeCallbacks(refreshMetricsTask);
-        metrics.removeListener(metricsListener);
+        handler.removeCallbacks(refreshModeTask);
+        modeSource.removeListener(modeListener);
     }
 
     public void refresh() {
         TopBarBuilder.WifiState wifiState = readWifiState();
         boolean running = serverRunning.getAsBoolean();
         boolean projectionActive = ClusterNavigationState.getLastKnownOpen();
-        VehicleMetricsSnapshot snapshot = metrics.currentSnapshot();
-        boolean connected = snapshot != null && snapshot.connected;
-        int mode = snapshot != null ? snapshot.driveMode : Integer.MIN_VALUE;
+        ModeReading reading = modeSource.currentReading();
+        boolean connected = reading != null && reading.connected;
+        int mode = reading != null ? reading.driveMode : Integer.MIN_VALUE;
         boolean boostActive = readBoostActive();
         int gainMb = readGainMb();
 
@@ -121,16 +123,16 @@ public final class HeaderStatusMonitor {
         }
         if (started) {
             // Coalesce requests in the same UI event and let selection handlers finish first.
-            handler.removeCallbacks(refreshMetricsTask);
-            handler.post(refreshMetricsTask);
+            handler.removeCallbacks(refreshModeTask);
+            handler.post(refreshModeTask);
         }
     }
 
-    private void bindMetrics(VehicleMetricsSnapshot snapshot) {
-        if (started && snapshot != null) {
-            int mode = snapshot.driveMode;
+    private void bindMode(ModeReading reading) {
+        if (started && reading != null) {
+            int mode = reading.driveMode;
             for (HeaderStatusSink sink : sinks) {
-                sink.setDriveMode(snapshot.connected, mode);
+                sink.setDriveMode(reading.connected, mode);
             }
         }
     }

@@ -776,5 +776,34 @@
       "saved preference unchanged and no navigation during display updates",
       "UI monitor forwards raw mode without saved-preference substitution"
     ]
+  },
+  "widget_mode_refresh": {
+    "date": "2026-10-23",
+    "status": "passed",
+    "scope": "UI monitor requests an existing asynchronous repository refresh after selection events and on its existing two-second timer; no vehicle writes or calculation changes.",
+    "validation": {
+      "debug_build": "passed",
+      "android_test_build": "passed",
+      "jvm": {
+        "tests": 23,
+        "failures": 0,
+        "errors": 0
+      },
+      "android_tests": 22,
+      "android_failures": 0,
+      "core_files_equal_to_main": 27,
+      "super_mode_and_service_unchanged": true,
+      "physical_vehicle_test": false,
+      "apk_sha256": "3999ced7628cab362d34a93332d87488ad9af8b2c346f61c05e42e9d24b98dd7",
+      "artifacts": "output/widget-mode-refresh"
+    },
+    "coverage": [
+      "read requested after the selection event; same-event requests coalesced",
+      "normal, fullscreen and newly attached widgets receive reported mode",
+      "external mode changes picked up by existing two-second UI timer",
+      "unknown/disconnected mode stays neutral; reconnect shows reported mode",
+      "stop cancels pending and periodic reads; restart refreshes",
+      "saved preference remains unchanged"
+    ]
   }
 }

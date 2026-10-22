@@ -21,11 +21,21 @@ import java.util.function.BooleanSupplier;
 public final class HeaderStatusMonitor {
     private final Context context;
     private final List<HeaderStatusSink> sinks = new CopyOnWriteArrayList<>();
-    private final VehicleMetricsRepository metrics;
+    private final MetricsSource metrics;
     private final BooleanSupplier serverRunning;
     private final Handler handler = new Handler(Looper.getMainLooper());
     private boolean started;
     private final VehicleMetricsRepository.Listener metricsListener = this::bindMetrics;
+    // Run after the current UI event (and its existing vehicle command) has completed.
+    private final Runnable refreshMetricsTask;
+
+    interface MetricsSource {
+        VehicleMetricsSnapshot currentSnapshot();
+        void addListener(VehicleMetricsRepository.Listener listener);
+        void removeListener(VehicleMetricsRepository.Listener listener);
+        void refresh();
+    }
+
     private final Runnable refreshTask = new Runnable() {
         @Override public void run() {
             if (!started) return;
@@ -36,12 +46,25 @@ public final class HeaderStatusMonitor {
 
     public HeaderStatusMonitor(Context context, HeaderStatusSink initialSink, VehicleMetricsRepository metrics,
             BooleanSupplier serverRunning) {
+        this(context, initialSink, new MetricsSource() {
+            public VehicleMetricsSnapshot currentSnapshot() { return metrics.currentSnapshot(); }
+            public void addListener(VehicleMetricsRepository.Listener listener) { metrics.addListener(listener); }
+            public void removeListener(VehicleMetricsRepository.Listener listener) { metrics.removeListener(listener); }
+            public void refresh() { metrics.refresh(); }
+        }, serverRunning);
+    }
+
+    HeaderStatusMonitor(Context context, HeaderStatusSink initialSink, MetricsSource metrics,
+            BooleanSupplier serverRunning) {
         this.context = context.getApplicationContext();
         if (initialSink != null) {
             this.sinks.add(initialSink);
         }
         this.metrics = metrics;
         this.serverRunning = serverRunning;
+        refreshMetricsTask = () -> {
+            if (started) metrics.refresh();
+        };
     }
 
     public void addSink(HeaderStatusSink sink) {
@@ -75,6 +98,7 @@ public final class HeaderStatusMonitor {
         if (!started) return;
         started = false;
         handler.removeCallbacks(refreshTask);
+        handler.removeCallbacks(refreshMetricsTask);
         metrics.removeListener(metricsListener);
     }
 
@@ -94,6 +118,11 @@ public final class HeaderStatusMonitor {
             sink.setProjectionActive(projectionActive);
             sink.setDriveMode(connected, mode);
             sink.setSoundBoost(boostActive, gainMb);
+        }
+        if (started) {
+            // Coalesce requests in the same UI event and let selection handlers finish first.
+            handler.removeCallbacks(refreshMetricsTask);
+            handler.post(refreshMetricsTask);
         }
     }
 

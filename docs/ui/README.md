@@ -6,7 +6,7 @@
 
 İşlevsel sağlamlaştırmalar, yeni model/VIN/yıl çıkarımı ve hesaplama yardımcıları bu daldan çıkarıldı; kaynak taban `origin/main` (`187093b`). Araç veri/komutları, OEM okuma, ses efektleri, açılış/karşılama, navigasyon, hava durumu, kamera, API ve kurulum akışları main davranışına döndürüldü. **İzin verilen tek işlevsel ek Super Mod animasyon kontrolüdür**; politikası ve opt-in akışı korunur. Ortak OEM proxy değiştirilmeden, yalnız Super Mod kendi cevapsız-okuma kontrolünü yapar.
 
-Araç bilgisi kart/filtre düzeni korunur; 19 sinyal/formatter eşleşmesi main ile aynıdır, mühendislik menüsü eylemi vardır. Başlıktaki yeni model/yıl çıkarımı kaldırılmıştır. Durum widget'ları mevcut veriyi ve kayıtlı UI durumunu okur; ortak repository için yeni reconnect/poll algoritması eklemez. `source-inventory.md`, `audit-history.md` ve eski manifest doğrulamaları **temizlik öncesi tarihsel kayıttır**; geri alınan özellikler için güncel uygulama garantisi oluşturmaz. Önceki hâl `codex/ui-scope-backup-20261022` dalında korunur.
+Araç bilgisi kart/filtre düzeni korunur; 19 sinyal/formatter eşleşmesi main ile aynıdır, mühendislik menüsü eylemi vardır. Başlıktaki yeni model/yıl çıkarımı kaldırılmıştır. Durum widget'ları canlı araç verisini ve ilgili kayıtlı UI durumunu okur. UI monitörü, mevcut iki saniyelik döngüde ve seçim olayının sonunda repository'nin mevcut asenkron `refresh()` API'sini çağırır; ortak repository'nin okuma/reconnect algoritması değişmez. `source-inventory.md`, `audit-history.md` ve eski manifest doğrulamaları **temizlik öncesi tarihsel kayıttır**; geri alınan özellikler için güncel uygulama garantisi oluşturmaz. Önceki hâl `codex/ui-scope-backup-20261022` dalında korunur.
 
 ## Güncel widget yerleşimi — 22 Ekim 2026
 
@@ -64,7 +64,7 @@ Denetlenen temel revizyon `c7de3ff348f66f5efbb75965aa45e31d58728d08`; çalışma
 - Launcher Lite saat/hava/ölçüm panelidir; GLB/OEM model desteği kaynaklarda kalır. Eski performans ölçümleri tarihsel veridir.
 - UI refactor'ı araç komutlarını, birim dönüşümlerini, veri filtrelerini, kayıt tercihlerini ve servis yaşam döngülerini değiştirmez. Yeni callback mevcut işlemi çağırır; mevcut parametre eşlemelerini korur.
 - Sport gizleme varsayılan kapalıdır: bilinen mod→Sport, ≥600 ms ve taze doğrulama; 500 ms servis kontrolü; tek paketli kapatma isteği. Başlangıç Sport/yeniden bağlantı tetiklemez. Bu özellik açıkça izin verilen istisnadır.
-- Header/rail konumları ve içerik geçişleri bu UI dalının sorumluluğudur. HeaderStatusMonitor mevcut snapshot ve tercihleri görüntüler; core repository main sürümüdür.
+- Header/rail konumları ve içerik geçişleri bu UI dalının sorumluluğudur. HeaderStatusMonitor araç modunu mevcut repository üzerinden yeniler; kayıtlı başlangıç tercihini canlı mod yerine göstermez. Core repository main sürümüdür.
 - Hava durumu ve otomatik park kaydının konum/yenileme kuralları main'e aittir; eski araç-konumu temelli hava durumu yenilemesi artık bu dalın özelliği değildir.
 - Ekolayzer DSP, kamera kaynakları, mikrofon tanısı, APK kurulum kuyruğu, cluster görev tespiti ve boot oturumu main ile korunur. Önceki raporlardaki düzeltme garantileri güncel kabul kriteri sayılamaz.
 - DMS/yüz tanıma ve klima otomasyonu dosyaları main ile aynı kalır. UI tasarım standardı bu özelliklerde otomatik değişiklik yapma izni değildir.
@@ -73,7 +73,7 @@ Ayrıntılı izin araştırması, kamera callback yarışı adayları, eski APK 
 
 ## Kanıt ve kabul
 
-Main kaynak eşitliği ve 19 metrik eşleşmesi kapsam temizliğinde doğrulandı. Temizlik sırasında kaydedilen dört UI test başarısızlığı, 23 Ekim tarihli kullanıcı talebiyle yalnız UI/test katmanında düzeltildi: kart tıklama hedefleri, tekrarlı grid daralması ve bağlantısız/bilinmeyen modun nötr gösterimi. Debug APK/test APK derlendi; **23 JVM testi ve 19 ilgili Android UI/Super Mod testi başarılıdır**. Fiziksel araç testi yapılmadı; lint temizliği iddia edilmez. Önceki başarısızlık kaydı `ui_only_scope_cleanup`, güncel sonuç `ui_four_failure_fixes` manifest alanındadır.
+Main kaynak eşitliği ve 19 metrik eşleşmesi kapsam temizliğinde doğrulandı. Temizlik sırasında kaydedilen dört UI test başarısızlığı, 23 Ekim tarihli kullanıcı talebiyle yalnız UI/test katmanında düzeltildi: kart tıklama hedefleri, tekrarlı grid daralması ve bağlantısız/bilinmeyen modun nötr gösterimi. Debug APK/test APK derlendi; **23 JVM testi ve 22 ilgili Android UI/Super Mod testi başarılıdır**. Son widget düzeltmesi, mod seçiminden sonra ve mevcut iki saniyelik UI döngüsünde taze araç verisi ister; normal/tam ekran örneklerini birlikte günceller. Bekleyen UI okuması stop sırasında iptal edilir. Fiziksel araç testi yapılmadı; lint temizliği iddia edilmez. Önceki başarısızlık kaydı `ui_only_scope_cleanup`, dört UI düzeltmesinin sonucu `ui_four_failure_fixes`, son widget yenileme sonucu `widget_mode_refresh` manifest alanındadır.
 
 UI refactor'ında hem tema hem orientation, %100/%130 yazı, bilinmeyen/bağlantısız veri, hızlı sekme/tema değişimi ve overlay tekrar aç/kapat senaryoları ölçülür. OEM kabulünde model/firmware/display/yoğunluk ve APK hash kaydedilir. Kaynak test yolu [source-inventory.md](source-inventory.md)'de, çalıştırma ve sonuç şablonları [audit-history.md](audit-history.md)'dedir.
 

@@ -279,7 +279,7 @@
     <string name="assist_card_cpd">CPD (child presence detection)</string>
     <string name="assist_cpd_disclaimer">CPD: In-car child detection. Depends on hardware and software; may not work on every model (e.g. some Tiggo 8 trims). Verify on your vehicle.</string>
     <string name="assist_card_super_mode_anim">Hide Super Mode animation</string>
-    <string name="assist_status_super_mode_anim">Unclosable car animation with synthetic engine sound is hidden</string>
+    <string name="assist_status_super_mode_anim">Closes the Sport animation through accessibility. Drive mode and engine sound are unchanged.</string>
     <string name="assist_status_not_set">Not configured</string>
     <string name="assist_status_iss">ISS off</string>
     <string name="assist_status_spd">Warning off</string>
@@ -701,4 +701,5 @@
     <string name="climate_auto_passenger_section">Passenger Side</string>
     <string name="climate_auto_other_section">Glass &amp; Steering</string>
     <string name="climate_auto_conflict_rejected">Conflict Prevention: Heating and ventilation cannot be active at the same time! Change reverted.</string>
+    <string name="assist_super_mode_accessibility">Enable the MapControl accessibility service to hide this animation.</string>
 </resources>

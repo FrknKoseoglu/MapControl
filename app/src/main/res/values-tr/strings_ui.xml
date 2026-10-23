@@ -298,7 +298,7 @@
     <string name="assist_card_cpd">CPD (Çocuk Algılama)</string>
     <string name="assist_cpd_disclaimer">CPD: Araç içi çocuk algılama. Donanım ve yazılıma bağlıdır; her modelde çalışmayabilir (ör. bazı Tiggo 8 donanımları). Araçta etkisini kontrol edin.</string>
     <string name="assist_card_super_mode_anim">Super Mod animasyonunu gizle</string>
-    <string name="assist_status_super_mode_anim">Yapay motor sesiyle birlikte açılan kapatılamayan araba animasyonu gizlenir</string>
+    <string name="assist_status_super_mode_anim">Sport animasyon penceresi erişilebilirlik ile kapatılır. Sürüş modu ve motor sesi değiştirilmez.</string>
     <string name="assist_status_not_set">Ayarlanmadı</string>
     <string name="assist_status_iss">ISS Kapalı</string>
     <string name="assist_status_spd">Uyarı Kapalı</string>
@@ -722,4 +722,5 @@
     <string name="climate_auto_passenger_section">Yolcu Tarafı</string>
     <string name="climate_auto_other_section">Cam &amp; Direksiyon</string>
     <string name="climate_auto_conflict_rejected">Çakışma Önleme: Isıtma ve havalandırma sıcaklık aralıkları çakışıyor! Birbirinden farklı eşikler belirleyin.</string>
+    <string name="assist_super_mode_accessibility">Gizleme için MapControl erişilebilirlik hizmetini etkinleştirin.</string>
 </resources>

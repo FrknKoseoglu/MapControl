@@ -873,5 +873,30 @@
       "preference listener updates all widgets, including a newly attached sink",
       "raw mode reading tests remain isolated to the absence of a saved selection"
     ]
+  },
+  "super_mode_targeted_window_fix": {
+    "date": "2026-10-23",
+    "base_commit": "cfa9a0e",
+    "scope": "Super Mode only; accessibility lifecycle integration and permission guidance",
+    "supersedes_transition_policy": true,
+    "generic_close_broadcast_removed": true,
+    "vehicle_writes_added": false,
+    "main_equal_files_still_unchanged": 26,
+    "integration_exception": "GlobalBackService: only Super Mode import/field/start/event/destroy hooks; all previous code unchanged",
+    "android_tests_passed": 44,
+    "jvm_tests_passed": 14,
+    "real_window_fixture_tests_passed": 2,
+    "physical_vehicle_tested": false,
+    "apk": {
+      "package": "com.mapcontrol.testfk",
+      "label": "MapControl test-fk",
+      "version_code": 3,
+      "version_name": "1.2.4",
+      "sha256": "3025421fe17c8e16baba1c729f64996fc193ac3370e2a1be67fc43ee76e49c68",
+      "signer_sha256": "85e5e313c2800d2b9f421df8db25c89f50271a9ea2354dea4875337e1dc78ede",
+      "same_signer_as_previous_testfk": true,
+      "physical_vehicle_installed": false
+    },
+    "details": "super-mode-fix.md"
   }
 }

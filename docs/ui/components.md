@@ -182,7 +182,7 @@ Aşağıdaki maddelerden HMI-01 ve HMI-09 tamamlandı; diğerleri açıktır. P0
 
 ## Refactor doğrulama ve regresyon kapsamı
 
-Mevcut testler kaynak envanterinde listelenir. İlgili başlangıç noktaları `DriveModeSelectionWidgetsTest`, `WidgetDriveModeSourceTest`, `HeaderStatusMonitorTest`, `CompactControlsTest`, `SharedHeaderTest`, `SharedHeaderNavigationTest`, `DriveModeBadgeTest`, `DriveModeOptionsTest`, `SportAnimationPolicyTest` ve `SportAnimationControllerTest`tir. Yeni zone/minimum hit hedeflerini doğrulayan tam bir otomatik suite bu görevle eklenmedi.
+Mevcut testler kaynak envanterinde listelenir. İlgili başlangıç noktaları `DriveModeSelectionWidgetsTest`, `WidgetDriveModeSourceTest`, `HeaderStatusMonitorTest`, `CompactControlsTest`, `SharedHeaderTest`, `SharedHeaderNavigationTest`, `DriveModeBadgeTest`, `DriveModeOptionsTest`, `SportAnimationWindowTest`, `SportAnimationRealWindowTest` ve `SportAnimationControllerTest`tir. Yeni zone/minimum hit hedeflerini doğrulayan tam bir otomatik suite bu görevle eklenmedi.
 
 Bir refactor kabul kaydında orientation, çözünürlük, density, fontScale, tema, gerçek hit rect, 1/2/3/4 sınıfı ve ekran görüntüsü bulunur. Dialog/overlay restore ve pencere koordinatları da dahil edilir. Var olan testin beklediği 48 dp gibi eski değer yeni standarda geçince yeni davranışa göre değerlendirilir; test yeşil olsun diye hedef standardı küçültülmez.
 

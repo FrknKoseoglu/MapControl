@@ -19,6 +19,7 @@ import com.desaysv.ivi.extra.project.carinfo.ReadOnlyID;
 import com.desaysv.ivi.extra.project.carinfo.proxy.CarInfoProxy;
 import com.desaysv.ivi.vdb.event.id.carinfo.VDEventCarInfo;
 import com.mapcontrol.manager.SportAnimationController;
+import com.mapcontrol.service.GlobalBackService;
 import com.mapcontrol.ui.theme.UiStyles;
 
 public class AssistTabBuilder {
@@ -231,6 +232,16 @@ public class AssistTabBuilder {
                     callback.log(logPrefix + ": " + (newActive ? "Gizleme Etkin" : "Animasyon Gösterilir"));
                     isActiveRef[0] = newActive;
                     updateCardUI(cardIndex, newActive, settingKey, cardContainers, iconViews, titleViews, statusViews, onChips, density);
+                    if (newActive && !GlobalBackService.isRegisteredInSystemAccessibilitySettings(context)) {
+                        android.widget.Toast.makeText(context, R.string.assist_super_mode_accessibility,
+                                android.widget.Toast.LENGTH_LONG).show();
+                        try {
+                            context.startActivity(new android.content.Intent(android.provider.Settings.ACTION_ACCESSIBILITY_SETTINGS)
+                                    .addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK));
+                        } catch (RuntimeException unavailable) {
+                            callback.log(context.getString(R.string.assist_super_mode_accessibility));
+                        }
+                    }
                     return;
                 }
 

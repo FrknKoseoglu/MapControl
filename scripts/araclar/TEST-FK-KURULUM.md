@@ -2,6 +2,8 @@
 
 APK: `MapControl-test-fk-1.2.4.apk` · Uygulama adı: **MapControl test-fk** · Paket: `com.mapcontrol.testfk`.
 
+Bu paket **versionCode 3**: Super Mod gizleme düzeltmesi içerir; önceki test-fk ile aynı imzayı kullanır. Gizleme için MapControl erişilebilirlik hizmeti açık olmalı. Yalnız tanınan Sport penceresinin kendi geri düğmesine basılır; araç moduna yazılmaz. İlk karenin hiç görünmemesi garanti edilmez. Fiziksel araç kabul testi beklenir.
+
 ## Kurulum
 
 Aracı Mint bilgisayara bağla, araçta USB hata ayıklama bağlantısını onayla ve Mint terminalinde çalıştır:
@@ -48,7 +50,7 @@ Cihazda mevcut bir device owner varsa korunur. Varsayılan kurulum yeni owner at
 Bu APK'nın SHA-256 özeti:
 
 ```text
-0a9edb1460e62834525f31265d9865260bf5049efa8c96c2e52e3aa2305c85ac
+3025421fe17c8e16baba1c729f64996fc193ac3370e2a1be67fc43ee76e49c68
 ```
 
 Yeni APK üretildiğinde kurulum betiğindeki dosya adı ve SHA-256 özeti de birlikte güncellenmelidir. Dosya değişmişse betik durur.

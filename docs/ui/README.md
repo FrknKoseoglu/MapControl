@@ -80,3 +80,7 @@ UI refactor'ında hem tema hem orientation, %100/%130 yazı, bilinmeyen/bağlant
 ## Doküman temizliği ve bilgi izi
 
 Sekiz eski `docs/*.md` tam metni önce arşivlenip içerik/hash doğrulamasından sonra kaldırılır; silinen yollar [manifestte](audit-manifest.json) listelenir. `docs/ui-previews/` görselleri/JSON/TXT kanıtları ve kök README korunur; kök README'nin eski rapor bağlantısı yeni indekse yönlendirilir. `.gitignore` yalnız `docs/ui/` için Git görünürlüğü sağlar; önizlemeler ve diğer yerel docs içerikleri ignore kapsamında kalır. Arşiv yeni tasarım sisteminden ayrı bir tarihsel kayıttır; eski hedefleri güncel gereklilik diye uygulamayın.
+
+## Super Mod güncellemesi — 23 Ekim 2026
+
+[Güncel Super Mod düzeltmesi](super-mode-fix.md): gizleme erişilebilirlik servisinde yalnız tanınan Sport penceresinin geri kontrolüne taşındı. Genel kapatma yayını ve mod geçişine bağlı eski politika kaldırıldı. İlgili mevcut kaynak kapsamı ve 14 JVM / 44 Android test sonucu bu notta açıklanır; önceki denetim hash'leri tarihsel kayıttır. Fiziksel araç kabulü beklenir.

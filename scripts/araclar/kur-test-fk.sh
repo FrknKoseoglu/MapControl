@@ -4,7 +4,7 @@ set -Eeuo pipefail
 umask 077
 PACKAGE=com.mapcontrol.testfk
 APK_NAME=MapControl-test-fk-1.2.4.apk
-APK_SHA256=0a9edb1460e62834525f31265d9865260bf5049efa8c96c2e52e3aa2305c85ac
+APK_SHA256=3025421fe17c8e16baba1c729f64996fc193ac3370e2a1be67fc43ee76e49c68
 A11Y="$PACKAGE/com.mapcontrol.service.GlobalBackService"
 NLS="$PACKAGE/com.mapcontrol.media.LauncherMediaNotificationListener"
 ADMIN="$PACKAGE/com.mapcontrol.admin.MapControlDeviceAdminReceiver"

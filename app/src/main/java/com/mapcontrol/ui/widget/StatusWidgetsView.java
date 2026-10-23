@@ -27,7 +27,7 @@ public final class StatusWidgetsView extends ViewGroup implements HeaderStatusSi
     private int fixedColumnCount;
     private StatusChip wifiChip, modeChip, phoneChip, projectionChip, soundChip;
     private TopBarBuilder.WifiState wifiState = TopBarBuilder.WifiState.UNKNOWN;
-    private boolean vehicleConnected;
+    private boolean vehicleConnected, showingSelectedMode;
     private int driveMode = Integer.MIN_VALUE;
     private boolean serverRunning, projectionActive;
     private boolean soundBoostActive;
@@ -82,8 +82,16 @@ public final class StatusWidgetsView extends ViewGroup implements HeaderStatusSi
     }
 
     public void setDriveMode(boolean connected, int mode) {
-        if (connected == vehicleConnected && mode == driveMode) return;
+        if (!showingSelectedMode && connected == vehicleConnected && mode == driveMode) return;
+        showingSelectedMode = false;
         vehicleConnected = connected;
+        driveMode = mode;
+        refreshMode();
+    }
+
+    @Override public void setSelectedDriveMode(int mode) {
+        if (showingSelectedMode && mode == driveMode) return;
+        showingSelectedMode = true;
         driveMode = mode;
         refreshMode();
     }
@@ -130,10 +138,14 @@ public final class StatusWidgetsView extends ViewGroup implements HeaderStatusSi
     private void refreshMode() {
         if (modeChip == null) return;
         int mode = driveMode;
-        boolean knownMode = vehicleConnected && DriveModeStyle.isThemed(mode);
+        boolean knownMode = (showingSelectedMode || vehicleConnected) && DriveModeStyle.isThemed(mode);
         modeChip.bind(knownMode ? DriveModeStyle.shortLabel(mode) : "—",
                 knownMode ? DriveModeStyle.accentColor(context, mode)
                         : UiStyles.color(context, R.color.textSecondary));
+        if (showingSelectedMode) {
+            modeChip.setContentDescription(context.getString(R.string.header_selected_mode_description,
+                    knownMode ? DriveModeStyle.shortLabel(mode) : "—"));
+        }
     }
 
     private void refreshPhone() {

@@ -1,6 +1,7 @@
 package com.mapcontrol.ui;
 
 import android.content.Context;
+import android.content.SharedPreferences;
 import android.net.ConnectivityManager;
 import android.net.Network;
 import android.net.NetworkCapabilities;
@@ -18,7 +19,9 @@ import java.util.function.Consumer;
 
 /** Updates UI chips while visible; mode uses its own read-only OEM query. */
 public final class HeaderStatusMonitor {
+    private static final String MODE_KEY = "driveModeSetting";
     private final Context context;
+    private final SharedPreferences preferences;
     private final List<HeaderStatusSink> sinks = new CopyOnWriteArrayList<>();
     private final ModeSource modeSource;
     private final BooleanSupplier serverRunning;
@@ -27,6 +30,13 @@ public final class HeaderStatusMonitor {
     private final Consumer<ModeReading> modeListener = this::bindMode;
     // Run after the current UI event (and its existing vehicle command) has completed.
     private final Runnable refreshModeTask;
+    private final Runnable selectionChanged = () -> { if (started) refresh(); };
+    private final SharedPreferences.OnSharedPreferenceChangeListener preferenceListener = (prefs, key) -> {
+        if (started && (key == null || MODE_KEY.equals(key))) {
+            handler.removeCallbacks(selectionChanged);
+            handler.post(selectionChanged);
+        }
+    };
 
     static final class ModeReading {
         final boolean connected;
@@ -59,13 +69,14 @@ public final class HeaderStatusMonitor {
     HeaderStatusMonitor(Context context, HeaderStatusSink initialSink, ModeSource modeSource,
             BooleanSupplier serverRunning) {
         this.context = context.getApplicationContext();
+        this.preferences = this.context.getSharedPreferences("MapControlPrefs", Context.MODE_PRIVATE);
         if (initialSink != null) {
             this.sinks.add(initialSink);
         }
         this.modeSource = modeSource;
         this.serverRunning = serverRunning;
         refreshModeTask = () -> {
-            if (started) modeSource.refresh();
+            if (started && !preferences.contains(MODE_KEY)) modeSource.refresh();
         };
     }
 
@@ -76,8 +87,7 @@ public final class HeaderStatusMonitor {
             sink.setServerRunning(serverRunning.getAsBoolean());
             sink.setProjectionActive(ClusterNavigationState.getLastKnownOpen());
             ModeReading reading = modeSource.currentReading();
-            int mode = reading != null ? reading.driveMode : Integer.MIN_VALUE;
-            sink.setDriveMode(reading != null && reading.connected, mode);
+            displayMode(sink, reading);
             sink.setSoundBoost(readBoostActive(),
                     readGainMb());
         }
@@ -92,6 +102,7 @@ public final class HeaderStatusMonitor {
     public void start() {
         if (started) return;
         started = true;
+        preferences.registerOnSharedPreferenceChangeListener(preferenceListener);
         modeSource.addListener(modeListener);
         handler.post(refreshTask);
     }
@@ -101,6 +112,8 @@ public final class HeaderStatusMonitor {
         started = false;
         handler.removeCallbacks(refreshTask);
         handler.removeCallbacks(refreshModeTask);
+        handler.removeCallbacks(selectionChanged);
+        preferences.unregisterOnSharedPreferenceChangeListener(preferenceListener);
         modeSource.removeListener(modeListener);
     }
 
@@ -109,8 +122,6 @@ public final class HeaderStatusMonitor {
         boolean running = serverRunning.getAsBoolean();
         boolean projectionActive = ClusterNavigationState.getLastKnownOpen();
         ModeReading reading = modeSource.currentReading();
-        boolean connected = reading != null && reading.connected;
-        int mode = reading != null ? reading.driveMode : Integer.MIN_VALUE;
         boolean boostActive = readBoostActive();
         int gainMb = readGainMb();
 
@@ -118,7 +129,7 @@ public final class HeaderStatusMonitor {
             sink.setWifiState(wifiState);
             sink.setServerRunning(running);
             sink.setProjectionActive(projectionActive);
-            sink.setDriveMode(connected, mode);
+            displayMode(sink, reading);
             sink.setSoundBoost(boostActive, gainMb);
         }
         if (started) {
@@ -130,10 +141,16 @@ public final class HeaderStatusMonitor {
 
     private void bindMode(ModeReading reading) {
         if (started && reading != null) {
-            int mode = reading.driveMode;
-            for (HeaderStatusSink sink : sinks) {
-                sink.setDriveMode(reading.connected, mode);
-            }
+            for (HeaderStatusSink sink : sinks) displayMode(sink, reading);
+        }
+    }
+
+    private void displayMode(HeaderStatusSink sink, ModeReading reading) {
+        if (preferences.contains(MODE_KEY)) {
+            sink.setSelectedDriveMode(preferences.getInt(MODE_KEY, -1));
+        } else {
+            sink.setDriveMode(reading != null && reading.connected,
+                    reading != null ? reading.driveMode : Integer.MIN_VALUE);
         }
     }
 

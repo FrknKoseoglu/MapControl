@@ -836,6 +836,42 @@
       "no OEM I/O on main thread; at most one pending read",
       "stop invalidates late replies; restart can read again",
       "same-event refresh coalescing; saved preference unchanged"
+    ],
+    "user_followup": "Still failed for MapControl selection; actual requirement clarified and addressed by widget_selected_mode."
+  },
+  "widget_selected_mode": {
+    "date": "2026-10-23",
+    "status": "automated_passed_vehicle_pending",
+    "clarification": "User changes mode inside MapControl; widget must reflect the saved app selection immediately.",
+    "scope": "Presentation of existing driveModeSetting preference. Separate selected-mode sink contract; vehicle connection and confirmed live mode are not fabricated. No changes to mode selection writes, commands or calculations.",
+    "reproduction": {
+      "before": "Real MainActivity ECO card click persisted ECO and sent its existing command, but the rail still displayed a dash.",
+      "after": "Real MainActivity card clicks display all seven app selections in both rail and fullscreen widgets in the same UI event."
+    },
+    "validation": {
+      "jvm": {
+        "tests": 23,
+        "failures": 0,
+        "errors": 0
+      },
+      "android_tests": 27,
+      "android_failures": 0,
+      "core_files_equal_to_main": 27,
+      "main_activity_drive_commands_super_mode_service_unchanged": true,
+      "physical_vehicle_test": false,
+      "apk_sha256": "be9e7faf473fc3c6f810b1e170bbeca98bab234068de6c5233a2d332cd376cec",
+      "distribution_apk": "MapControl.apk",
+      "signature_matches_previous": true,
+      "artifacts": "output/widget-selected-mode"
+    },
+    "coverage": [
+      "real MainActivity card clicks: ECO, NORMAL, SPORT, SNOW, MUD, OFFROAD, SAND",
+      "existing command count and values preserved for every card click",
+      "explicit clear displays dash and sends no additional command",
+      "missing and stale live readings cannot erase the app selection",
+      "persisted selection restored on activity reopen",
+      "preference listener updates all widgets, including a newly attached sink",
+      "raw mode reading tests remain isolated to the absence of a saved selection"
     ]
   }
 }

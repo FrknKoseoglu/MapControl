@@ -260,4 +260,5 @@ Monitor — Foreground apps on display 2</string>
     <string name="welcome_sound_section_title">Welcome sound</string>
     <string name="welcome_sound_import_help">How do I add a sound?</string>
     <string name="welcome_custom_text_optional_label">Welcome line (optional)</string>
+    <string name="header_selected_mode_description">Selected mode: %1$s</string>
 </resources>

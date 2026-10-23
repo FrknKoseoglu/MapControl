@@ -1459,6 +1459,9 @@ public final class LauncherDashboardBuilder implements
     @Override public void setDriveMode(boolean connected, int mode) {
         if (statusWidgets != null) statusWidgets.setDriveMode(connected, mode);
     }
+    @Override public void setSelectedDriveMode(int mode) {
+        if (statusWidgets != null) statusWidgets.setSelectedDriveMode(mode);
+    }
     @Override public void setServerRunning(boolean running) {
         if (statusWidgets != null) statusWidgets.setServerRunning(running);
     }

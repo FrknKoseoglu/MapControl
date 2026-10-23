@@ -261,5 +261,6 @@
     <string name="welcome_sound_section_title">Karşılama sesi</string>
     <string name="welcome_sound_import_help">Nasıl ses eklerim?</string>
     <string name="welcome_custom_text_optional_label">Karşılama yazısı (isteğe bağlı)</string>
+    <string name="header_selected_mode_description">Seçili mod: %1$s</string>
 </resources>
 

@@ -250,7 +250,7 @@ public class SharedHeaderTest {
         });
     }
 
-    @Test public void statusMonitorDoesNotSubstituteSavedPreferenceForMissingLiveMode() {
+    @Test public void statusMonitorDisplaysAppSelectionWithoutClaimingVehicleConnectivity() {
         InstrumentationRegistry.getInstrumentation().runOnMainSync(() -> {
             Context context = context("tr");
             android.content.SharedPreferences prefs = context.getSharedPreferences("MapControlPrefs", Context.MODE_PRIVATE);
@@ -272,9 +272,9 @@ public class SharedHeaderTest {
                 int liveMode = Integer.MIN_VALUE;
                 assertFalse(DriveModeStyle.isThemed(liveMode));
                 monitor.addSink(sink);
-                assertEquals(liveMode, lastMode.get());
+                assertEquals(DriveModeStyle.SPORT, lastMode.get());
                 monitor.refresh();
-                assertEquals(liveMode, lastMode.get());
+                assertEquals(DriveModeStyle.SPORT, lastMode.get());
                 assertEquals(2, updates.get());
                 assertEquals(DriveModeStyle.SPORT, prefs.getInt("driveModeSetting", -1));
             } finally {

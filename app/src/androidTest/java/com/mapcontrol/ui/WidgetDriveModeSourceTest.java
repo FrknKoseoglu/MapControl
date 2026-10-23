@@ -29,6 +29,8 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
 import org.junit.Test;
+import org.junit.Before;
+import org.junit.After;
 import org.junit.runner.RunWith;
 import static org.junit.Assert.*;
 
@@ -37,6 +39,19 @@ public class WidgetDriveModeSourceTest {
     private final Instrumentation instrumentation = InstrumentationRegistry.getInstrumentation();
     private Context context() {
         return new ContextThemeWrapper(instrumentation.getTargetContext(), R.style.Theme_MapControl);
+    }
+    private android.content.SharedPreferences preferences;
+    private boolean hadSelection;
+    private int savedSelection;
+    @Before public void isolateSelection() {
+        preferences = context().getSharedPreferences("MapControlPrefs", Context.MODE_PRIVATE);
+        hadSelection = preferences.contains("driveModeSetting");
+        savedSelection = preferences.getInt("driveModeSetting", -1);
+        preferences.edit().remove("driveModeSetting").commit();
+    }
+    @After public void restoreSelection() {
+        if (hadSelection) preferences.edit().putInt("driveModeSetting", savedSelection).commit();
+        else preferences.edit().remove("driveModeSetting").commit();
     }
     private static VDEvent reply(int mode) {
         Bundle data = new Bundle();

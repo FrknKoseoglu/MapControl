@@ -126,6 +126,7 @@ public class TopBarBuilder implements HeaderStatusSink {
     public StatusWidgetsView getStatusWidgets() { return statusWidgets; }
     @Override public void setWifiState(WifiState state) { statusWidgets.setWifiState(state); }
     @Override public void setDriveMode(boolean connected, int mode) { statusWidgets.setDriveMode(connected, mode); }
+    @Override public void setSelectedDriveMode(int mode) { statusWidgets.setSelectedDriveMode(mode); }
     @Override public void setServerRunning(boolean running) { statusWidgets.setServerRunning(running); }
     @Override public void setProjectionActive(boolean active) { statusWidgets.setProjectionActive(active); }
     @Override public void setSoundBoost(boolean active, int gainMb) { statusWidgets.setSoundBoost(active, gainMb); }

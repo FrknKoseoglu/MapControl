@@ -2,7 +2,7 @@
 
 APK: `MapControl-test-fk-1.2.4.apk` · Uygulama adı: **MapControl test-fk** · Paket: `com.mapcontrol.testfk`.
 
-Bu paket **versionCode 3**: Super Mod gizleme düzeltmesi içerir; önceki test-fk ile aynı imzayı kullanır. Gizleme için MapControl erişilebilirlik hizmeti açık olmalı. Yalnız tanınan Sport penceresinin kendi geri düğmesine basılır; araç moduna yazılmaz. İlk karenin hiç görünmemesi garanti edilmez. Fiziksel araç kabul testi beklenir.
+Bu paket **versionCode 4** (tanı sürümü): Super Mod gizleme düzeltmesi içerir; önceki test-fk ile aynı imzayı kullanır. Gizleme için MapControl erişilebilirlik hizmeti açık olmalı. Yalnız tanınan Sport penceresinin kendi geri düğmesine basılır; araç moduna yazılmaz. İlk karenin hiç görünmemesi garanti edilmez. Önceki versionCode 3 araçta çalışmadı; versionCode 4 için araç doğrulaması beklenir. Super Mod kartına uzun basıp **Kaydı kopyala** ile telefon üzerinden tanı kaydı paylaşılabilir. Bu sürüm araçtaki kök nedenin kesin giderildiği anlamına gelmez.
 
 ## Kurulum
 
@@ -50,7 +50,7 @@ Cihazda mevcut bir device owner varsa korunur. Varsayılan kurulum yeni owner at
 Bu APK'nın SHA-256 özeti:
 
 ```text
-3025421fe17c8e16baba1c729f64996fc193ac3370e2a1be67fc43ee76e49c68
+0daa6ebcede29565d714c5d63fccf8f0d8ff9d574cddd2837b8a4eb924998662
 ```
 
 Yeni APK üretildiğinde kurulum betiğindeki dosya adı ve SHA-256 özeti de birlikte güncellenmelidir. Dosya değişmişse betik durur.

@@ -1,5 +1,7 @@
 # Super Mod animasyon gizleme düzeltmesi — 23 Ekim 2026
 
+> **Araç kabul sonucu:** Kullanıcı versionCode 3 için çalışmadığını, seçenek ve erişilebilirliğin açık olduğunu bildirdi. Fiziksel neden doğrulanamadı. VersionCode 4 yalnız kendi hizmetini doğrulayan izin kontrolü ve telefonla paylaşılabilir tanı kaydı içerir; pencere/mod kapatma koşulları aynı kaldı. Güncel takip: [araç tanı notu](super-mode-vehicle-diagnostics.md).
+
 ## Değişen davranış
 
 Önceki uygulama `MapControlService` içinde 500 ms arayla mod okuyor, sonradan gözlediği Sport geçişinden sonra tek genel OEM kapatma broadcast'i gönderiyordu. Seçenek zaten Sport modundayken açıldığında işlem yapmıyor; pencerenin oluşumu veya kapanışı doğrulanmıyordu. Aynı paketin başka diyalogları da bu eylemi dinliyordu.

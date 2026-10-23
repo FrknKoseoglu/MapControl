@@ -898,5 +898,36 @@
       "physical_vehicle_installed": false
     },
     "details": "super-mode-fix.md"
+  },
+  "super_mode_vehicle_failure_followup": {
+    "date": "2026-10-23",
+    "base_commit": "51a04eb",
+    "vehicle_result_of_vc3": "user reports not working; option and accessibility enabled",
+    "vehicle_available_now": false,
+    "root_cause_confirmed": false,
+    "confirmed_code_issue": "Super Mode permission check accepted other MapControl variants; now exact own component",
+    "actuation_guards_changed": false,
+    "diagnostics": "Dedicated bounded preference store, no screen text; long press Super Mode card and copy",
+    "apk": {
+      "package": "com.mapcontrol.testfk",
+      "version_name": "1.2.4",
+      "version_code": 4,
+      "sha256": "0daa6ebcede29565d714c5d63fccf8f0d8ff9d574cddd2837b8a4eb924998662",
+      "signer_sha256": "85e5e313c2800d2b9f421df8db25c89f50271a9ea2354dea4875337e1dc78ede",
+      "same_signer_as_previous_testfk": true,
+      "scope": "Exact-own-service permission check and bounded diagnostic report; window/mode close guards unchanged",
+      "vehicle_failure_of_vc3_confirmed_by_user": true,
+      "physical_root_cause_confirmed": false,
+      "vehicle_test_of_vc4": false,
+      "diagnostics_storage": "SuperModeDiagnostics (separate from functional preferences)"
+    },
+    "details": "super-mode-vehicle-diagnostics.md",
+    "validation": {
+      "android_tests_passed": 49,
+      "jvm_tests_passed": 14,
+      "mint_installer_tests_passed": 8,
+      "protected_files_unchanged_vs_51a04eb": 27,
+      "physical_vehicle_tested": false
+    }
   }
 }

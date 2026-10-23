@@ -702,4 +702,7 @@
     <string name="climate_auto_other_section">Glass &amp; Steering</string>
     <string name="climate_auto_conflict_rejected">Conflict Prevention: Heating and ventilation cannot be active at the same time! Change reverted.</string>
     <string name="assist_super_mode_accessibility">Enable the MapControl accessibility service to hide this animation.</string>
+    <string name="super_mode_diagnostics_title">Super Mode diagnostics</string>
+    <string name="super_mode_diagnostics_copy">Copy report</string>
+    <string name="super_mode_diagnostics_empty">No records yet. Enable the option, try Super Mode, then open this report again.</string>
 </resources>

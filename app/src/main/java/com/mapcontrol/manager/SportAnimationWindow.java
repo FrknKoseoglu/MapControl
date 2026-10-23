@@ -4,6 +4,7 @@ import android.accessibilityservice.AccessibilityService;
 import android.view.accessibility.AccessibilityNodeInfo;
 import android.view.accessibility.AccessibilityWindowInfo;
 import java.util.List;
+import java.util.function.Consumer;
 
 /** Matches the archived OEM dialog's three resource IDs; never sends global BACK or broadcasts. */
 final class SportAnimationWindow {
@@ -26,35 +27,76 @@ final class SportAnimationWindow {
         void recycle();
     }
 
-    static SportAnimationController.Dialog find(AccessibilityService service) {
-        return findInWindows(service.getWindows());
+    static SportAnimationController.Dialog find(AccessibilityService service, Consumer<String> diagnostic) {
+        return findInWindows(service.getWindows(),diagnostic);
     }
 
     static SportAnimationController.Dialog findInWindows(List<AccessibilityWindowInfo> windows) {
-        if (windows == null) return null;
+        return findInWindows(windows,null);
+    }
+
+    private static SportAnimationController.Dialog findInWindows(List<AccessibilityWindowInfo> windows, Consumer<String> diagnostic) {
+        if (windows == null) {
+            if(diagnostic!=null) diagnostic.accept("getWindows=null");
+            return null;
+        }
+        Probe probe=new Probe();
+        probe.windows=windows.size();
         try {
             for (AccessibilityWindowInfo window : windows) {
                 // Include focused TYPE_SYSTEM windows: OEM DriveModeDialog uses type 2008.
+                if(window!=null && probe.types.length()<160) probe.types.append(window.getId()).append(":").append(window.getType())
+                        .append(window.isFocused()?"F":"-").append(window.isActive()?"A":"-").append(" ");
                 if (window == null || !window.isFocused()) continue;
+                probe.focused++;
                 AccessibilityNodeInfo root = window.getRoot();
-                if (root == null) continue;
+                if (root == null) { probe.nullRoots++; continue; }
+                if(probe.packages.length()<160) probe.packages.append(root.getPackageName()).append(" ");
                 Node node = new AndroidNode(root);
                 try {
-                    Node back = findBack(node, new int[]{256}, 0);
-                    if (back != null) return new SportAnimationController.Dialog() {
+                    Node back = findBack(node, new int[]{256}, 0, probe);
+                    if (back != null) { probe.matched=true; return new SportAnimationController.Dialog() {
                         public int windowId() { return back.windowId(); }
                         public boolean close() { return back.click(); }
                         public void recycle() { back.recycle(); }
-                    };
+                    }; }
                 } finally { node.recycle(); }
             }
             return null;
         } finally {
+            if(diagnostic!=null) diagnostic.accept(probe.toString());
             for (AccessibilityWindowInfo window : windows) if (window != null) window.recycle();
         }
     }
 
-    static Node findBack(Node root, int[] remaining, int depth) {
+    private static final class Probe {
+        int windows,focused,nullRoots,visited,back,video,items;
+        boolean matched;
+        String backState="not-found";
+        final java.util.Set<String> names=new java.util.LinkedHashSet<>();
+        final StringBuilder types=new StringBuilder(),packages=new StringBuilder();
+        public String toString(){return "windows="+windows+",focused="+focused+",nullRoots="+nullRoots
+                +",nodes="+visited+",ids="+back+"/"+video+"/"+items+",back="+backState+",match="+matched
+                +",packages="+packages+",seenIds="+names+",types="+types;}
+    }
+
+    static Node findBack(Node root, int[] remaining, int depth) { return findBack(root,remaining,depth,null); }
+
+    private static Node findBack(Node root, int[] remaining, int depth, Probe probe) {
+        if(probe!=null && root!=null) {
+            probe.visited++;
+            String id=root.resourceId();
+            if(id!=null && id.startsWith(PACKAGE+":id/") && probe.names.size()<12) {
+                String name=id.substring((PACKAGE+":id/").length());
+                probe.names.add(name.length()>24?name.substring(0,24):name);
+            }
+            if(BACK.equals(id)) {
+                probe.back++;
+                probe.backState="visible="+root.visible()+"/enabled="+root.enabled()+"/clickable="+root.clickable();
+            }
+            if(VIDEO.equals(root.resourceId()))probe.video++;
+            if(ITEMS.equals(root.resourceId()))probe.items++;
+        }
         if (root == null || depth > 24 || remaining[0]-- <= 0
                 || !PACKAGE.equals(root.packageName())) return null;
         if (BACK.equals(root.resourceId()) && root.visible() && root.enabled() && root.clickable()) {
@@ -82,7 +124,7 @@ final class SportAnimationWindow {
             Node child = root.child(i);
             if (child == null) continue;
             try {
-                Node back = findBack(child, remaining, depth + 1);
+                Node back = findBack(child, remaining, depth + 1, probe);
                 if (back != null) return back;
             } finally { child.recycle(); }
         }

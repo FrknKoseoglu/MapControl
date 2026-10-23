@@ -54,7 +54,6 @@ public class SportAnimationRealWindowTest {
             int token=(int)SystemClock.uptimeMillis();
             context.startActivity(new Intent().setClassName("com.desaysv.vehiclesetting","com.desaysv.vehiclesetting.FixtureActivity")
                     .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK|Intent.FLAG_ACTIVITY_CLEAR_TASK).putExtra("mode",mode).putExtra("token",token));
-            automation.waitForIdle(200,3000);
             long end=SystemClock.uptimeMillis()+5000;
             boolean found=false;
             while(SystemClock.uptimeMillis()<end){
@@ -74,9 +73,24 @@ public class SportAnimationRealWindowTest {
             assertEquals("Window close must preserve fixture drive mode",mode,value("mode"));
         } finally {
             main(() -> {controller.release();prefs.edit().clear().commit();});
-            context.startActivity(new Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_HOME).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
-            automation.waitForIdle(200,3000);
-            automation.setServiceInfo(original);
+            try {
+                context.startActivity(new Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_HOME).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
+                long cleanupEnd=SystemClock.uptimeMillis()+3000;
+                boolean backgrounded=false;
+                while(!backgrounded && SystemClock.uptimeMillis()<cleanupEnd){
+                    java.util.List<android.view.accessibility.AccessibilityWindowInfo> windows=automation.getWindows();
+                    for(android.view.accessibility.AccessibilityWindowInfo window:windows){
+                        try {
+                            if(!window.isFocused())continue;
+                            android.view.accessibility.AccessibilityNodeInfo root=window.getRoot();
+                            if(root!=null)try{backgrounded=!"com.desaysv.vehiclesetting".contentEquals(root.getPackageName());}
+                            finally{root.recycle();}
+                        }finally{window.recycle();}
+                    }
+                    if(!backgrounded)SystemClock.sleep(25);
+                }
+                assertTrue("Fixture must leave the focused foreground before the next scenario",backgrounded);
+            } finally { automation.setServiceInfo(original); }
         }
     }
     @Test public void realSportWindowBackClickClosesOnlyDialogAndPreservesMode() throws Exception {scenario(2);}

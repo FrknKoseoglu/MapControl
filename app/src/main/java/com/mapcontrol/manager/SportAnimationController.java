@@ -2,12 +2,14 @@ package com.mapcontrol.manager;
 
 import android.accessibilityservice.AccessibilityService;
 import android.content.Context;
+import android.content.ComponentName;
+import android.provider.Settings;
+import com.mapcontrol.service.GlobalBackService;
 import android.content.SharedPreferences;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
 import android.os.SystemClock;
-import android.util.Log;
 import android.view.accessibility.AccessibilityEvent;
 import com.desaysv.ivi.extra.project.carinfo.NewEnergyID;
 import com.desaysv.ivi.extra.project.carinfo.proxy.Constants;
@@ -25,7 +27,6 @@ import java.util.function.LongSupplier;
 public final class SportAnimationController {
     public static final String PREF_ENABLED = "hideSportAnimation";
     public static final String OEM_PACKAGE = SportAnimationWindow.PACKAGE;
-    private static final String TAG = "SportAnimation";
     private static final long RETRY_MS = 200;
     private static final long BURST_MS = 2000;
     private static final int MAX_CLICK_ATTEMPTS = 3;
@@ -56,18 +57,27 @@ public final class SportAnimationController {
             generation++;
             lastWindow = -1; attempts = 0;
             main.removeCallbacks(scan);
+            diagnostic("Seçenek değişti; gizleme="+enabled());
             if (enabled()) requestScan();
         });
     };
 
     public SportAnimationController(AccessibilityService service) {
-        this(service, () -> SportAnimationWindow.find(service), () -> readMode(request -> {
+        this(service, () -> SportAnimationWindow.find(service,
+                message -> SportAnimationDiagnostics.note(service,"PENCERE",message)), () -> readMode(request -> {
             VDBus bus = VDBus.getDefault();
             bus.init(service.getApplicationContext());
             // Do not gate a valid reply on CarInfoProxy's separately maintained connection flag.
             return bus.getOnce(request);
-        }), Executors.newSingleThreadExecutor(), SystemClock::uptimeMillis,
-                message -> Log.i(TAG, message), true);
+        }, message -> SportAnimationDiagnostics.note(service,"MOD",message)),
+                Executors.newSingleThreadExecutor(), SystemClock::uptimeMillis,
+                message -> SportAnimationDiagnostics.note(service,
+                        message.startsWith("Pencere olayı:")?"OLAY":"AKIS",message), true);
+        android.accessibilityservice.AccessibilityServiceInfo info=service.getServiceInfo();
+        SportAnimationDiagnostics.begin(service,"Paket="+service.getPackageName()+", build="
+                +com.mapcontrol.BuildConfig.VERSION_CODE+", flags="+(info==null?"null":Integer.toHexString(info.flags))
+                +", capabilities="+(info==null?"null":Integer.toHexString(info.getCapabilities())));
+
     }
 
     SportAnimationController(Context context, Windows windows, ModeSource source, Executor worker,
@@ -78,10 +88,29 @@ public final class SportAnimationController {
         this.ownedWorker = ownsWorker ? (ExecutorService) worker : null;
     }
 
+    /** Super Mode must check THIS application, not another installed MapControl variant. */
+    public static boolean isAccessibilityRegistered(Context context) {
+        try {
+            if(Settings.Secure.getInt(context.getContentResolver(),Settings.Secure.ACCESSIBILITY_ENABLED,0)!=1) return false;
+            return matchesOwnAccessibilityService(context.getPackageName(),
+                    Settings.Secure.getString(context.getContentResolver(),Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES));
+        } catch(RuntimeException unavailable) { return false; }
+    }
+
+    static boolean matchesOwnAccessibilityService(String packageName, String enabled) {
+        if(packageName==null || enabled==null) return false;
+        ComponentName own=new ComponentName(packageName,GlobalBackService.class.getName());
+        for(String value:enabled.split(":")) {
+            if(own.equals(ComponentName.unflattenFromString(value.trim()))) return true;
+        }
+        return false;
+    }
+
     public void start() {
         if (started || released) return;
         started = true;
         prefs.registerOnSharedPreferenceChangeListener(listener);
+        diagnostic("Hizmet hazır; gizleme="+enabled());
         if (enabled()) requestScan();
     }
 
@@ -94,6 +123,7 @@ public final class SportAnimationController {
         CharSequence pkg = event.getPackageName();
         if (type != AccessibilityEvent.TYPE_WINDOWS_CHANGED
                 && (pkg == null || !OEM_PACKAGE.contentEquals(pkg))) return;
+        diagnostic("Pencere olayı: type="+type+", paket="+pkg);
         requestScan();
     }
 
@@ -114,7 +144,11 @@ public final class SportAnimationController {
     }
 
     private void scan() {
-        if (!enabled() || inFlight || clock.getAsLong() > deadline) return;
+        if (!enabled() || inFlight) return;
+        if (clock.getAsLong() > deadline) {
+            diagnostic("Pencere taraması zaman sınırına ulaştı");
+            return;
+        }
         try {
             Dialog dialog = windows.find();
             if (dialog == null) { retry(); return; }
@@ -172,11 +206,25 @@ public final class SportAnimationController {
         }
     }
 
-    static int readMode(Transport transport) {
+    static int readMode(Transport transport) { return readMode(transport,null); }
+
+    static int readMode(Transport transport, Consumer<String> diagnostic) {
         Bundle query = new Bundle();
         query.putInt(Constants.CMD_ID, NewEnergyID.ID_DRIVE_MODE);
-        VDEvent reply = transport.read(new VDEvent(VDEventCarInfo.MODULE_NEW_ENERGY, query));
+        VDEvent reply;
+        try { reply = transport.read(new VDEvent(VDEventCarInfo.MODULE_NEW_ENERGY, query)); }
+        catch (RuntimeException unavailable) {
+            if (diagnostic != null) diagnostic.accept("Mod sorgusu hatası="+unavailable.getClass().getSimpleName());
+            throw unavailable;
+        }
         Bundle payload = reply != null ? reply.getPayload() : null;
+        if (diagnostic != null) {
+            int[] reported = payload == null ? null : payload.getIntArray(Constants.VALUE);
+            String values = reported == null ? "null"
+                    : java.util.Arrays.toString(java.util.Arrays.copyOf(reported,Math.min(reported.length,4)));
+            diagnostic.accept("Sorgu=0x50002/4; yanıt="+(reply==null?"null":reply.getId())
+                    +", cmd="+(payload==null?"null":payload.get(Constants.CMD_ID))+", values="+values);
+        }
         if (reply == null || reply.getId() != VDEventCarInfo.MODULE_NEW_ENERGY || payload == null) return -1;
         if (payload.containsKey(Constants.CMD_ID)
                 && (!(payload.get(Constants.CMD_ID) instanceof Integer)

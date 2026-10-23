@@ -723,4 +723,7 @@
     <string name="climate_auto_other_section">Cam &amp; Direksiyon</string>
     <string name="climate_auto_conflict_rejected">Çakışma Önleme: Isıtma ve havalandırma sıcaklık aralıkları çakışıyor! Birbirinden farklı eşikler belirleyin.</string>
     <string name="assist_super_mode_accessibility">Gizleme için MapControl erişilebilirlik hizmetini etkinleştirin.</string>
+    <string name="super_mode_diagnostics_title">Super Mod tanı kaydı</string>
+    <string name="super_mode_diagnostics_copy">Kaydı kopyala</string>
+    <string name="super_mode_diagnostics_empty">Henüz kayıt yok. Seçeneği açıp Super Mod’u denedikten sonra tekrar bakın.</string>
 </resources>

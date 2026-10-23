@@ -19,7 +19,7 @@ import com.desaysv.ivi.extra.project.carinfo.ReadOnlyID;
 import com.desaysv.ivi.extra.project.carinfo.proxy.CarInfoProxy;
 import com.desaysv.ivi.vdb.event.id.carinfo.VDEventCarInfo;
 import com.mapcontrol.manager.SportAnimationController;
-import com.mapcontrol.service.GlobalBackService;
+import com.mapcontrol.manager.SportAnimationDiagnostics;
 import com.mapcontrol.ui.theme.UiStyles;
 
 public class AssistTabBuilder {
@@ -148,6 +148,9 @@ public class AssistTabBuilder {
             card.setClickable(true);
             card.setFocusable(true);
             card.setTag(settingKey.equals(SportAnimationController.PREF_ENABLED) ? "sport_animation_setting" : ("assist_card_" + settingKey));
+            if (settingKey.equals(SportAnimationController.PREF_ENABLED)) {
+                card.setOnLongClickListener(v -> { SportAnimationDiagnostics.show(context); return true; });
+            }
             cardContainers[cardIndex] = card;
 
             final boolean[] isActiveRef = {savedValues[cardIndex] == activeValue};
@@ -232,7 +235,7 @@ public class AssistTabBuilder {
                     callback.log(logPrefix + ": " + (newActive ? "Gizleme Etkin" : "Animasyon Gösterilir"));
                     isActiveRef[0] = newActive;
                     updateCardUI(cardIndex, newActive, settingKey, cardContainers, iconViews, titleViews, statusViews, onChips, density);
-                    if (newActive && !GlobalBackService.isRegisteredInSystemAccessibilitySettings(context)) {
+                    if (newActive && !SportAnimationController.isAccessibilityRegistered(context)) {
                         android.widget.Toast.makeText(context, R.string.assist_super_mode_accessibility,
                                 android.widget.Toast.LENGTH_LONG).show();
                         try {

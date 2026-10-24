@@ -34,6 +34,7 @@ import java.io.IOException;
 import android.media.MediaPlayer;
 import android.net.Uri;
 import com.mapcontrol.api.ProfileApiService;
+import com.mapcontrol.nav.GoogleMapsNavNotificationCoordinator;
 import com.mapcontrol.audio.AudioEqualizerController;
 import com.mapcontrol.ui.activity.MainActivity;
 import com.mapcontrol.util.AppLaunchHelper;
@@ -63,7 +64,10 @@ public class MapControlService extends Service {
     public static final String ACTION_BENCH_OPEN_CLUSTER = "com.mapcontrol.action.BENCH_OPEN_CLUSTER";
     /** Bench: cluster kapat (servis içi yol). */
     public static final String ACTION_BENCH_CLOSE_CLUSTER = "com.mapcontrol.action.BENCH_CLOSE_CLUSTER";
-    /** Google Maps navigasyon bildirimi: hedef paket Maps ise cluster aç. */
+    /**
+     * Google Maps navigasyon bildirimi. Cluster yalnızca güç modu hazır (1)
+     * veya motor (2) iken açılır; kapalıyken VDBus çağrısı yapılmaz.
+     */
     public static final String ACTION_OPEN_CLUSTER_FROM_MAPS_NOTIFICATION =
             "com.mapcontrol.action.OPEN_CLUSTER_FROM_MAPS_NOTIFICATION";
     /**
@@ -236,8 +240,7 @@ public class MapControlService extends Service {
             return START_STICKY;
         }
         if (intent != null && ACTION_OPEN_CLUSTER_FROM_MAPS_NOTIFICATION.equals(intent.getAction())) {
-            log("[Maps] Navigasyon bildirimi — cluster açılıyor");
-            openClusterDisplay();
+            openClusterFromMapsNotificationIfVehicleReady();
             return START_STICKY;
         }
 
@@ -367,11 +370,13 @@ public class MapControlService extends Service {
 
                         int powerModeSetting = getPowerModeSetting();
 
+                        boolean openedByPowerSetting = false;
                         if (currentPowerMode == 2) {
                             // Motor çalışınca - ayara göre kontrol et
                             if (powerModeSetting == 2) {
                                 log("✅ Araç power aldı! PowerMode: " + currentPowerMode);
                                 openClusterDisplay();
+                                openedByPowerSetting = true;
                             } else {
                                 log("⚠️ Araç power aldı ama ayar farklı, açılmıyor. PowerMode: " + currentPowerMode);
                             }
@@ -413,6 +418,7 @@ public class MapControlService extends Service {
                             if (powerModeSetting == 1) {
                                 log("✅ Araç hazır durumda! PowerMode: " + currentPowerMode);
                                 openClusterDisplay();
+                                openedByPowerSetting = true;
                             } else {
                                 log("⚠️ Araç hazır durumda ama ayar farklı, açılmıyor. PowerMode: " + currentPowerMode);
                             }
@@ -448,6 +454,10 @@ public class MapControlService extends Service {
                             lastAppliedDriveMode = -1;
                         } else {
                             log("ℹ️ Araç power durumu: " + currentPowerMode);
+                        }
+                        if (!openedByPowerSetting
+                                && (currentPowerMode == 1 || currentPowerMode == 2)) {
+                            openClusterFromMapsNotificationIfVehicleReady();
                         }
                     }
                 }
@@ -1044,6 +1054,58 @@ public class MapControlService extends Service {
                     });
         }
         return clusterDisplayHelper;
+    }
+
+    /**
+     * Maps bildirimi yansıtmayı yalnızca Başlatma bölümündeki Hazır (1) veya
+     * motor (2) sinyali varken açar. Kapalı veya okunamayan güçte VDBus'a gitmez;
+     * sinyal sonradan gelince güç izleyicisi aynı kapıdan açar.
+     */
+    private void openClusterFromMapsNotificationIfVehicleReady() {
+        if (!mapsNotificationWantsCluster()) {
+            return;
+        }
+        int powerMode = readSystemPowerMode();
+        if (powerMode != 1 && powerMode != 2) {
+            log("[Maps] Bildirim duruyor; yansıtma bekliyor. PowerMode: " + powerMode);
+            return;
+        }
+        if (ClusterNavigationState.getLastKnownOpen()) {
+            return;
+        }
+        log("[Maps] Navigasyon bildirimi — cluster açılıyor (PowerMode: " + powerMode + ")");
+        openClusterDisplay();
+    }
+
+    private boolean mapsNotificationWantsCluster() {
+        try {
+            if (!GoogleMapsNavNotificationCoordinator.isAutoProjectionEnabled(this)) {
+                return false;
+            }
+            if (!AppLaunchHelper.GOOGLE_MAPS_PACKAGE.equals(TargetPackageStore.read(this))) {
+                return false;
+            }
+            return GoogleMapsNavNotificationCoordinator.getLastSnapshot().active;
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
+    /** 0 kapalı, 1 hazır, 2 motor. VDBus okunamazsa -1. */
+    private int readSystemPowerMode() {
+        try {
+            if (!CarInfoProxy.getInstance().isServiceConnnected()) {
+                return -1;
+            }
+            int[] pwrItems = CarInfoProxy.getInstance().getItemValues(
+                    VDEventCarInfo.MODULE_READONLY_INFO,
+                    ReadOnlyID.ID_SYSTEM_POWER_MODE);
+            if (pwrItems != null && pwrItems.length > 0) {
+                return pwrItems[0];
+            }
+        } catch (Exception ignored) {
+        }
+        return -1;
     }
 
     private void openClusterDisplay() {

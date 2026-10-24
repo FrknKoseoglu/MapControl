@@ -14,6 +14,7 @@ import androidx.appcompat.widget.AppCompatImageView;
 import androidx.core.content.ContextCompat;
 
 import com.mapcontrol.R;
+import com.mapcontrol.vehicle.InternalDmsSwitch;
 import com.desaysv.ivi.extra.project.carinfo.CarSettingID;
 import com.desaysv.ivi.extra.project.carinfo.ReadOnlyID;
 import com.desaysv.ivi.extra.project.carinfo.proxy.CarInfoProxy;
@@ -102,7 +103,8 @@ public class AssistTabBuilder {
                 {R.string.assist_card_ldp, R.drawable.ic_mdi_shield_car, 2, -1, "ldpSetting", "LDP"},
                 {R.string.assist_card_fcw, R.drawable.ic_mdi_car_brake_alert, 2, -1, "fcwSetting", "FCW"},
                 {R.string.assist_card_aeb, R.drawable.ic_mdi_car_brake_abs, 2, -1, "aebSetting", "AEB"},
-                {R.string.assist_card_cpd, R.drawable.ic_mdi_car_seat, 2, -1, "cpdSetting", "CPD"}
+                {R.string.assist_card_cpd, R.drawable.ic_mdi_car_seat, 2, -1, "cpdSetting", "CPD"},
+                {R.string.assist_card_dms, R.drawable.ic_mdi_camera, 2, -1, "dmsSetting", "DMS"}
         };
 
         int[] savedValues = {
@@ -112,7 +114,8 @@ public class AssistTabBuilder {
                 prefs.getInt("ldpSetting", -1),
                 prefs.getInt("fcwSetting", -1),
                 prefs.getInt("aebSetting", -1),
-                prefs.getInt("cpdSetting", -1)
+                prefs.getInt("cpdSetting", -1),
+                prefs.getInt("dmsSetting", -1)
         };
 
         final LinearLayout[] cardContainers = new LinearLayout[assistCards.length];
@@ -255,8 +258,17 @@ public class AssistTabBuilder {
         cpdDisclaimer.setText(R.string.assist_cpd_disclaimer);
         cpdDisclaimer.setTextSize(12);
         cpdDisclaimer.setTextColor(UiStyles.color(context, R.color.textSecondaryCool));
-        cpdDisclaimer.setPadding(16, 0, 16, 16);
+        cpdDisclaimer.setPadding(16, 0, 16, 8);
         container.addView(cpdDisclaimer, new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT));
+
+        TextView dmsDisclaimer = new TextView(context);
+        dmsDisclaimer.setText(R.string.assist_dms_disclaimer);
+        dmsDisclaimer.setTextSize(12);
+        dmsDisclaimer.setTextColor(UiStyles.color(context, R.color.textSecondaryCool));
+        dmsDisclaimer.setPadding(16, 0, 16, 16);
+        container.addView(dmsDisclaimer, new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT,
                 LinearLayout.LayoutParams.WRAP_CONTENT));
 
@@ -296,6 +308,7 @@ public class AssistTabBuilder {
             case "fcwSetting": return context.getString(R.string.assist_status_fcw);
             case "aebSetting": return context.getString(R.string.assist_status_aeb);
             case "cpdSetting": return context.getString(R.string.assist_status_cpd);
+            case "dmsSetting": return context.getString(R.string.assist_status_dms);
             default: return context.getString(R.string.assist_status_active);
         }
     }
@@ -332,6 +345,14 @@ public class AssistTabBuilder {
                             VDEventCarInfo.MODULE_CAR_SETTING,
                             CarSettingID.ID_CAR_CIR_ENA_STS,
                             disable ? 2 : 1);
+                } else if (settingKey.equals("dmsSetting")) {
+                    int camState = disable ? InternalDmsSwitch.CAM_OFF : InternalDmsSwitch.CAM_ON;
+                    boolean connected = InternalDmsSwitch.send(context, camState);
+                    callback.log((camState == InternalDmsSwitch.CAM_OFF
+                            ? "DMS kapatılıyor DmsCamState=1"
+                            : "DMS açılıyor DmsCamState=0")
+                            + (connected ? " kabin LAN bağlı" : " kabin LAN bağlı değil, kuyruğa alındı"));
+                    return;
                 }
                 callback.log("✅ " + logPrefix + " değeri araca gönderildi");
             }

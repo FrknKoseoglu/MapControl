@@ -37,6 +37,8 @@ import androidx.activity.result.ActivityResultLauncher;
 import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.content.ContextCompat;
+import androidx.core.view.WindowCompat;
+import androidx.core.view.WindowInsetsControllerCompat;
 import com.desaysv.ivi.vdb.client.bind.VDServiceDef;
 import com.desaysv.ivi.vdb.client.listener.VDBindListener;
 import com.desaysv.ivi.vdb.event.VDEvent;
@@ -87,6 +89,7 @@ import com.mapcontrol.ui.builder.LogTabBuilder;
 import com.mapcontrol.ui.builder.ProfileTabBuilder;
 import com.mapcontrol.ui.builder.ProjectionTabBuilder;
 import com.mapcontrol.ui.builder.SettingsTabBuilder;
+import com.mapcontrol.ui.builder.SplitScreenTabBuilder;
 import com.mapcontrol.ui.builder.SideRailBuilder;
 import com.mapcontrol.ui.builder.TopBarBuilder;
 import com.mapcontrol.ui.builder.VehicleInfoTabBuilder;
@@ -115,6 +118,7 @@ public class MainActivity extends AppCompatActivity {
     public static final int TAB_CLIMATE_AUTOMATION = 12;
     public static final int TAB_FACE_RECOGNITION = 13;
     public static final int TAB_CAMERA_360 = 14;
+    public static final int TAB_SPLIT_SCREEN = 15;
     private ScrollView climateAutomationScrollView;
     private ScrollView faceRecognitionScrollView;
     private ClimateAutomationTabBuilder climateAutomationTabBuilder;
@@ -172,6 +176,7 @@ public class MainActivity extends AppCompatActivity {
     private AssistTabBuilder assistTabBuilder;
     private LogTabBuilder logTabBuilder;
     private Camera360TabBuilder camera360TabBuilder;
+    private SplitScreenTabBuilder splitScreenTabBuilder;
     private android.view.View camera360TabContent;
     /** Bu görev, Android'in Ana Ekran (HOME) isteğiyle mi başlatıldı? */
     private boolean launchedAsHome;
@@ -788,6 +793,8 @@ public class MainActivity extends AppCompatActivity {
         camera360TabContent = camera360TabBuilder.getTabContent();
         camera360TabBuilder.setWideListener(this::setContentWide);
 
+        splitScreenTabBuilder = new SplitScreenTabBuilder(this, msg -> MainActivity.this.log(msg));
+
         climateAutomationTabBuilder = new ClimateAutomationTabBuilder(this, prefs,
                 msg -> MainActivity.this.log(msg));
         rebuildClimateAutomationTab();
@@ -902,11 +909,11 @@ public class MainActivity extends AppCompatActivity {
                 });
         launcherScrollView = launcherTabBuilder.build();
 
-        presentMainUi(mainRootContainer);
         lastOrientation = getResources().getConfiguration().orientation;
         lastNightModeUiBits = getResources().getConfiguration().uiMode
                 & Configuration.UI_MODE_NIGHT_MASK;
         UiStyles.setUiModeOverride(getResources().getConfiguration());
+        presentMainUi(mainRootContainer);
 
         if (LauncherModeManager.isHomeIntent(getIntent())) {
             LauncherModeManager.ensurePersistedFromHomeLaunch(this);
@@ -952,6 +959,20 @@ public class MainActivity extends AppCompatActivity {
         Drawable background = UiStyles.drawable(this, R.drawable.bg_root_gradient);
         if (background != null) {
             getWindow().setBackgroundDrawable(background);
+        }
+        // uiMode configChanges yüzünden Activity yeniden kurulmaz; tema XML'indeki
+        // status/navigation renkleri pencereye bir kez yapışır. Gündüz #E8ECF3 bu yüzden kalır.
+        int bar = UiStyles.color(this, R.color.backgroundColor);
+        getWindow().setStatusBarColor(bar);
+        getWindow().setNavigationBarColor(bar);
+        int night = UiStyles.uiModeContext(this).getResources().getConfiguration().uiMode
+                & Configuration.UI_MODE_NIGHT_MASK;
+        boolean lightBars = night != Configuration.UI_MODE_NIGHT_YES;
+        WindowInsetsControllerCompat controller =
+                WindowCompat.getInsetsController(getWindow(), getWindow().getDecorView());
+        if (controller != null) {
+            controller.setAppearanceLightStatusBars(lightBars);
+            controller.setAppearanceLightNavigationBars(lightBars);
         }
     }
 
@@ -1203,6 +1224,11 @@ public class MainActivity extends AppCompatActivity {
             }
         } else if (tabIndex == TAB_CAMERA_360) {
             addTabChild(parent, camera360TabContent, matchParent);
+        } else if (tabIndex == TAB_SPLIT_SCREEN) {
+            if (splitScreenTabBuilder != null) {
+                addTabChild(parent, splitScreenTabBuilder.getScrollView(), matchParent);
+                splitScreenTabBuilder.onTabVisible();
+            }
         } else if (tabIndex == TAB_LAUNCHER) {
             if (launcherScrollView != null) {
                 addTabChild(parent, launcherScrollView, matchParent);
@@ -1270,6 +1296,10 @@ public class MainActivity extends AppCompatActivity {
         } else if (tabIndex == TAB_CAMERA_360) {
             if (topBarTitle != null) {
                 topBarTitle.setText(R.string.camera360_title);
+            }
+        } else if (tabIndex == TAB_SPLIT_SCREEN) {
+            if (topBarTitle != null) {
+                topBarTitle.setText(R.string.side_rail_split_screen);
             }
         }
     }
@@ -1843,6 +1873,24 @@ public class MainActivity extends AppCompatActivity {
             if (listening) {
                 vehicleInfoTabBuilder.startListening();
             }
+        }
+        if (camera360TabBuilder != null) {
+            camera360TabContent = camera360TabBuilder.rebuildForUiMode();
+        }
+        if (splitScreenTabBuilder != null) {
+            splitScreenTabBuilder.rebuild();
+        }
+        if (dmsFaceRecognitionTabBuilder != null) {
+            if (faceRecognitionScrollView == null) {
+                faceRecognitionScrollView = new ScrollView(this);
+                faceRecognitionScrollView.setFillViewport(true);
+            } else {
+                faceRecognitionScrollView.removeAllViews();
+            }
+            faceRecognitionScrollView.addView(dmsFaceRecognitionTabBuilder.build(),
+                    new ScrollView.LayoutParams(
+                            ScrollView.LayoutParams.MATCH_PARENT,
+                            ScrollView.LayoutParams.WRAP_CONTENT));
         }
     }
 

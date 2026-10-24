@@ -245,6 +245,55 @@ public class Camera360TabBuilder {
         return root;
     }
 
+    /**
+     * Gece/gündüz değişince ağacı güncel paletle kurar. Kayıt sürer; açık mod korunur.
+     * Renkler build anında çözüldüğü için yeniden kurmadan butonlar eski temada kalır.
+     */
+    public View rebuildForUiMode() {
+        Mode keep = mode;
+        boolean active = tabActive;
+        boolean keepWide = clipViewer != null && clipViewer.isWide();
+        if (active) {
+            onTabHidden();
+        } else {
+            leaveCurrentMode();
+        }
+        if (recPulse != null) {
+            recPulse.cancel();
+            recPulse = null;
+        }
+        build();
+        showModeShell(keep);
+        if (active) {
+            onTabVisible();
+        }
+        if (keepWide && clipViewer != null) {
+            clipViewer.restoreWide(true);
+        }
+        return rootView;
+    }
+
+    private void showModeShell(Mode keep) {
+        mode = keep;
+        switch (keep) {
+            case PREVIEW:
+                showOnly(previewView);
+                break;
+            case RECORD:
+                showOnly(recordView);
+                break;
+            case AUTO:
+                showOnly(autoRoot);
+                break;
+            case VIEWER:
+                showOnly(viewerRoot);
+                break;
+            default:
+                showOnly(menuView);
+                break;
+        }
+    }
+
     /** Izleme ekrani sol menunun gizlenmesini (true) / geri gelmesini (false) ister. */
     public void setWideListener(java.util.function.Consumer<Boolean> listener) {
         wideListener = listener;
@@ -1704,7 +1753,6 @@ public class Camera360TabBuilder {
         public void onStateChanged() {
             syncRecordingUi();
             if (mode == Mode.AUTO) autoView.refresh();
-            if (mode == Mode.VIEWER) clipViewer.onStateChanged();
         }
     };
 

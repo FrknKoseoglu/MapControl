@@ -34,6 +34,7 @@ import java.io.IOException;
 import android.media.MediaPlayer;
 import android.net.Uri;
 import com.mapcontrol.api.ProfileApiService;
+import com.mapcontrol.vehicle.InternalDmsSwitch;
 import com.mapcontrol.nav.GoogleMapsNavNotificationCoordinator;
 import com.mapcontrol.audio.AudioEqualizerController;
 import com.mapcontrol.ui.activity.MainActivity;
@@ -45,6 +46,8 @@ import com.mapcontrol.ui.welcome.WelcomeScreenPresenter;
 import com.mapcontrol.util.DisplayHelper;
 import com.mapcontrol.util.ClusterNavigationState;
 import com.mapcontrol.util.TargetPackageStore;
+import com.mapcontrol.util.SplitScreenStore;
+import com.mapcontrol.manager.SplitScreenGestureController;
 import com.mapcontrol.manager.CarSystemGestureController;
 import com.mapcontrol.manager.ClusterDisplayManager;
 import com.mapcontrol.manager.FloatingBackButtonManager;
@@ -89,6 +92,8 @@ public class MapControlService extends Service {
     private long nextUiLaunchAt;
     private CarSystemGestureController carSystemGestureController;
     private SharedPreferences.OnSharedPreferenceChangeListener gesturePrefListener;
+    private SplitScreenGestureController splitScreenGestureController;
+    private SharedPreferences.OnSharedPreferenceChangeListener splitGesturePrefListener;
     
     /**
      * Log mesajını MainActivity'ye gönder (sistem kayıtlarına)
@@ -150,6 +155,15 @@ public class MapControlService extends Service {
         };
         TargetPackageStore.prefs(this).registerOnSharedPreferenceChangeListener(gesturePrefListener);
         carSystemGestureController.syncRegistration();
+
+        splitScreenGestureController = new SplitScreenGestureController(this);
+        splitGesturePrefListener = (sharedPreferences, key) -> {
+            if (splitScreenGestureController != null) {
+                splitScreenGestureController.syncRegistration();
+            }
+        };
+        SplitScreenStore.prefs(this).registerOnSharedPreferenceChangeListener(splitGesturePrefListener);
+        splitScreenGestureController.syncRegistration();
     }
 
     /**
@@ -287,6 +301,14 @@ public class MapControlService extends Service {
             carSystemGestureController.release();
             carSystemGestureController = null;
         }
+        if (splitGesturePrefListener != null) {
+            SplitScreenStore.prefs(this).unregisterOnSharedPreferenceChangeListener(splitGesturePrefListener);
+            splitGesturePrefListener = null;
+        }
+        if (splitScreenGestureController != null) {
+            splitScreenGestureController.release();
+            splitScreenGestureController = null;
+        }
         AudioEqualizerController.release();
         ClimateAutomationEngine.getInstance(this).stop();
         DmsFaceRecognitionManager.stop(this);
@@ -403,6 +425,9 @@ public class MapControlService extends Service {
                                                         applySpdLimitIfNeeded();
                                                         handler.postDelayed(() -> {
                                                             applyCpdIfNeeded();
+                                                            handler.postDelayed(() -> {
+                                                                applyDmsIfNeeded();
+                                                            }, 100);
                                                         }, 100);
                                                     }, 100);
                                                 }, 100);
@@ -971,6 +996,50 @@ public class MapControlService extends Service {
 
         } catch (Exception e) {
             log("❌ applyCpdInternal hatası: " + e.getMessage());
+            e.printStackTrace();
+        }
+    }
+
+    /**
+     * Powermode 2 olunca kayıtlı DMS alarmını otomatik uygula.
+     * Kabin LAN MsgID 8001, DmsCamState 1 = kapalı. Tercih değeri CPD ile aynı: 2 = kapatma seçili.
+     */
+    private void applyDmsIfNeeded() {
+        try {
+            SharedPreferences prefs = getSharedPreferences("MapControlPrefs", MODE_PRIVATE);
+            int dmsSetting = prefs.getInt("dmsSetting", -1);
+
+            if (dmsSetting != 2) {
+                log("ℹ️ DMS için geçerli bir kapatma modu seçilmemiş (değer=" + dmsSetting + "), otomatik ayarlama yapılmıyor");
+                return;
+            }
+
+            if (!CarInfoProxy.getInstance().isServiceConnnected()) {
+                log("🔌 CarInfoProxy bağlı değil, DMS ayarlanamıyor");
+                return;
+            }
+
+            log("🔄 DMS uygulanıyor: Kapalı (DmsCamState=1)");
+            applyDmsInternal(InternalDmsSwitch.CAM_OFF);
+
+        } catch (Exception e) {
+            log("❌ applyDmsIfNeeded hatası: " + e.getMessage());
+            e.printStackTrace();
+        }
+    }
+
+    private void applyDmsInternal(int camState) {
+        try {
+            boolean connected = InternalDmsSwitch.send(this, camState);
+            log("   Kabin LAN bağlı: " + connected);
+
+            log("✅ DMS gönderildi!");
+            log("   Kanal: CABIN_LAN_MSG_COMMON");
+            log("   MsgID: 8001");
+            log("   DmsCamState: " + camState + " (" + (camState == InternalDmsSwitch.CAM_ON ? "Açık" : "Kapalı") + ")");
+
+        } catch (Exception e) {
+            log("❌ applyDmsInternal hatası: " + e.getMessage());
             e.printStackTrace();
         }
     }

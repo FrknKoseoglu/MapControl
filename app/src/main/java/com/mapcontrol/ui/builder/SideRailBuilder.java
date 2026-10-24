@@ -44,6 +44,7 @@ public class SideRailBuilder {
     private static final int TAB_EQUALIZER = 11;
     private static final int TAB_CLIMATE_AUTOMATION = 12;
     private static final int TAB_FACE_RECOGNITION = 13;
+    private static final int TAB_CAMERA_360 = 14;
 
     private final Context context;
     private final SharedPreferences prefs;
@@ -56,6 +57,7 @@ public class SideRailBuilder {
     private LinearLayout menuProjection;
     private LinearLayout menuDriveMode;
     private LinearLayout menuTest;
+    private LinearLayout menuCamera360;
     private LinearLayout menuWelcomeSound;
     private LinearLayout menuEqualizer;
     private LinearLayout menuClimateAutomation;
@@ -66,6 +68,7 @@ public class SideRailBuilder {
     private TextView appTitleText;
     private LinearLayout selectedMenuRow;
     private boolean launcherModeActive;
+    private boolean contentWide;
 
     public SideRailBuilder(Context context, SharedPreferences prefs, SideRailCallback callback) {
         this.context = context;
@@ -145,6 +148,7 @@ public class SideRailBuilder {
         menuFaceRecognition = createRailMenuItemView(R.drawable.ic_mdi_account,
                 t(R.string.side_rail_face_recognition));
         menuTest = createRailMenuItemView(R.drawable.ic_mdi_camera, t(R.string.side_rail_camera));
+        menuCamera360 = createRailMenuItemView(R.drawable.ic_mdi_camera, t(R.string.camera360_title));
         menuProjection = createRailMenuItemView(R.drawable.ic_mdi_map, t(R.string.side_rail_projection));
         menuVehicleInfo = createRailMenuItemView(R.drawable.ic_mdi_speedometer,
                 t(R.string.side_rail_vehicle_info));
@@ -161,6 +165,7 @@ public class SideRailBuilder {
         menuContainer.addView(menuFaceRecognition);
         menuTest.setVisibility(View.GONE);
         menuContainer.addView(menuTest);
+        menuContainer.addView(menuCamera360);
         menuContainer.addView(menuProjection);
         menuContainer.addView(menuVehicleInfo);
         menuContainer.addView(menuSettings);
@@ -210,6 +215,7 @@ public class SideRailBuilder {
         menuFaceRecognition = createPortraitRailItem(R.drawable.ic_mdi_account,
                 t(R.string.side_rail_face_recognition));
         menuTest = createPortraitRailItem(R.drawable.ic_mdi_camera, t(R.string.side_rail_camera));
+        menuCamera360 = createPortraitRailItem(R.drawable.ic_mdi_camera, t(R.string.camera360_title));
         menuProjection = createPortraitRailItem(R.drawable.ic_mdi_map, t(R.string.side_rail_projection));
         menuVehicleInfo = createPortraitRailItem(R.drawable.ic_mdi_speedometer,
                 t(R.string.side_rail_vehicle_info));
@@ -225,6 +231,7 @@ public class SideRailBuilder {
         menuContainer.addView(menuFaceRecognition);
         menuTest.setVisibility(View.GONE);
         menuContainer.addView(menuTest);
+        menuContainer.addView(menuCamera360);
         menuContainer.addView(menuProjection);
         menuContainer.addView(menuVehicleInfo);
         menuContainer.addView(menuSettings);
@@ -305,6 +312,11 @@ public class SideRailBuilder {
                     callback.onTabSelected(TAB_FACE_RECOGNITION, t(R.string.dms_recognition_title));
                     updateMenuSelection(menuFaceRecognition);
                 }));
+
+        menuCamera360.setOnClickListener(v -> {
+            callback.onTabSelected(TAB_CAMERA_360, t(R.string.camera360_title));
+            updateMenuSelection(menuCamera360);
+        });
     }
 
     /**
@@ -312,8 +324,22 @@ public class SideRailBuilder {
      */
     public void setLauncherModeActive(boolean active) {
         launcherModeActive = active;
+        applyRailVisibility();
+    }
+
+    /** Icerik tam genislik istedi (or. Kamera 360 izleme ekrani); launcher modundan bagimsiz. */
+    public void setContentWide(boolean wide) {
+        contentWide = wide;
+        applyRailVisibility();
+    }
+
+    public boolean isRailHidden() {
+        return launcherModeActive || contentWide;
+    }
+
+    private void applyRailVisibility() {
         if (sideRail != null) {
-            sideRail.setVisibility(active ? View.GONE : View.VISIBLE);
+            sideRail.setVisibility(isRailHidden() ? View.GONE : View.VISIBLE);
         }
     }
 
@@ -558,7 +584,7 @@ public class SideRailBuilder {
     private LinearLayout[] menuRows() {
         return new LinearLayout[]{
                 menuWifi, menuFileUpload, menuProfile, menuProjection, menuVehicleInfo,
-                menuSettings, menuApps, menuDriveMode, menuTest, menuWelcomeSound, menuEqualizer, menuClimateAutomation, menuFaceRecognition
+                menuSettings, menuApps, menuDriveMode, menuTest, menuWelcomeSound, menuEqualizer, menuClimateAutomation, menuFaceRecognition, menuCamera360
         };
     }
 

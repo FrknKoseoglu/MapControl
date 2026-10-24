@@ -110,6 +110,7 @@ public class MapControlService extends Service {
         scheduleEqualizerKeeper();
 
         // Power mode kontrolünü başlat
+        com.mapcontrol.dvr.DvrController.get(this).start();
         startPowerModeMonitor();
         ClimateAutomationEngine.getInstance(this).start();
         if (DmsFaceRecognitionManager.isEnabled(this)
@@ -353,6 +354,8 @@ public class MapControlService extends Service {
                     if (lastPowerMode != currentPowerMode) {
                         int previousPowerMode = lastPowerMode;
                         lastPowerMode = currentPowerMode;
+                        com.mapcontrol.dvr.DvrController.get(MapControlService.this)
+                                .onPowerMode(currentPowerMode);
                         
                         // Power mode 2 = Araç çalışıyor (ON)
                         // Power mode 1 = Araç power aldı (STANDBY)

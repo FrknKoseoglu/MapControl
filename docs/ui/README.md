@@ -22,6 +22,7 @@ Panel widget'ları tek satıra sığdırılır; dar hücrede simge ve durum değ
 
 | Belge | Ne zaman okunmalı? |
 |---|---|
+| [ui-map.md](ui-map.md) | Tam arayüz haritası, tüm sekmeler ve alt sayfaların hiyerarşik dizini ([pages/](pages/)) |
 | [design.md](design.md) | Açık/koyu paletin tamamı, semantik roller, tipografi, boyutlar, efektler ve tema API'leri |
 | [ergonomics-and-layout.md](ergonomics-and-layout.md) | 1–2–3–4 erişim haritası, yatay/dikey şablonlar, dokunma ve göz ayırma ilkeleri |
 | [components.md](components.md) | Gerçek builder/widget API'leri, örnekler, ekran envanteri ve öncelikli refactor checklist |

@@ -42,6 +42,7 @@ public class SettingsTabBuilder {
 
         void onLocaleChanged();
         void onNightModeChanged(int mode);
+        default void onHeaderPositionChanged(boolean isBottom) {}
     }
 
     private final Context context;
@@ -92,6 +93,7 @@ public class SettingsTabBuilder {
         createLauncherModeSection(grid);
         createFloatingBackButtonSection(grid);
         createDarkModeSection(grid);
+        createHeaderPositionSection(grid);
         createBootServiceSection(grid);
         createBootUiSection(grid);
         createLanguageSection(grid);
@@ -173,6 +175,26 @@ public class SettingsTabBuilder {
                     androidx.appcompat.app.AppCompatDelegate.setDefaultNightMode(mode);
                     callback.log("Karanlık Mod: " + (enabled ? "Açık" : "Kapalı"));
                     callback.onNightModeChanged(mode);
+                });
+    }
+
+    private void createHeaderPositionSection(FeatureGridLayout grid) {
+        boolean isBottom = prefs.getBoolean("header_menu_bottom", false);
+        UiStyles.addBinarySegmentedControl(context, grid,
+                context.getString(R.string.settings_header_position_title),
+                context.getString(R.string.settings_header_position_top),
+                context.getString(R.string.settings_header_position_bottom),
+                context.getString(R.string.settings_header_position_help_top),
+                context.getString(R.string.settings_header_position_help_bottom),
+                !isBottom,
+                topSelected -> {
+                    boolean bottom = !topSelected;
+                    if (bottom == prefs.getBoolean("header_menu_bottom", false)) {
+                        return;
+                    }
+                    prefs.edit().putBoolean("header_menu_bottom", bottom).apply();
+                    callback.log("Header Konumu: " + (bottom ? "Aşağıda" : "Yukarıda"));
+                    callback.onHeaderPositionChanged(bottom);
                 });
     }
 

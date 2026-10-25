@@ -35,9 +35,9 @@
     <dimen name="oem_card_margin">12dp</dimen>
     <dimen name="oem_card_inner_padding">18dp</dimen>
 
-    <!-- Sol rail: 10,25" araç ekranı — geniş şerit (~%30–35 ekran), büyük dokunma -->
-    <dimen name="rail_min_width">300dp</dimen>
-    <dimen name="rail_max_width">520dp</dimen>
+    <!-- Sol rail: 10,25" araç ekranı — %10 daraltılmış şerit (~%27–31 ekran), büyük dokunma -->
+    <dimen name="rail_min_width">270dp</dimen>
+    <dimen name="rail_max_width">468dp</dimen>
     <!-- Araç içi: ~76dp satır ≈ OEM / Android Automotive önerilerine yakın dokunma -->
     <dimen name="rail_row_min_height">80dp</dimen>
     

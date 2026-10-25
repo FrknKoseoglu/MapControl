@@ -238,7 +238,7 @@
     <string name="assist_title">Açılışta kapatılacak özellikler</string>
     <string name="assist_subtitle">İşaretlediğiniz özellikler araç açıldığında kapatılır.</string>
     <string name="assist_chip_on">Açık</string>
-    <string name="drive_modes_title">Sürüş Modları</string>
+    <string name="drive_modes_title">Sürüş Hafızası</string>
 
     <string name="splash_preparing_title">Uygulama Hazırlanıyor</string>
     <string name="splash_preparing_sub">Lütfen bekleyin</string>
@@ -364,9 +364,9 @@
 
     <string name="side_rail_wifi">Wi-Fi</string>
     <string name="side_rail_apps">Uygulamalar</string>
-    <string name="side_rail_web">Telefondan yönet</string>
+    <string name="side_rail_web">Aktar</string>
     <string name="side_rail_profile">Profil</string>
-    <string name="side_rail_drive_mode">Sürüş modu</string>
+    <string name="side_rail_drive_mode">Sürüş Hafızası</string>
     <string name="side_rail_camera">Kamera Test</string>
     <string name="side_rail_projection">Gösterge ekranı</string>
         <string name="camera360_menu_title">Bir mod seçin</string>
@@ -533,11 +533,11 @@
     <string name="projection_installed_apps">Yüklü Uygulamalar (%1$d)</string>
 
     <string name="launcher_shortcut_wifi">Wi-Fi</string>
-    <string name="launcher_shortcut_web">Telefondan yönet</string>
+    <string name="launcher_shortcut_web">Aktar</string>
     <string name="launcher_shortcut_profile">Profil</string>
     <string name="launcher_shortcut_projection">Gösterge</string>
     <string name="launcher_shortcut_apps">Uygulamalar</string>
-    <string name="launcher_shortcut_drive">Sürüş modu</string>
+    <string name="launcher_shortcut_drive">Sürüş Hafızası</string>
     <string name="launcher_shortcut_welcome">Karşılama</string>
     <string name="launcher_shortcut_equalizer">Ses ayarları</string>
     <string name="launcher_shortcut_settings">Ayarlar</string>
@@ -914,4 +914,9 @@
     <string name="split_dir_phrase_down">aşağı</string>
     <string name="split_dir_phrase_left">sola</string>
     <string name="split_dir_phrase_right">sağa</string>
+    <string name="settings_header_position_title">Header Menü Konumu</string>
+    <string name="settings_header_position_top">Yukarıda</string>
+    <string name="settings_header_position_bottom">Aşağıda</string>
+    <string name="settings_header_position_help_top">Header menü ekranın üstünde gösterilir.</string>
+    <string name="settings_header_position_help_bottom">Header menü ekranın altında gösterilir.</string>
 </resources>

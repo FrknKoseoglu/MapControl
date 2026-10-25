@@ -224,7 +224,7 @@
     <string name="assist_title">Features to disable at startup</string>
     <string name="assist_subtitle">Selected features are disabled when the vehicle starts.</string>
     <string name="assist_chip_on">On</string>
-    <string name="drive_modes_title">Drive modes</string>
+    <string name="drive_modes_title">Drive Memory</string>
     <string name="splash_preparing_title">Preparing app</string>
     <string name="splash_preparing_sub">Please wait</string>
     <string name="splash_map_waiting">Waiting for map</string>
@@ -345,9 +345,9 @@
 
     <string name="side_rail_wifi">Wi-Fi</string>
     <string name="side_rail_apps">Apps</string>
-    <string name="side_rail_web">Phone access</string>
+    <string name="side_rail_web">Transfer</string>
     <string name="side_rail_profile">Profile</string>
-    <string name="side_rail_drive_mode">Drive mode</string>
+    <string name="side_rail_drive_mode">Drive Memory</string>
     <string name="side_rail_camera">Camera test</string>
     <string name="side_rail_projection">Instrument display</string>
         <string name="camera360_menu_title">Choose a mode</string>
@@ -514,11 +514,11 @@
     <string name="projection_installed_apps">Installed apps (%1$d)</string>
 
     <string name="launcher_shortcut_wifi">Wi‑Fi</string>
-    <string name="launcher_shortcut_web">Phone access</string>
+    <string name="launcher_shortcut_web">Transfer</string>
     <string name="launcher_shortcut_profile">Profile</string>
     <string name="launcher_shortcut_projection">Instrument display</string>
     <string name="launcher_shortcut_apps">Apps</string>
-    <string name="launcher_shortcut_drive">Drive mode</string>
+    <string name="launcher_shortcut_drive">Drive Memory</string>
     <string name="launcher_shortcut_welcome">Welcome</string>
     <string name="launcher_shortcut_equalizer">Sound settings</string>
     <string name="launcher_shortcut_settings">Settings</string>
@@ -893,4 +893,9 @@
     <string name="split_dir_phrase_down">down</string>
     <string name="split_dir_phrase_left">left</string>
     <string name="split_dir_phrase_right">right</string>
+    <string name="settings_header_position_title">Header Menu Position</string>
+    <string name="settings_header_position_top">Top</string>
+    <string name="settings_header_position_bottom">Bottom</string>
+    <string name="settings_header_position_help_top">Header menu is positioned at the top of the screen.</string>
+    <string name="settings_header_position_help_bottom">Header menu is positioned at the bottom of the screen.</string>
 </resources>

@@ -213,6 +213,7 @@ public class MainActivity extends AppCompatActivity {
     private boolean contentWide;
     private int screenWidthPx;
     private TopBarBuilder topBarBuilder;
+    private LinearLayout topBar;
     private HeaderStatusMonitor headerStatusMonitor;
     private boolean activityStarted;
     /** Menü yumuşatması: içerik alfa’sı değil, tema renkli örtü. İptal edilen geçiş burada durur. */
@@ -462,12 +463,17 @@ public class MainActivity extends AppCompatActivity {
                         MainActivity.this.log(msg);
                     }
                 });
-        LinearLayout topBar = topBarBuilder.build();
+        topBar = topBarBuilder.build();
         topBarTitle = topBarBuilder.getTitleView();
-        topBarBuilder.setLauncherBackButtonListener(v -> returnToLauncherHome());
+        topBarBuilder.setLauncherBackButtonListener(v -> {
+            if (currentTab == TAB_CAMERA_360 && camera360TabBuilder != null && camera360TabBuilder.handleBackPressed()) {
+                updateLauncherBackButton(LauncherModeManager.isEnabled(this));
+                return;
+            }
+            returnToLauncherHome();
+        });
         
         sideRailBuilder.setStatusWidgets(topBarBuilder.getStatusWidgets());
-        mainContent.addView(topBar, new LinearLayout.LayoutParams(-1, -2));
 
         // Tab içerik alanı (FrameLayout: launcher park ederken SurfaceView GONE olmasın)
         tabContentArea = new FrameLayout(this);
@@ -476,7 +482,18 @@ public class MainActivity extends AppCompatActivity {
         LinearLayout.LayoutParams tabContentParams = new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT,
                 0, 1f);
-        mainContent.addView(tabContentArea, tabContentParams);
+
+        boolean headerBottom = prefs.getBoolean("header_menu_bottom", false);
+        if (topBarBuilder != null) {
+            topBarBuilder.setHeaderPosition(headerBottom);
+        }
+        if (headerBottom) {
+            mainContent.addView(tabContentArea, tabContentParams);
+            mainContent.addView(topBar, new LinearLayout.LayoutParams(-1, -2));
+        } else {
+            mainContent.addView(topBar, new LinearLayout.LayoutParams(-1, -2));
+            mainContent.addView(tabContentArea, tabContentParams);
+        }
         mountShell(isPortraitConfiguration());
         
         // WebServerManager'ı başlat
@@ -805,6 +822,16 @@ public class MainActivity extends AppCompatActivity {
         });
         camera360TabContent = camera360TabBuilder.getTabContent();
         camera360TabBuilder.setWideListener(this::setContentWide);
+        camera360TabBuilder.setSubpageListener((isNested, subpageTitle) -> {
+            updateLauncherBackButton(LauncherModeManager.isEnabled(MainActivity.this));
+            if (currentTab == TAB_CAMERA_360 && topBarBuilder != null) {
+                if (isNested && subpageTitle != null && !subpageTitle.isEmpty()) {
+                    topBarBuilder.setTitle(subpageTitle);
+                } else {
+                    topBarBuilder.setTitle(tabTitle(TAB_CAMERA_360));
+                }
+            }
+        });
 
         splitScreenTabBuilder = new SplitScreenTabBuilder(this, msg -> MainActivity.this.log(msg));
 
@@ -885,6 +912,11 @@ public class MainActivity extends AppCompatActivity {
                     @Override
                     public void onNightModeChanged(int mode) {
                         handler.post(() -> applyNightModeDynamically(mode));
+                    }
+
+                    @Override
+                    public void onHeaderPositionChanged(boolean isBottom) {
+                        applyHeaderPosition(isBottom);
                     }
                 });
         settingsScrollView = settingsTabBuilder.getScrollView();
@@ -1294,7 +1326,8 @@ public class MainActivity extends AppCompatActivity {
             boolean notLauncher = (tabIndex != TAB_LAUNCHER);
             topBarBuilder.setTopBarVisible(notLauncher);
             boolean sidebarOpen = (sideRailBuilder != null && !sideRailBuilder.isLauncherModeActive() && !contentWide);
-            topBarBuilder.setLauncherBackButtonVisible(!sidebarOpen && notLauncher);
+            boolean isCameraTab = (tabIndex == TAB_CAMERA_360);
+            topBarBuilder.setLauncherBackButtonVisible(notLauncher && (!sidebarOpen || isCameraTab));
             topBarBuilder.setTitle(tabTitle(tabIndex));
         }
         if (tabIndex == 0 && wifiTabBuilder != null) {
@@ -1341,7 +1374,8 @@ public class MainActivity extends AppCompatActivity {
             boolean notLauncher = (currentTab != TAB_LAUNCHER);
             topBarBuilder.setTopBarVisible(notLauncher);
             boolean sidebarOpen = (sideRailBuilder != null && !sideRailBuilder.isLauncherModeActive() && !contentWide);
-            topBarBuilder.setLauncherBackButtonVisible(!sidebarOpen && notLauncher);
+            boolean isCameraTab = (currentTab == TAB_CAMERA_360);
+            topBarBuilder.setLauncherBackButtonVisible(notLauncher && (!sidebarOpen || isCameraTab));
         }
     }
 
@@ -1615,6 +1649,10 @@ public class MainActivity extends AppCompatActivity {
 
     @Override
     public void onBackPressed() {
+        if (currentTab == TAB_CAMERA_360 && camera360TabBuilder != null && camera360TabBuilder.handleBackPressed()) {
+            updateLauncherBackButton(LauncherModeManager.isEnabled(this));
+            return;
+        }
         if (currentTab != TAB_LAUNCHER) {
             returnToLauncherHome();
             return;
@@ -1623,6 +1661,21 @@ public class MainActivity extends AppCompatActivity {
             return;
         }
         super.onBackPressed();
+    }
+
+    private void applyHeaderPosition(boolean isBottom) {
+        if (mainContent == null || topBar == null || tabContentArea == null) {
+            return;
+        }
+        if (topBarBuilder != null) {
+            topBarBuilder.setHeaderPosition(isBottom);
+        }
+        mainContent.removeView(topBar);
+        if (isBottom) {
+            mainContent.addView(topBar);
+        } else {
+            mainContent.addView(topBar, 0);
+        }
     }
 
     private void tryConsumeDeferredProjectionTargetPicker() {
@@ -2294,13 +2347,13 @@ public class MainActivity extends AppCompatActivity {
         int screenWidthDp = Math.round(screenWidthPx / density);
         float ratio;
         if (screenWidthDp >= 960) {
-            ratio = 0.30f;
+            ratio = 0.27f;
         } else if (screenWidthDp >= 720) {
-            ratio = 0.31f;
+            ratio = 0.279f;
         } else if (screenWidthDp >= 600) {
-            ratio = 0.32f;
+            ratio = 0.288f;
         } else {
-            ratio = 0.34f;
+            ratio = 0.306f;
         }
         int w = Math.round(screenWidthPx * ratio);
         int minPx = Math.round(getResources().getDimension(R.dimen.rail_min_width));

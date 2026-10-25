@@ -43,6 +43,8 @@ public class TopBarBuilder implements HeaderStatusSink {
     private TextView brandView;
     private AppCompatImageButton launcherBackButton;
     private View topBarDivider;
+    private HeaderRow headerRow;
+    private boolean isBottomPosition;
     private final StatusWidgetsView statusWidgets;
 
     public TopBarBuilder(Context context, TopBarCallback callback) {
@@ -63,13 +65,14 @@ public class TopBarBuilder implements HeaderStatusSink {
         titleArea.setOrientation(LinearLayout.HORIZONTAL);
 
         launcherBackButton = new AppCompatImageButton(context);
+        launcherBackButton.setTag("header_back_button");
         launcherBackButton.setVisibility(View.GONE);
         launcherBackButton.setContentDescription(context.getString(R.string.header_back_home));
         launcherBackButton.setPadding(dp(8), dp(8), dp(8), dp(8));
         launcherBackButton.setImageResource(R.drawable.ic_vehicle_back);
         launcherBackButton.setFocusable(true);
         launcherBackButton.setClickable(true);
-        LinearLayout.LayoutParams backParams = new LinearLayout.LayoutParams(dp(36), dp(36));
+        LinearLayout.LayoutParams backParams = new LinearLayout.LayoutParams(dp(44), dp(44));
         backParams.setMarginEnd(dp(8));
         titleArea.addView(launcherBackButton, backParams);
 
@@ -105,9 +108,15 @@ public class TopBarBuilder implements HeaderStatusSink {
         brandView.setClickable(false);
         brandView.setFocusable(false);
         row.addView(brandView);
-        topBar.addView(row, new LinearLayout.LayoutParams(-1, -2));
+        headerRow = row;
         topBarDivider = new View(context);
-        topBar.addView(topBarDivider, new LinearLayout.LayoutParams(-1, Math.max(1, dp(1))));
+        if (isBottomPosition) {
+            topBar.addView(topBarDivider, new LinearLayout.LayoutParams(-1, Math.max(1, dp(1))));
+            topBar.addView(headerRow, new LinearLayout.LayoutParams(-1, -2));
+        } else {
+            topBar.addView(headerRow, new LinearLayout.LayoutParams(-1, -2));
+            topBar.addView(topBarDivider, new LinearLayout.LayoutParams(-1, Math.max(1, dp(1))));
+        }
 
         titleView.setOnClickListener(v -> {
             titleClickCount++;
@@ -135,6 +144,33 @@ public class TopBarBuilder implements HeaderStatusSink {
         if (titleView == null) return;
         String title = context.getString(titleRes);
         if (!android.text.TextUtils.equals(titleView.getText(), title)) titleView.setText(title);
+    }
+
+    public void setTitle(CharSequence title) {
+        if (titleView == null || title == null) return;
+        if (!android.text.TextUtils.equals(titleView.getText(), title)) titleView.setText(title);
+    }
+
+    public void setHeaderPosition(boolean isBottom) {
+        if (this.isBottomPosition == isBottom) return;
+        this.isBottomPosition = isBottom;
+        if (topBar == null || topBarDivider == null || headerRow == null) return;
+        topBar.removeAllViews();
+        if (isBottom) {
+            topBar.addView(topBarDivider, new LinearLayout.LayoutParams(-1, Math.max(1, dp(1))));
+            topBar.addView(headerRow, new LinearLayout.LayoutParams(-1, -2));
+        } else {
+            topBar.addView(headerRow, new LinearLayout.LayoutParams(-1, -2));
+            topBar.addView(topBarDivider, new LinearLayout.LayoutParams(-1, Math.max(1, dp(1))));
+        }
+    }
+
+    public void setBackButtonVisible(boolean visible) {
+        setLauncherBackButtonVisible(visible);
+    }
+
+    public void setBackButtonListener(View.OnClickListener listener) {
+        setLauncherBackButtonListener(listener);
     }
 
     public void setLauncherBackButtonVisible(boolean visible) {

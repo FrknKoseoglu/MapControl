@@ -87,6 +87,29 @@ public class Camera360TabBuilder {
     private TextView usbAutoStatus;
     private TextView usbBlockedNote;
 
+        public interface SubpageListener {
+        void onSubpageChanged(boolean isNestedSubpage, String title);
+    }
+    private SubpageListener subpageListener;
+    public void setSubpageListener(SubpageListener listener) {
+        this.subpageListener = listener;
+    }
+    private void notifySubpage(boolean isNested, String title) {
+        if (subpageListener != null) {
+            subpageListener.onSubpageChanged(isNested, title);
+        }
+    }
+    public boolean handleBackPressed() {
+        if (mode != Mode.MENU) {
+            enterMenu();
+            return true;
+        }
+        return false;
+    }
+    public boolean isNestedSubpageActive() {
+        return mode != Mode.MENU;
+    }
+
     private Mode mode = Mode.MENU;
     private boolean tabActive;
     /** Surround kameralar yalnizca arac unitesinde (/dev/hab) vardir; emulatorde yoktur. */
@@ -1438,6 +1461,7 @@ public class Camera360TabBuilder {
         mode = Mode.MENU;
         showOnly(menuView);
         syncRecordingUi();
+        notifySubpage(false, null);
     }
 
     private void enterPreview() {
@@ -1445,6 +1469,7 @@ public class Camera360TabBuilder {
         mode = Mode.PREVIEW;
         showOnly(previewView);
         updateRecBadge();
+        notifySubpage(true, context.getString(R.string.camera360_menu_live));
         if (tabActive) {
             startPreview();
         }
@@ -1454,6 +1479,7 @@ public class Camera360TabBuilder {
         leaveCurrentMode();
         mode = Mode.AUTO;
         showOnly(autoRoot);
+        notifySubpage(true, "Otomatik Kayıt");
         if (tabActive) {
             autoView.onShow();
             startAutoTicker();
@@ -1464,6 +1490,7 @@ public class Camera360TabBuilder {
         leaveCurrentMode();
         mode = Mode.VIEWER;
         showOnly(viewerRoot);
+        notifySubpage(true, "Kayıtlar");
         if (tabActive) {
             clipViewer.onShow();
         }
@@ -1490,6 +1517,7 @@ public class Camera360TabBuilder {
         refreshUsbInfo();
         syncRecordingUi();
         refreshCamStatusDots();
+        notifySubpage(true, context.getString(R.string.camera360_menu_record));
         if (tabActive) {
             ensureStreams(this::refreshCamStatusDots);
         }

@@ -103,7 +103,7 @@ public class DriveModeSelectionWidgetsTest {
             prefs.edit().putBoolean("disclaimerAccepted", true).putBoolean("appManagementDisclaimerAccepted", true)
                     .putBoolean("onboardingCompleted", true).putBoolean("launcherModeEnabled", false)
                     .putBoolean("floatingBackButtonEnabled", false).putBoolean("bootAutoStart", false)
-                    .putBoolean("hideSportAnimation", false).putBoolean("driveMode4x4Expanded", true)
+                    .putBoolean("driveMode4x4Expanded", true)
                     .remove("driveModeSetting").commit();
             activity = launch(instrumentation, context);
             MainActivity first = activity;

@@ -19,8 +19,6 @@ import com.desaysv.ivi.extra.project.carinfo.CarSettingID;
 import com.desaysv.ivi.extra.project.carinfo.ReadOnlyID;
 import com.desaysv.ivi.extra.project.carinfo.proxy.CarInfoProxy;
 import com.desaysv.ivi.vdb.event.id.carinfo.VDEventCarInfo;
-import com.mapcontrol.manager.SportAnimationController;
-import com.mapcontrol.manager.SportAnimationDiagnostics;
 import com.mapcontrol.ui.theme.UiStyles;
 
 public class AssistTabBuilder {
@@ -106,8 +104,7 @@ public class AssistTabBuilder {
                 {R.string.assist_card_fcw, R.drawable.ic_mdi_car_brake_alert, 2, -1, "fcwSetting", "FCW"},
                 {R.string.assist_card_aeb, R.drawable.ic_mdi_car_brake_abs, 2, -1, "aebSetting", "AEB"},
                 {R.string.assist_card_cpd, R.drawable.ic_mdi_car_seat, 2, -1, "cpdSetting", "CPD"},
-                {R.string.assist_card_dms, R.drawable.ic_mdi_camera, 2, -1, "dmsSetting", "DMS"},
-                {R.string.assist_card_super_mode_anim, R.drawable.ic_mdi_car_sports, 1, 0, SportAnimationController.PREF_ENABLED, "Super Mod Animasyonu"}
+                {R.string.assist_card_dms, R.drawable.ic_mdi_camera, 2, -1, "dmsSetting", "DMS"}
         };
 
         int[] savedValues = {
@@ -118,8 +115,7 @@ public class AssistTabBuilder {
                 prefs.getInt("fcwSetting", -1),
                 prefs.getInt("aebSetting", -1),
                 prefs.getInt("cpdSetting", -1),
-                prefs.getInt("dmsSetting", -1),
-                prefs.getBoolean(SportAnimationController.PREF_ENABLED, false) ? 1 : 0
+                prefs.getInt("dmsSetting", -1)
         };
 
         final LinearLayout[] cardContainers = new LinearLayout[assistCards.length];
@@ -150,10 +146,7 @@ public class AssistTabBuilder {
             card.setMinimumHeight((int) (96 * density));
             card.setClickable(true);
             card.setFocusable(true);
-            card.setTag(settingKey.equals(SportAnimationController.PREF_ENABLED) ? "sport_animation_setting" : ("assist_card_" + settingKey));
-            if (settingKey.equals(SportAnimationController.PREF_ENABLED)) {
-                card.setOnLongClickListener(v -> { SportAnimationDiagnostics.show(context); return true; });
-            }
+            card.setTag("assist_card_" + settingKey);
             cardContainers[cardIndex] = card;
 
             final boolean[] isActiveRef = {savedValues[cardIndex] == activeValue};
@@ -231,26 +224,6 @@ public class AssistTabBuilder {
             assistGrid.addView(cardFrame, cardParams);
 
             card.setOnClickListener(v -> {
-                if (settingKey.equals(SportAnimationController.PREF_ENABLED)) {
-                    boolean newActive = !isActiveRef[0];
-                    prefs.edit().putBoolean(SportAnimationController.PREF_ENABLED, newActive).apply();
-                    savedValues[cardIndex] = newActive ? 1 : 0;
-                    callback.log(logPrefix + ": " + (newActive ? "Gizleme Etkin" : "Animasyon Gösterilir"));
-                    isActiveRef[0] = newActive;
-                    updateCardUI(cardIndex, newActive, settingKey, cardContainers, iconViews, titleViews, statusViews, onChips, density);
-                    if (newActive && !SportAnimationController.isAccessibilityRegistered(context)) {
-                        android.widget.Toast.makeText(context, R.string.assist_super_mode_accessibility,
-                                android.widget.Toast.LENGTH_LONG).show();
-                        try {
-                            context.startActivity(new android.content.Intent(android.provider.Settings.ACTION_ACCESSIBILITY_SETTINGS)
-                                    .addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK));
-                        } catch (RuntimeException unavailable) {
-                            callback.log(context.getString(R.string.assist_super_mode_accessibility));
-                        }
-                    }
-                    return;
-                }
-
                 boolean newActive = !isActiveRef[0];
                 int newValue = newActive ? activeValue : passiveValue;
 
@@ -332,9 +305,6 @@ public class AssistTabBuilder {
     }
 
     private String getStatusText(String settingKey, boolean isActive) {
-        if (SportAnimationController.PREF_ENABLED.equals(settingKey)) {
-            return context.getString(R.string.assist_status_super_mode_anim);
-        }
         if (!isActive) {
             return context.getString(R.string.assist_status_not_set);
         }

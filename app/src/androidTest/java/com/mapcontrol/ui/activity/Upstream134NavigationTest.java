@@ -95,7 +95,6 @@ public class Upstream134NavigationTest {
                 assertTab(host,MainActivity.TAB_CAMERA_360,R.string.camera360_title,"menuCamera360");
                 call(host,"switchTab",int.class,6);
                 assertNotNull(host.getWindow().getDecorView().findViewWithTag("assist_card_dmsSetting"));
-                assertNotNull(host.getWindow().getDecorView().findViewWithTag("sport_animation_setting"));
             });
             for(int tab:new int[]{MainActivity.TAB_CAMERA_360,MainActivity.TAB_SPLIT_SCREEN}) {
                 instrumentation.runOnMainSync(()->{

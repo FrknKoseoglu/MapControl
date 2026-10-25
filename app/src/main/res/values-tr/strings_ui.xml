@@ -300,8 +300,6 @@
     <string name="assist_card_cpd">CPD (Çocuk Algılama)</string>
     <string name="assist_card_dms">DMS (Sürücü Dikkat Alarmı)</string>
     <string name="assist_cpd_disclaimer">CPD: Araç içi çocuk algılama. Donanım ve yazılıma bağlıdır; her modelde çalışmayabilir (ör. bazı Tiggo 8 donanımları). Araçta etkisini kontrol edin.</string>
-    <string name="assist_card_super_mode_anim">Super Mod animasyonunu gizle</string>
-    <string name="assist_status_super_mode_anim">Sport animasyon penceresi erişilebilirlik ile kapatılır. Sürüş modu ve motor sesi değiştirilmez.</string>
     <string name="assist_dms_disclaimer">Sürücü dikkat monitörü: Kabin kamerasıyla yorgunluk ve dikkat dağınıklığı alarmı. Donanım ve yazılıma bağlıdır; her modelde çalışmayabilir. Araçta etkisini kontrol edin.</string>
     <string name="assist_status_not_set">Ayarlanmadı</string>
     <string name="assist_status_iss">ISS Kapalı</string>
@@ -691,9 +689,6 @@
     <string name="header_stopped">Durdu</string>
     <string name="header_active">Etkin</string>
     <string name="header_phone_description">Telefon yönetim sunucusu: %1$s</string>
-    <string name="sport_animation_hide_title">Sport animasyonunu gizle</string>
-    <string name="sport_animation_help_on">Bir sonraki Sport geçişinde bir kez dener. Diğer araç pencereleri de kapanabilir.</string>
-    <string name="sport_animation_help_off">Sport animasyonu korunur. Bu seçenek diğer araç pencerelerini de kapatabilir.</string>
     <string name="settings_uninstall_button">MapControl uygulamasını kaldır</string>
     <string name="settings_uninstall_title">MapControl kaldırılsın mı?</string>
     <string name="settings_uninstall_message">Yalnızca MapControl uygulaması kaldırılacak. Android’in sistem onayı da açılacak.</string>
@@ -872,10 +867,6 @@
     <string name="climate_auto_passenger_section">Yolcu Tarafı</string>
     <string name="climate_auto_other_section">Cam &amp; Direksiyon</string>
     <string name="climate_auto_conflict_rejected">Çakışma Önleme: Isıtma ve havalandırma sıcaklık aralıkları çakışıyor! Birbirinden farklı eşikler belirleyin.</string>
-    <string name="assist_super_mode_accessibility">Gizleme için MapControl erişilebilirlik hizmetini etkinleştirin.</string>
-    <string name="super_mode_diagnostics_title">Super Mod tanı kaydı</string>
-    <string name="super_mode_diagnostics_copy">Kaydı kopyala</string>
-    <string name="super_mode_diagnostics_empty">Henüz kayıt yok. Seçeneği açıp Super Mod’u denedikten sonra tekrar bakın.</string>
     <string name="side_rail_split_screen">Bölünmüş Ekran</string>
     <string name="split_title">Bölünmüş Ekran</string>
     <string name="split_desc">İki uygulamayı yan yana açar (dikey ekranda alt alta). Ekran, seçtiğiniz orana göre iki pencereye bölünür.</string>

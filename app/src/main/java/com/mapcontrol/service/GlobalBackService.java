@@ -17,7 +17,6 @@ import android.view.accessibility.AccessibilityEvent;
 import android.view.accessibility.AccessibilityNodeInfo;
 import android.view.accessibility.AccessibilityWindowInfo;
 
-import com.mapcontrol.manager.SportAnimationController;
 import com.mapcontrol.nav.YandexClusterNavOverlay;
 import com.mapcontrol.util.InstallerConfirmClicker;
 import com.mapcontrol.nav.YandexNavScraper;
@@ -31,7 +30,6 @@ import com.mapcontrol.nav.YandexNavStability;
  */
 public class GlobalBackService extends AccessibilityService {
     private static GlobalBackService instance = null;
-    private SportAnimationController sportAnimationController;
     /**
      * Ayarlarda / shell'de kullanılacak tam bileşen (manifest: .service.GlobalBackService)
      * Yanlış: com.mapcontrol/.GlobalBackService → sınıf com.mapcontrol.GlobalBackService (mevcut değil)
@@ -78,7 +76,6 @@ public class GlobalBackService extends AccessibilityService {
     
     @Override
     public void onAccessibilityEvent(AccessibilityEvent event) {
-        if (sportAnimationController != null) sportAnimationController.onWindowEvent(event);
         maybeScrapeYandexNav(event);
         InstallerConfirmClicker.onWindowEvent(this);
     }
@@ -92,8 +89,6 @@ public class GlobalBackService extends AccessibilityService {
     protected void onServiceConnected() {
         super.onServiceConnected();
         instance = this;
-        sportAnimationController = new SportAnimationController(this);
-        sportAnimationController.start();
         if (YandexClusterNavOverlay.isEnabled(this)) {
             ensureYandexPoll();
             requestScrape();
@@ -102,10 +97,6 @@ public class GlobalBackService extends AccessibilityService {
     
     @Override
     public void onDestroy() {
-        if (sportAnimationController != null) {
-            sportAnimationController.release();
-            sportAnimationController = null;
-        }
         InstallerConfirmClicker.disarm();
         stopYandexPoll();
         yandexStability.clear();

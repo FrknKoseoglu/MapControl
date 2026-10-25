@@ -4,7 +4,7 @@
 
 ## UI/UX kapsamı ve main ile eşitlik — 22 Ekim 2026
 
-İşlevsel sağlamlaştırmalar, yeni model/VIN/yıl çıkarımı ve hesaplama yardımcıları bu daldan çıkarıldı; kaynak taban `origin/main` (`187093b`). Araç veri/komutları, OEM okuma, ses efektleri, açılış/karşılama, navigasyon, hava durumu, kamera, API ve kurulum akışları main davranışına döndürüldü. **İzin verilen tek işlevsel ek Super Mod animasyon kontrolüdür**; politikası ve opt-in akışı korunur. Ortak OEM proxy değiştirilmeden, yalnız Super Mod kendi cevapsız-okuma kontrolünü yapar.
+İşlevsel sağlamlaştırmalar, yeni model/VIN/yıl çıkarımı ve hesaplama yardımcıları bu daldan çıkarıldı; kaynak taban `origin/main` (`187093b`). Araç veri/komutları, OEM okuma, ses efektleri, açılış/karşılama, navigasyon, hava durumu, kamera, API ve kurulum akışları main davranışına döndürüldü. Super Mod animasyonu gizleme özelliği bağımsız `feature/super-mode-animation` dalına aktarılmış olup, bu dalda yalnızca UI güncellemeleri korunmaktadır. Ortak OEM proxy değiştirilmeden korunur.
 
 Araç bilgisi kart/filtre düzeni korunur; 19 sinyal/formatter eşleşmesi main ile aynıdır, mühendislik menüsü eylemi vardır. Başlıktaki yeni model/yıl çıkarımı kaldırılmıştır. Mod widget'ı, kullanıcı MapControl içinde seçim yaptıysa mevcut `driveModeSetting` tercihini gösterir; seçimi kaldırma (`-1`) nötr `—` olur. Bu UI seçimi araçtan doğrulanmış mod veya bağlantı bilgisi değildir. Henüz kayıtlı seçim yoksa önceki salt okunur araç modu kaynağı kullanılır. Ortak repository'nin okuma/reconnect algoritması değişmez. `source-inventory.md`, `audit-history.md` ve eski manifest doğrulamaları **temizlik öncesi tarihsel kayıttır**; geri alınan özellikler için güncel uygulama garantisi oluşturmaz. Önceki hâl `codex/ui-scope-backup-20261022` dalında korunur.
 
@@ -81,10 +81,7 @@ UI refactor'ında hem tema hem orientation, %100/%130 yazı, bilinmeyen/bağlant
 
 Sekiz eski `docs/*.md` tam metni önce arşivlenip içerik/hash doğrulamasından sonra kaldırılır; silinen yollar [manifestte](audit-manifest.json) listelenir. `docs/ui-previews/` görselleri/JSON/TXT kanıtları ve kök README korunur; kök README'nin eski rapor bağlantısı yeni indekse yönlendirilir. `.gitignore` yalnız `docs/ui/` için Git görünürlüğü sağlar; önizlemeler ve diğer yerel docs içerikleri ignore kapsamında kalır. Arşiv yeni tasarım sisteminden ayrı bir tarihsel kayıttır; eski hedefleri güncel gereklilik diye uygulamayın.
 
-## Super Mod güncellemesi — 23 Ekim 2026
-
-[Güncel Super Mod düzeltmesi](super-mode-fix.md): gizleme erişilebilirlik servisinde yalnız tanınan Sport penceresinin geri kontrolüne taşındı. Genel kapatma yayını ve mod geçişine bağlı eski politika kaldırıldı. İlgili mevcut kaynak kapsamı ve 14 JVM / 44 Android test sonucu bu notta açıklanır; önceki denetim hash'leri tarihsel kayıttır. Fiziksel araç kabulü beklenir.
-
-Araçta versionCode 3 gizlemesi kullanıcı testinde başarısız oldu. İki seçeneğin açık olduğu doğrulandı; fiziksel neden henüz bilinmiyor. [VersionCode 4 tanı sürümü ve telefondan kayıt paylaşımı](super-mode-vehicle-diagnostics.md).
+## Super Mod animasyon kontrolü
+Super Mod animasyonu gizleme özelliği, tanı kayıtları ve ilgili test araçları `feature/super-mode-animation` dalına taşınmıştır. Mevcut dalda yalnızca UI güncellemeleri yer almaktadır.
 
 - **25 Ekim 2026 — ana proje 1.3.4 eşitlemesi:** [Alınan yenilikler, arayüz entegrasyonu ve test sonuçları](upstream-sync-1.3.4.md).

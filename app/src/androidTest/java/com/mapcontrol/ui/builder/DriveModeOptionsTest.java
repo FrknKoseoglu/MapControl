@@ -110,36 +110,4 @@ public class DriveModeOptionsTest {
         return null;
     }
 
-    private AssistTabBuilder assistBuilder(Context context, SharedPreferences prefs) {
-        return new AssistTabBuilder(context, prefs, new AssistTabBuilder.AssistCallback() {
-            @Override public void onSettingChanged(String key, int value) {}
-            @Override public void onSafetyWarningRequired(String key, int value, Runnable confirm) { confirm.run(); }
-            @Override public void log(String message) {}
-        });
-    }
-
-    @Test public void sportAnimationOptionDefaultsOffAndPersistsWithoutSelectingAnyDriveMode() {
-        InstrumentationRegistry.getInstrumentation().runOnMainSync(() -> {
-            Context context = context();
-            SharedPreferences prefs = context.getSharedPreferences("drive_mode_options_test", 0);
-            prefs.edit().clear().putInt("driveModeSetting", 1).commit();
-            AssistTabBuilder assist = assistBuilder(context, prefs);
-            try {
-                View card = assist.build().findViewWithTag("sport_animation_setting");
-                assertNotNull(card);
-                CompoundButton choice = firstChoice(card);
-                assertNotNull(choice);
-                assertFalse(choice.isChecked());
-                card.performClick();
-                assertTrue(prefs.getBoolean("hideSportAnimation", false));
-                assist = assistBuilder(context, prefs);
-                card = assist.build().findViewWithTag("sport_animation_setting");
-                choice = firstChoice(card);
-                assertTrue(choice.isChecked());
-                card.performClick();
-                assertFalse(prefs.getBoolean("hideSportAnimation", true));
-                assertEquals(1, prefs.getInt("driveModeSetting", -1));
-            } finally { prefs.edit().clear().commit(); }
-        });
-    }
 }

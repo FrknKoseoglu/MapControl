@@ -643,3 +643,57 @@ body {
 .switch-pill.on .switch-knob {
   transform: translateX(20px);
 }
+
+
+/* Full-screen Launcher Dashboard with Persistent Floating Zone 1 Golden Dock */
+.unified-shell.full-launcher {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  overflow: hidden;
+  background: var(--bg-window);
+}
+
+.launcher-fullscreen-stage {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  padding: 16px;
+  gap: 16px;
+  box-sizing: border-box;
+  overflow: hidden;
+}
+
+.launcher-quick-col {
+  width: 38%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  overflow-y: auto;
+  padding-bottom: 74px; /* Clearance for persistent Zone 1 dock */
+  box-sizing: border-box;
+}
+
+.launcher-main-col {
+  flex: 1;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  overflow-y: auto;
+}
+
+.golden-dock.floating-dock {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 38%;
+  z-index: 50;
+  background: #0E131C;
+  border-top: 2px solid var(--primary);
+  border-right: 1px solid var(--outline);
+  border-top-right-radius: 14px;
+  box-shadow: 0 -6px 20px rgba(0, 0, 0, 0.6);
+}

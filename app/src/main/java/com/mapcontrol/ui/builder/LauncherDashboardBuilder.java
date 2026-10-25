@@ -533,6 +533,8 @@ public final class LauncherDashboardBuilder implements
         LinearLayout body = new LinearLayout(context);
         body.setOrientation(LinearLayout.VERTICAL);
         body.setGravity(Gravity.TOP);
+        float density = context.getResources().getDisplayMetrics().density;
+        body.setPadding(0, 0, 0, Math.round(72 * density));
         quickScroll.addView(body, new android.widget.FrameLayout.LayoutParams(-1, -2));
         LinearLayout.LayoutParams quickScrollLp = new LinearLayout.LayoutParams(-1, 0, 1);
         quickScrollLp.topMargin = UiStyles.dimenPx(context, R.dimen.spacing_medium);

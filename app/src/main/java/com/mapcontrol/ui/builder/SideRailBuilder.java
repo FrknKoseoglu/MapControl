@@ -74,6 +74,9 @@ public class SideRailBuilder {
     private LinearLayout selectedMenuRow;
     private boolean launcherModeActive;
     private boolean contentWide;
+    private View btnHome;
+    private AppCompatImageView btnHomeIcon;
+    private TextView btnHomeLabel;
 
     public SideRailBuilder(Context context, SharedPreferences prefs, SideRailCallback callback) {
         this.context = context;
@@ -151,6 +154,8 @@ public class SideRailBuilder {
         menuContainer.addView(menuVehicleInfo);
         menuContainer.addView(menuSettings);
 
+        float density = context.getResources().getDisplayMetrics().density;
+        menuContainer.setPadding(0, 0, 0, Math.round(68 * density));
         menuScrollView.addView(menuContainer, new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT,
                 LinearLayout.LayoutParams.WRAP_CONTENT));
@@ -161,10 +166,8 @@ public class SideRailBuilder {
                 1.0f);
         sideRail.addView(menuScrollView, menuScrollParams);
 
-        // Zone 1: Kalıcı Altın Dock (Home, Geri, Sürüş Hafızası, Ayarlar)
-        sideRail.addView(buildGoldenDock(), new LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT,
-                LinearLayout.LayoutParams.WRAP_CONTENT));
+        // Zone 1: Kalıcı Altın Dock (MainActivity root FrameLayout katmanında sabit tutulur)
+        buildGoldenDock();
 
         updateMenuSelection(menuWifi, menuFileUpload, menuProfile, menuProjection, menuVehicleInfo, menuSettings, menuApps, menuDriveMode, menuTest, menuWelcomeSound);
         bindMenuClicks();
@@ -233,6 +236,7 @@ public class SideRailBuilder {
                 LinearLayout.LayoutParams.MATCH_PARENT,
                 LinearLayout.LayoutParams.WRAP_CONTENT));
 
+        buildGoldenDock();
         updateMenuSelection(menuWifi, menuFileUpload, menuProfile, menuProjection, menuVehicleInfo, menuSettings, menuApps, menuDriveMode, menuTest, menuWelcomeSound);
         bindMenuClicks();
         return sideRail;
@@ -335,6 +339,8 @@ public class SideRailBuilder {
     public void setLauncherModeActive(boolean active) {
         launcherModeActive = active;
         applyRailVisibility();
+        updateDockHomeButton(active);
+        updateGoldenDockSelection(active ? TAB_LAUNCHER : currentDockSelection);
     }
 
     /** Icerik tam genislik istedi (or. Kamera 360 izleme ekrani); launcher modundan bagimsiz. */
@@ -350,6 +356,9 @@ public class SideRailBuilder {
     private void applyRailVisibility() {
         if (sideRail != null) {
             sideRail.setVisibility(isRailHidden() ? View.GONE : View.VISIBLE);
+        }
+        if (goldenDockLayout != null) {
+            goldenDockLayout.setVisibility(contentWide ? View.GONE : View.VISIBLE);
         }
     }
 
@@ -375,11 +384,14 @@ public class SideRailBuilder {
     private View goldenDockDivider;
     private final java.util.List<View> goldenDockItems = new java.util.ArrayList<>();
 
-    private View buildGoldenDock() {
+    public View buildGoldenDock() {
+        if (goldenDockLayout != null) {
+            return goldenDockLayout;
+        }
         float density = context.getResources().getDisplayMetrics().density;
         goldenDockLayout = new LinearLayout(context);
         goldenDockLayout.setOrientation(LinearLayout.VERTICAL);
-        goldenDockLayout.setBackgroundColor(Color.TRANSPARENT);
+        UiStyles.setRailPanelBackground(goldenDockLayout);
         goldenDockItems.clear();
 
         goldenDockDivider = new View(context);
@@ -395,9 +407,15 @@ public class SideRailBuilder {
         int padV = Math.round(4 * density);
         row.setPadding(padH, padV, padH, padV);
 
-        View btnHome = createDockActionItem(R.drawable.ic_mdi_home, t(R.string.dock_home), v -> {
-            if (callback != null) callback.onHomeRequested();
-        });
+        btnHome = createDockActionItem(
+                launcherModeActive ? R.drawable.ic_mdi_view_grid : R.drawable.ic_mdi_home,
+                launcherModeActive ? t(R.string.dock_menu) : t(R.string.dock_home),
+                v -> {
+                    if (callback != null) callback.onHomeRequested();
+                });
+        btnHomeIcon = (AppCompatImageView) btnHome.getTag(R.id.side_rail_icon);
+        btnHomeLabel = (TextView) btnHome.getTag(R.id.side_rail_label);
+
         View btnBack = createDockActionItem(R.drawable.ic_vehicle_back, t(R.string.dock_back), v -> {
             if (callback != null) callback.onBackPressedRequested();
         });
@@ -428,7 +446,24 @@ public class SideRailBuilder {
                 LinearLayout.LayoutParams.MATCH_PARENT,
                 LinearLayout.LayoutParams.WRAP_CONTENT));
 
+        updateGoldenDockSelection(currentDockSelection >= 0 ? currentDockSelection : (launcherModeActive ? TAB_LAUNCHER : 0));
         return goldenDockLayout;
+    }
+
+    public View getGoldenDock() {
+        if (goldenDockLayout == null) {
+            buildGoldenDock();
+        }
+        return goldenDockLayout;
+    }
+
+    public void updateDockHomeButton(boolean isLauncher) {
+        if (btnHomeIcon != null) {
+            btnHomeIcon.setImageResource(isLauncher ? R.drawable.ic_mdi_view_grid : R.drawable.ic_mdi_home);
+        }
+        if (btnHomeLabel != null) {
+            btnHomeLabel.setText(isLauncher ? t(R.string.dock_menu) : t(R.string.dock_home));
+        }
     }
 
     private View createDockActionItem(int iconRes, String label, View.OnClickListener onClickListener) {
@@ -483,9 +518,9 @@ public class SideRailBuilder {
 
         for (int i = 0; i < goldenDockItems.size(); i++) {
             View item = goldenDockItems.get(i);
-            boolean isActive = (i == 0 && tabIndex == TAB_LAUNCHER)
-                    || (i == 2 && tabIndex == TAB_DRIVE_MODE)
-                    || (i == 3 && tabIndex == TAB_SETTINGS);
+            boolean isActive = (i == 0 && (tabIndex == TAB_LAUNCHER || launcherModeActive))
+                    || (i == 2 && tabIndex == TAB_DRIVE_MODE && !launcherModeActive)
+                    || (i == 3 && tabIndex == TAB_SETTINGS && !launcherModeActive);
 
             int color = isActive ? activeColor : idleColor;
             View icon = (View) item.getTag(R.id.side_rail_icon);
@@ -505,6 +540,9 @@ public class SideRailBuilder {
     }
 
     private void reapplyGoldenDockTheme() {
+        if (goldenDockLayout != null) {
+            UiStyles.setRailPanelBackground(goldenDockLayout);
+        }
         if (goldenDockDivider != null) {
             goldenDockDivider.setBackgroundColor(UiStyles.color(context, R.color.outlineSubtle));
         }

@@ -8,6 +8,7 @@ const state = {
   heatmap: false,
   shellMode: 'unified', // 'unified' or 'legacy'
   activePage: 'launcher',
+  lastNormalPage: 'drive',
   driveMode: 'eco', // 'eco', 'normal', 'sport'
   headerPos: 'top', // 'top' or 'bottom'
   stats: {
@@ -21,6 +22,7 @@ const state = {
 
 // SVG Icons
 const icons = {
+  menu: `<svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M3 11h8V3H3v8zm2-6h4v4H5V5zm8-2v8h8V3h-8zm6 6h-4V5h4v4zM3 21h8v-8H3v8zm2-6h4v4H5v-4zm8 6h8v-8h-8v8zm2-6h4v4h-4v-4z"/></svg>`,
   home: `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><polyline points="9 22 9 12 15 12 15 22"></polyline></svg>`,
   back: `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>`,
   drive: `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><circle cx="12" cy="12" r="4"></circle><line x1="4.93" y1="4.93" x2="9.17" y2="9.17"></line><line x1="14.83" y1="14.83" x2="19.07" y2="19.07"></line><line x1="14.83" y1="9.17" x2="19.07" y2="4.93"></line><line x1="14.83" y1="9.17" x2="18.36" y2="5.64"></line><line x1="4.93" y1="19.07" x2="9.17" y2="14.83"></line></svg>`,
@@ -79,8 +81,20 @@ function initControls() {
 }
 
 function navigateTo(pageId) {
+  if (state.activePage !== 'launcher' && pageId === 'launcher') {
+    state.lastNormalPage = state.activePage;
+  }
   state.activePage = pageId;
   renderScreen();
+}
+
+function toggleLauncherMode() {
+  if (state.activePage === 'launcher') {
+    navigateTo(state.lastNormalPage || 'drive');
+  } else {
+    state.lastNormalPage = state.activePage;
+    navigateTo('launcher');
+  }
 }
 
 function setDriveMode(mode) {
@@ -105,6 +119,70 @@ function renderScreen() {
 function renderUnifiedShell(container) {
   const isLauncher = state.activePage === 'launcher';
 
+  if (isLauncher) {
+    // TAM EKRAN LAUNCHER MODU: Dashboard tüm ekrana yayılır, Zone 1 Golden Dock sol altta sabit kalır!
+    container.innerHTML = `
+      <div class="unified-shell full-launcher">
+        <!-- Tam Ekran Dashboard Bölümü -->
+        <div class="launcher-fullscreen-stage">
+          <div class="launcher-quick-col">
+            <div class="ivi-card" style="flex:1;">
+              <div class="ivi-card-title">
+                <span>⚡ Hızlı Erişim (Sürücü Erişimi)</span>
+                <span class="mini-chip" style="color:var(--${state.driveMode}-color)">${state.driveMode.toUpperCase()}</span>
+              </div>
+              <p style="font-size:11px; color:var(--text-secondary); margin-bottom:12px;">Sık kullanılan widget ve araç kontrolleri</p>
+              <div style="display:flex; flex-direction:column; gap:8px;">
+                <div class="nav-item" onclick="navigateTo('drive')">
+                  <div class="nav-item-icon">${icons.drive}</div>
+                  <span>Sürüş Hafızası Ayarları</span>
+                </div>
+                <div class="nav-item" onclick="navigateTo('camera')">
+                  <div class="nav-item-icon">${icons.camera}</div>
+                  <span>360° Çevre Görüş</span>
+                </div>
+                <div class="nav-item" onclick="navigateTo('apps')">
+                  <div class="nav-item-icon">${icons.apps}</div>
+                  <span>Uygulama Listesi</span>
+                </div>
+                <div class="nav-item" onclick="navigateTo('transfer')">
+                  <div class="nav-item-icon">${icons.transfer}</div>
+                  <span>Telefon Bağlantısı / Aktar</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="launcher-main-col">
+            ${renderPageContent('launcher')}
+          </div>
+        </div>
+
+        <!-- ZONE 1: SABİT ALTIN DOCK (Tam ekranda da sol altta sabit kalır!) -->
+        <div class="golden-dock floating-dock">
+          <button class="dock-btn primary-dock active" onclick="toggleLauncherMode()" title="Menü Sekmelerine Dön">
+            ${icons.menu}
+            <span>MENÜ</span>
+          </button>
+          <button class="dock-btn back-dock" onclick="toggleLauncherMode()" title="Geri">
+            ${icons.back}
+            <span>GERİ</span>
+          </button>
+          <button class="dock-btn" onclick="navigateTo('drive')" title="Sürüş Hafızası">
+            ${icons.drive}
+            <span>HAFIZA</span>
+          </button>
+          <button class="dock-btn" onclick="navigateTo('settings')" title="Ayarlar">
+            ${icons.settings}
+            <span>AYARLAR</span>
+          </button>
+        </div>
+      </div>
+    `;
+    return;
+  }
+
+  // NORMAL SEKME MODU: Sol Şerit (Command Deck) + Sağ İçerik (Ambient Stage)
   container.innerHTML = `
     <div class="unified-shell">
       <!-- LEFT COMMAND DECK (Driver Reach Zone: ~38%) -->
@@ -124,9 +202,9 @@ function renderUnifiedShell(container) {
 
         <!-- Scrollable Command Items -->
         <div class="deck-scroll-body">
-          <div class="nav-item ${state.activePage === 'launcher' ? 'active' : ''}" onclick="navigateTo('launcher')">
+          <div class="nav-item" onclick="toggleLauncherMode()">
             <div class="nav-item-icon">${icons.home}</div>
-            <span>Ana Ekran Dashboard</span>
+            <span>Ana Ekran (Tam Ekran)</span>
           </div>
           <div class="nav-item ${state.activePage === 'drive' ? 'active' : ''}" onclick="navigateTo('drive')">
             <div class="nav-item-icon">${icons.drive}</div>
@@ -160,19 +238,19 @@ function renderUnifiedShell(container) {
 
         <!-- ZONE 1: FIXED GOLDEN DOCK (Always visible at bottom left!) -->
         <div class="golden-dock">
-          <button class="dock-btn ${state.activePage === 'launcher' ? 'primary-dock' : ''}" onclick="navigateTo('launcher')">
+          <button class="dock-btn" onclick="toggleLauncherMode()" title="Tam Ekran Ana Sayfa">
             ${icons.home}
             <span>HOME</span>
           </button>
-          <button class="dock-btn back-dock" onclick="navigateTo('launcher')">
+          <button class="dock-btn back-dock" onclick="toggleLauncherMode()" title="Geri">
             ${icons.back}
             <span>GERİ</span>
           </button>
-          <button class="dock-btn ${state.activePage === 'drive' ? 'primary-dock' : ''}" onclick="navigateTo('drive')">
+          <button class="dock-btn ${state.activePage === 'drive' ? 'primary-dock active' : ''}" onclick="navigateTo('drive')">
             ${icons.drive}
             <span>HAFIZA</span>
           </button>
-          <button class="dock-btn ${state.activePage === 'settings' ? 'primary-dock' : ''}" onclick="navigateTo('settings')">
+          <button class="dock-btn ${state.activePage === 'settings' ? 'primary-dock active' : ''}" onclick="navigateTo('settings')">
             ${icons.settings}
             <span>AYARLAR</span>
           </button>

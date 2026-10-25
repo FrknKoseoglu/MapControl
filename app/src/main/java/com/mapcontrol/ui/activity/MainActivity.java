@@ -21,6 +21,7 @@ import android.os.Looper;
 import android.util.Log;
 import android.graphics.drawable.Drawable;
 import android.view.Display;
+import android.view.Gravity;
 import android.view.KeyEvent;
 import android.view.View;
 import com.desaysv.ivi.extra.project.carinfo.proxy.CarInfoProxy;
@@ -204,6 +205,7 @@ public class MainActivity extends AppCompatActivity {
     private final boolean[] tabNeedsUiModeRebuild = new boolean[16];
     /** Son uygulanan yön; configChanges orientation activity'yi yeniden kurmaz. */
     private int lastOrientation = -1;
+    private int lastNormalTab = 0;
     private LinearLayout shellHost;
     private boolean portraitShell;
     private LinearLayout sideRail; // Sol kenar çubuğu kök view'ı (Launcher modunda gizlenebilir)
@@ -415,6 +417,14 @@ public class MainActivity extends AppCompatActivity {
                 new SideRailBuilder.SideRailCallback() {
                     @Override
                     public void onTabSelected(int tabIndex, String title) {
+                        if (LauncherModeManager.isEnabled(MainActivity.this)) {
+                            crossfadeLauncherTransition(() -> {
+                                exitLauncherMode();
+                                switchTab(tabIndex);
+                                if (sideRailBuilder != null) sideRailBuilder.setSelectionForTabIndex(tabIndex);
+                            });
+                            return;
+                        }
                         crossfadeContent(() -> {
                             switchTab(tabIndex);
                         });
@@ -432,10 +442,10 @@ public class MainActivity extends AppCompatActivity {
 
                     @Override
                     public void onHomeRequested() {
-                        if (LauncherModeManager.isEnabled(MainActivity.this)) {
-                            crossfadeLauncherTransition(() -> enterLauncherMode());
+                        if (LauncherModeManager.isEnabled(MainActivity.this) || currentTab == TAB_LAUNCHER) {
+                            crossfadeLauncherTransition(() -> exitLauncherMode());
                         } else {
-                            crossfadeContent(() -> switchTab(TAB_LAUNCHER));
+                            crossfadeLauncherTransition(() -> enterLauncherMode());
                         }
                     }
 
@@ -1225,6 +1235,9 @@ public class MainActivity extends AppCompatActivity {
         }
 
         currentTab = tabIndex;
+        if (tabIndex != TAB_LAUNCHER) {
+            lastNormalTab = tabIndex;
+        }
 
         // Launcher modu açıkken sol menü her zaman gizli; kapalıyken görünür.
         boolean launcherMode = LauncherModeManager.isEnabled(this);
@@ -1523,9 +1536,10 @@ public class MainActivity extends AppCompatActivity {
         syncLauncherModeSettingsUi();
         detachParkedLauncher();
         if (wasOnLauncherTab) {
-            switchTab(0);
+            int targetTab = (lastNormalTab != TAB_LAUNCHER && lastNormalTab >= 0) ? lastNormalTab : 0;
+            switchTab(targetTab);
             if (sideRailBuilder != null) {
-                sideRailBuilder.setSelectionForTabIndex(0);
+                sideRailBuilder.setSelectionForTabIndex(targetTab);
             }
         }
     }
@@ -1835,6 +1849,21 @@ public class MainActivity extends AppCompatActivity {
                     LinearLayout.LayoutParams.MATCH_PARENT);
         }
         shellHost.addView(mainContent, mainContentParams);
+
+        if (sideRailBuilder != null) {
+            View goldenDock = sideRailBuilder.getGoldenDock();
+            if (goldenDock != null) {
+                if (goldenDock.getParent() instanceof android.view.ViewGroup) {
+                    ((android.view.ViewGroup) goldenDock.getParent()).removeView(goldenDock);
+                }
+                int dockWidth = portrait ? FrameLayout.LayoutParams.MATCH_PARENT : sidebarWidthPx;
+                FrameLayout.LayoutParams dockLp = new FrameLayout.LayoutParams(
+                        dockWidth,
+                        FrameLayout.LayoutParams.WRAP_CONTENT,
+                        Gravity.BOTTOM | (portrait ? Gravity.CENTER_HORIZONTAL : Gravity.START));
+                mainRootContainer.addView(goldenDock, dockLp);
+            }
+        }
     }
 
     /** Launcher kartları yön değişince yeniden dizilir; normal sekmeler kaydırılmaya devam eder. */

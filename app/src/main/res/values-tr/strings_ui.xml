@@ -13,7 +13,8 @@
     <string name="common_em_dash">—</string>
 
     <!-- Zone 1: Golden Dock -->
-    <string name="dock_home">Ana Ekran</string>
+    <string name="dock_home">Home</string>
+    <string name="dock_menu">Menü</string>
     <string name="dock_back">Geri</string>
     <string name="dock_drive_memory">Hafıza</string>
     <string name="dock_settings">Ayarlar</string>

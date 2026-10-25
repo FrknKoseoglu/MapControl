@@ -14,6 +14,7 @@
 
     <!-- Zone 1: Golden Dock -->
     <string name="dock_home">Home</string>
+    <string name="dock_menu">Menu</string>
     <string name="dock_back">Back</string>
     <string name="dock_drive_memory">Memory</string>
     <string name="dock_settings">Settings</string>

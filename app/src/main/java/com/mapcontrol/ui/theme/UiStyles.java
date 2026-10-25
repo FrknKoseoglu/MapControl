@@ -457,11 +457,35 @@ public final class UiStyles {
         private final int[] modeIds;
         private final int[] selectedIndex;
         private final Runnable refresh;
+        private View[] segs;
+        private TextView helpSeg;
 
         private TernarySegmentHandle(int[] modeIds, int[] selectedIndex, Runnable refresh) {
             this.modeIds = modeIds;
             this.selectedIndex = selectedIndex;
             this.refresh = refresh;
+        }
+
+        private void bindViews(View[] segs, TextView helpSeg) {
+            this.segs = segs;
+            this.helpSeg = helpSeg;
+        }
+
+        public void setInteractionEnabled(boolean enabled) {
+            float a = enabled ? 1f : 0.5f;
+            if (segs != null) {
+                for (View tv : segs) {
+                    tv.setEnabled(enabled);
+                    if (tv instanceof android.view.ViewGroup) {
+                        android.view.ViewGroup card = (android.view.ViewGroup) tv;
+                        for (int i = 0; i < card.getChildCount(); i++) card.getChildAt(i).setEnabled(enabled);
+                    }
+                    tv.setAlpha(a);
+                }
+            }
+            if (helpSeg != null) {
+                helpSeg.setAlpha(a);
+            }
         }
 
         /** Sync UI from persisted mode id without calling {@code onCommit}. */
@@ -605,7 +629,7 @@ public final class UiStyles {
         for (int i = 0; i < 3; i++) {
             final int fi = i;
             cards[i].setOnClickListener(v -> {
-                if (selectedIndex[0] != fi) {
+                if (cards[fi].isEnabled() && selectedIndex[0] != fi) {
                     selectedIndex[0] = fi;
                     refresh.run();
                     onCommit.accept(modeIds[fi]);
@@ -635,7 +659,9 @@ public final class UiStyles {
                 LinearLayout.LayoutParams.MATCH_PARENT,
                 LinearLayout.LayoutParams.WRAP_CONTENT));
 
-        return new TernarySegmentHandle(modeIds, selectedIndex, refresh);
+        TernarySegmentHandle handle = new TernarySegmentHandle(modeIds, selectedIndex, refresh);
+        handle.bindViews(cards, help);
+        return handle;
     }
 
     /** Tinted start drawable for {@link Button} labels (Material-style icons as vector drawables). */

@@ -86,3 +86,5 @@ Sekiz eski `docs/*.md` tam metni önce arşivlenip içerik/hash doğrulamasında
 [Güncel Super Mod düzeltmesi](super-mode-fix.md): gizleme erişilebilirlik servisinde yalnız tanınan Sport penceresinin geri kontrolüne taşındı. Genel kapatma yayını ve mod geçişine bağlı eski politika kaldırıldı. İlgili mevcut kaynak kapsamı ve 14 JVM / 44 Android test sonucu bu notta açıklanır; önceki denetim hash'leri tarihsel kayıttır. Fiziksel araç kabulü beklenir.
 
 Araçta versionCode 3 gizlemesi kullanıcı testinde başarısız oldu. İki seçeneğin açık olduğu doğrulandı; fiziksel neden henüz bilinmiyor. [VersionCode 4 tanı sürümü ve telefondan kayıt paylaşımı](super-mode-vehicle-diagnostics.md).
+
+- **25 Ekim 2026 — ana proje 1.3.4 eşitlemesi:** [Alınan yenilikler, arayüz entegrasyonu ve test sonuçları](upstream-sync-1.3.4.md).

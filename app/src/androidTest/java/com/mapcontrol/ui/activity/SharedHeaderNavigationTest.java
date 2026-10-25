@@ -113,7 +113,9 @@ public class SharedHeaderNavigationTest {
                     View quickScroll = host.getWindow().getDecorView().findViewWithTag("launcher_quick_access_scroll");
                     assertSame(clockWidgets, quickScroll.findViewWithTag("launcher_status_statuses"));
                     ViewGroup shortcuts = host.getWindow().getDecorView().findViewWithTag("launcher_shortcuts_grid");
-                    assertEquals(5, shortcuts.getChildCount());
+                    assertEquals(7, shortcuts.getChildCount());
+                    assertNotNull(shortcuts.findViewWithTag("launcher_shortcut_14"));
+                    assertNotNull(shortcuts.findViewWithTag("launcher_shortcut_15"));
                     for (int tab : new int[]{0, 1, 3, 6}) {
                         assertNull(shortcuts.findViewWithTag("launcher_shortcut_" + tab));
                     }

@@ -1,10 +1,13 @@
 package com.mapcontrol.ui.builder;
-import android.app.AlertDialog;
 import android.content.Context;
 import android.content.SharedPreferences;
 import android.content.res.ColorStateList;
 import android.graphics.Color;
 import android.graphics.Typeface;
+import android.text.Spannable;
+import android.text.SpannableString;
+import android.text.style.RelativeSizeSpan;
+import android.text.style.StyleSpan;
 import android.view.Gravity;
 import android.view.View;
 import android.text.TextUtils;
@@ -20,6 +23,7 @@ import androidx.core.content.ContextCompat;
 import com.mapcontrol.R;
 import com.mapcontrol.ui.theme.UiStyles;
 import com.mapcontrol.ui.widget.StatusWidgetsView;
+import com.mapcontrol.util.DialogHelper;
 
 public class SideRailBuilder {
     public interface SideRailCallback {
@@ -40,6 +44,8 @@ public class SideRailBuilder {
     private static final int TAB_EQUALIZER = 11;
     private static final int TAB_CLIMATE_AUTOMATION = 12;
     private static final int TAB_FACE_RECOGNITION = 13;
+    private static final int TAB_CAMERA_360 = 14;
+    private static final int TAB_SPLIT_SCREEN = 15;
 
     private final Context context;
     private final SharedPreferences prefs;
@@ -52,16 +58,19 @@ public class SideRailBuilder {
     private LinearLayout menuProjection;
     private LinearLayout menuDriveMode;
     private LinearLayout menuTest;
+    private LinearLayout menuCamera360;
     private LinearLayout menuWelcomeSound;
     private LinearLayout menuEqualizer;
     private LinearLayout menuClimateAutomation;
     private LinearLayout menuFaceRecognition;
     private LinearLayout menuProfile;
     private LinearLayout menuVehicleInfo;
+    private LinearLayout menuSplitScreen;
     private LinearLayout sideRail;
     private View statusWidgets;
     private LinearLayout selectedMenuRow;
     private boolean launcherModeActive;
+    private boolean contentWide;
 
     public SideRailBuilder(Context context, SharedPreferences prefs, SideRailCallback callback) {
         this.context = context;
@@ -114,9 +123,12 @@ public class SideRailBuilder {
         menuFaceRecognition = createRailMenuItemView(R.drawable.ic_mdi_account,
                 t(R.string.side_rail_face_recognition));
         menuTest = createRailMenuItemView(R.drawable.ic_mdi_camera, t(R.string.side_rail_camera));
+        menuCamera360 = createRailMenuItemView(R.drawable.ic_mdi_camera, t(R.string.camera360_title));
         menuProjection = createRailMenuItemView(R.drawable.ic_mdi_map, t(R.string.side_rail_projection));
         menuVehicleInfo = createRailMenuItemView(R.drawable.ic_mdi_speedometer,
                 t(R.string.side_rail_vehicle_info));
+        menuSplitScreen = createRailMenuItemView(R.drawable.ic_mdi_view_split,
+                t(R.string.side_rail_split_screen));
         menuSettings = createRailMenuItemView(R.drawable.ic_mdi_cog, t(R.string.side_rail_settings));
 
         menuContainer.addView(menuWifi);
@@ -130,6 +142,8 @@ public class SideRailBuilder {
         menuContainer.addView(menuFaceRecognition);
         menuTest.setVisibility(View.GONE);
         menuContainer.addView(menuTest);
+        menuContainer.addView(menuCamera360);
+        menuContainer.addView(menuSplitScreen);
         menuContainer.addView(menuProjection);
         menuContainer.addView(menuVehicleInfo);
         menuContainer.addView(menuSettings);
@@ -180,9 +194,12 @@ public class SideRailBuilder {
         menuFaceRecognition = createPortraitRailItem(R.drawable.ic_mdi_account,
                 t(R.string.side_rail_face_recognition));
         menuTest = createPortraitRailItem(R.drawable.ic_mdi_camera, t(R.string.side_rail_camera));
+        menuCamera360 = createPortraitRailItem(R.drawable.ic_mdi_camera, t(R.string.camera360_title));
         menuProjection = createPortraitRailItem(R.drawable.ic_mdi_map, t(R.string.side_rail_projection));
         menuVehicleInfo = createPortraitRailItem(R.drawable.ic_mdi_speedometer,
                 t(R.string.side_rail_vehicle_info));
+        menuSplitScreen = createPortraitRailItem(R.drawable.ic_mdi_view_split,
+                t(R.string.side_rail_split_screen));
         menuSettings = createPortraitRailItem(R.drawable.ic_mdi_cog, t(R.string.side_rail_settings));
 
         menuContainer.addView(menuWifi);
@@ -195,6 +212,8 @@ public class SideRailBuilder {
         menuContainer.addView(menuFaceRecognition);
         menuTest.setVisibility(View.GONE);
         menuContainer.addView(menuTest);
+        menuContainer.addView(menuCamera360);
+        menuContainer.addView(menuSplitScreen);
         menuContainer.addView(menuProjection);
         menuContainer.addView(menuVehicleInfo);
         menuContainer.addView(menuSettings);
@@ -209,6 +228,13 @@ public class SideRailBuilder {
         updateMenuSelection(menuWifi, menuFileUpload, menuProfile, menuProjection, menuVehicleInfo, menuSettings, menuApps, menuDriveMode, menuTest, menuWelcomeSound);
         bindMenuClicks();
         return sideRail;
+    }
+
+    /** Launcher shortcuts use the same upstream disclaimer and navigation as the rail. */
+    public boolean openCameraOrSplitScreen(int tabIndex) {
+        if (tabIndex == TAB_CAMERA_360 && menuCamera360 != null) return menuCamera360.performClick();
+        if (tabIndex == TAB_SPLIT_SCREEN && menuSplitScreen != null) return menuSplitScreen.performClick();
+        return false;
     }
 
     private void bindMenuClicks() {
@@ -262,18 +288,36 @@ public class SideRailBuilder {
             updateMenuSelection(menuEqualizer, menuWifi, menuFileUpload, menuProfile, menuProjection, menuVehicleInfo, menuSettings, menuApps, menuDriveMode, menuTest, menuWelcomeSound);
         });
 
-        menuClimateAutomation.setOnClickListener(v -> openExperimentalMenu(
+        menuClimateAutomation.setOnClickListener(v -> openEarlyAccessMenu(
                 "climateAutoBetaWarningSeen",
+                t(R.string.side_rail_climate_automation),
                 () -> {
                     callback.onTabSelected(TAB_CLIMATE_AUTOMATION, t(R.string.side_rail_climate_automation));
                     updateMenuSelection(menuClimateAutomation);
                 }));
 
-        menuFaceRecognition.setOnClickListener(v -> openExperimentalMenu(
+        menuFaceRecognition.setOnClickListener(v -> openEarlyAccessMenu(
                 "dmsFaceBetaWarningSeen",
+                t(R.string.dms_recognition_title),
                 () -> {
                     callback.onTabSelected(TAB_FACE_RECOGNITION, t(R.string.dms_recognition_title));
                     updateMenuSelection(menuFaceRecognition);
+                }));
+
+        menuCamera360.setOnClickListener(v -> openEarlyAccessMenu(
+                "camera360BetaWarningSeen",
+                t(R.string.camera360_title),
+                () -> {
+                    callback.onTabSelected(TAB_CAMERA_360, t(R.string.camera360_title));
+                    updateMenuSelection(menuCamera360);
+                }));
+
+        menuSplitScreen.setOnClickListener(v -> openEarlyAccessMenu(
+                "splitScreenBetaWarningSeen",
+                t(R.string.side_rail_split_screen),
+                () -> {
+                    callback.onTabSelected(TAB_SPLIT_SCREEN, t(R.string.side_rail_split_screen));
+                    updateMenuSelection(menuSplitScreen);
                 }));
     }
 
@@ -282,8 +326,22 @@ public class SideRailBuilder {
      */
     public void setLauncherModeActive(boolean active) {
         launcherModeActive = active;
+        applyRailVisibility();
+    }
+
+    /** Icerik tam genislik istedi (or. Kamera 360 izleme ekrani); launcher modundan bagimsiz. */
+    public void setContentWide(boolean wide) {
+        contentWide = wide;
+        applyRailVisibility();
+    }
+
+    public boolean isRailHidden() {
+        return launcherModeActive || contentWide;
+    }
+
+    private void applyRailVisibility() {
         if (sideRail != null) {
-            sideRail.setVisibility(active ? View.GONE : View.VISIBLE);
+            sideRail.setVisibility(isRailHidden() ? View.GONE : View.VISIBLE);
         }
     }
 
@@ -348,6 +406,12 @@ public class SideRailBuilder {
                 break;
             case TAB_FACE_RECOGNITION:
                 updateMenuSelection(menuFaceRecognition);
+                break;
+            case TAB_CAMERA_360:
+                updateMenuSelection(menuCamera360);
+                break;
+            case TAB_SPLIT_SCREEN:
+                updateMenuSelection(menuSplitScreen);
                 break;
             default:
                 break;
@@ -477,55 +541,21 @@ public class SideRailBuilder {
         }
     }
 
-    private void openExperimentalMenu(String seenKey, Runnable open) {
+    private void openEarlyAccessMenu(String seenKey, String title, Runnable open) {
         if (prefs.getBoolean(seenKey, false)) {
             open.run();
             return;
         }
-        float density = context.getResources().getDisplayMetrics().density;
-        int pad = Math.round(28 * density);
-        LinearLayout box = new LinearLayout(context);
-        box.setOrientation(LinearLayout.VERTICAL);
-        box.setPadding(pad, pad, pad, Math.round(8 * density));
-
-        TextView title = new TextView(context);
-        title.setText(R.string.experimental_feature_warning_title);
-        title.setTextSize(28);
-        title.setTypeface(null, Typeface.BOLD);
-        title.setTextColor(UiStyles.color(context, R.color.textPrimary));
-        title.setGravity(Gravity.CENTER);
-        box.addView(title);
-
-        TextView message = new TextView(context);
-        message.setText(R.string.experimental_feature_warning);
-        message.setTextSize(22);
-        message.setTextColor(UiStyles.color(context, R.color.textPrimary));
-        message.setGravity(Gravity.CENTER);
-        message.setPadding(0, Math.round(18 * density), 0, 0);
-        box.addView(message);
-
-        AlertDialog dialog = new AlertDialog.Builder(context)
-                .setView(box)
-                .setCancelable(false)
-                .setPositiveButton(R.string.experimental_feature_warning_ok, (d, which) -> {
-                    prefs.edit().putBoolean(seenKey, true).apply();
-                    open.run();
-                })
-                .create();
-        dialog.setOnShowListener(d -> {
-            android.widget.Button ok = dialog.getButton(AlertDialog.BUTTON_POSITIVE);
-            if (ok != null) {
-                ok.setTextSize(22);
-                ok.setTypeface(null, Typeface.BOLD);
-            }
-        });
-        dialog.show();
+        DialogHelper.showEarlyAccessDisclaimer(context, title, () -> {
+            prefs.edit().putBoolean(seenKey, true).apply();
+            open.run();
+        }, () -> {});
     }
 
     private LinearLayout[] menuRows() {
         return new LinearLayout[]{
                 menuWifi, menuFileUpload, menuProfile, menuProjection, menuVehicleInfo,
-                menuSettings, menuApps, menuDriveMode, menuTest, menuWelcomeSound, menuEqualizer, menuClimateAutomation, menuFaceRecognition
+                menuSettings, menuApps, menuDriveMode, menuTest, menuWelcomeSound, menuEqualizer, menuClimateAutomation, menuFaceRecognition, menuCamera360, menuSplitScreen
         };
     }
 

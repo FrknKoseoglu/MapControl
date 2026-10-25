@@ -109,6 +109,28 @@ public class CompactControlsTest {
         });
     }
 
+    @Test public void upstreamTernaryLockDisablesCardsAndRadioButtonsWithoutCommitting() {
+        InstrumentationRegistry.getInstrumentation().runOnMainSync(() -> {
+            Context context=context();LinearLayout parent=new LinearLayout(context);
+            AtomicInteger commits=new AtomicInteger();
+            UiStyles.TernarySegmentHandle handle=UiStyles.addTernarySegmentedControl(context,parent,
+                    "Quality",new String[]{"Low","Medium","High"},new String[]{"Small","Balanced","Detailed"},
+                    new int[]{0,1,2},0,value->commits.incrementAndGet());
+            List<CompoundButton> buttons=choices(parent);assertEquals(3,buttons.size());
+            handle.setInteractionEnabled(false);
+            for(CompoundButton button:buttons){
+                assertFalse(button.isEnabled());
+                View card=(View)button.getParent();assertFalse(card.isEnabled());
+                card.performClick();button.performClick();
+            }
+            assertEquals(0,commits.get());assertEquals(0,handle.getSelectedModeId());
+            handle.syncVisualFromModeId(1);assertEquals(1,handle.getSelectedModeId());assertEquals(0,commits.get());
+            handle.setInteractionEnabled(true);
+            assertTrue(buttons.get(2).isEnabled());buttons.get(2).performClick();
+            assertEquals(2,handle.getSelectedModeId());assertEquals(1,commits.get());
+        });
+    }
+
     private void layoutGrid(FeatureGridLayout grid, Context context, int widthDp) {
         int width = Math.round(widthDp * context.getResources().getDisplayMetrics().density);
         grid.measure(View.MeasureSpec.makeMeasureSpec(width, View.MeasureSpec.EXACTLY),

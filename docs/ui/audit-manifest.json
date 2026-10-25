@@ -929,5 +929,19 @@
       "protected_files_unchanged_vs_51a04eb": 27,
       "physical_vehicle_tested": false
     }
+  },
+  "upstream_sync_1_3_4": {
+    "date": "2026-10-25",
+    "upstream_release_tag": "1.3.4",
+    "upstream_release_branch": "experimental",
+    "upstream_release_commit": "dce10827100001d932772f0ad6eabac30c00a9b7",
+    "jvm_tests": 19,
+    "android_tests": 51,
+    "all_tests_no_skips": true,
+    "native_arm64_build_passed": true,
+    "physical_vehicle_tested": false,
+    "super_mode_implementation_unchanged": true,
+    "upstream_files_preserved_exactly": 40,
+    "details": "upstream-sync-1.3.4.md"
   }
 }

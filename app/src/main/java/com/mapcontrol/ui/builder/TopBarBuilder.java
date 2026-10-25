@@ -58,7 +58,7 @@ public class TopBarBuilder implements HeaderStatusSink {
         topBar.setTag("shared_header");
         topBar.setOrientation(LinearLayout.VERTICAL);
         HeaderRow row = new HeaderRow();
-        row.setPadding(dp(20), dp(16), dp(16), dp(16));
+        row.setPadding(dp(20), dp(10), dp(20), dp(10));
         LinearLayout titleArea = new LinearLayout(context);
         titleArea.setGravity(Gravity.CENTER_VERTICAL);
 
@@ -103,20 +103,17 @@ public class TopBarBuilder implements HeaderStatusSink {
         brandView.setText(brand);
         UiStyles.setTextSize(brandView, R.dimen.text_size_normal);
         brandView.setTypeface(null, Typeface.BOLD);
-        brandView.setGravity(Gravity.RIGHT | Gravity.TOP);
+        brandView.setGravity(Gravity.RIGHT | Gravity.CENTER_VERTICAL);
         brandView.setTextDirection(View.TEXT_DIRECTION_LTR);
         brandView.setClickable(false);
         brandView.setFocusable(false);
+        brandView.setPadding(dp(12), dp(4), dp(12), dp(4));
+        UiStyles.applySolidRoundedBackgroundDp(brandView, UiStyles.color(context, R.color.surfaceCardInner), 10);
         row.addView(brandView);
         headerRow = row;
         topBarDivider = new View(context);
-        if (isBottomPosition) {
-            topBar.addView(topBarDivider, new LinearLayout.LayoutParams(-1, Math.max(1, dp(1))));
-            topBar.addView(headerRow, new LinearLayout.LayoutParams(-1, -2));
-        } else {
-            topBar.addView(headerRow, new LinearLayout.LayoutParams(-1, -2));
-            topBar.addView(topBarDivider, new LinearLayout.LayoutParams(-1, Math.max(1, dp(1))));
-        }
+        topBar.addView(headerRow, new LinearLayout.LayoutParams(-1, -2));
+        topBar.addView(topBarDivider, new LinearLayout.LayoutParams(-1, Math.max(1, dp(1))));
 
         titleView.setOnClickListener(v -> {
             titleClickCount++;
@@ -152,17 +149,7 @@ public class TopBarBuilder implements HeaderStatusSink {
     }
 
     public void setHeaderPosition(boolean isBottom) {
-        if (this.isBottomPosition == isBottom) return;
-        this.isBottomPosition = isBottom;
-        if (topBar == null || topBarDivider == null || headerRow == null) return;
-        topBar.removeAllViews();
-        if (isBottom) {
-            topBar.addView(topBarDivider, new LinearLayout.LayoutParams(-1, Math.max(1, dp(1))));
-            topBar.addView(headerRow, new LinearLayout.LayoutParams(-1, -2));
-        } else {
-            topBar.addView(headerRow, new LinearLayout.LayoutParams(-1, -2));
-            topBar.addView(topBarDivider, new LinearLayout.LayoutParams(-1, Math.max(1, dp(1))));
-        }
+        // Header kalıcı olarak yukarıda sabitlenmiştir
     }
 
     public void setBackButtonVisible(boolean visible) {
@@ -196,7 +183,10 @@ public class TopBarBuilder implements HeaderStatusSink {
             topBar.setBackground(bg);
         }
         if (titleView != null) titleView.setTextColor(UiStyles.color(context, R.color.textPrimary));
-        if (brandView != null) brandView.setTextColor(UiStyles.color(context, R.color.textSecondary));
+        if (brandView != null) {
+            brandView.setTextColor(UiStyles.color(context, R.color.textSecondary));
+            UiStyles.applySolidRoundedBackgroundDp(brandView, UiStyles.color(context, R.color.surfaceCardInner), 10);
+        }
         if (launcherBackButton != null) {
             UiStyles.setGlassCardBackground(launcherBackButton);
             launcherBackButton.setImageTintList(ColorStateList.valueOf(UiStyles.color(context, R.color.textPrimary)));

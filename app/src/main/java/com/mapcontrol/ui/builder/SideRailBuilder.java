@@ -471,23 +471,44 @@ public class SideRailBuilder {
         return item;
     }
 
+    private int currentDockSelection = -1;
+
+    public void updateGoldenDockSelection(int tabIndex) {
+        currentDockSelection = tabIndex;
+        if (goldenDockItems.size() < 4) return;
+        int activeColor = UiStyles.color(context, R.color.accentHighlight);
+        int idleColor = UiStyles.color(context, R.color.textSecondaryCool);
+        int primaryColor = UiStyles.color(context, R.color.primaryColor);
+        int activeBg = androidx.core.graphics.ColorUtils.setAlphaComponent(primaryColor, 45);
+
+        for (int i = 0; i < goldenDockItems.size(); i++) {
+            View item = goldenDockItems.get(i);
+            boolean isActive = (i == 0 && tabIndex == TAB_LAUNCHER)
+                    || (i == 2 && tabIndex == TAB_DRIVE_MODE)
+                    || (i == 3 && tabIndex == TAB_SETTINGS);
+
+            int color = isActive ? activeColor : idleColor;
+            View icon = (View) item.getTag(R.id.side_rail_icon);
+            if (icon instanceof AppCompatImageView) {
+                ((AppCompatImageView) icon).setImageTintList(ColorStateList.valueOf(color));
+            }
+            View label = (View) item.getTag(R.id.side_rail_label);
+            if (label instanceof TextView) {
+                ((TextView) label).setTextColor(color);
+            }
+            if (isActive) {
+                UiStyles.applySolidRoundedBackgroundDp(item, activeBg, 12);
+            } else {
+                UiStyles.applySolidRoundedBackgroundDp(item, Color.TRANSPARENT, 12);
+            }
+        }
+    }
+
     private void reapplyGoldenDockTheme() {
         if (goldenDockDivider != null) {
             goldenDockDivider.setBackgroundColor(UiStyles.color(context, R.color.outlineSubtle));
         }
-        int color = UiStyles.color(context, R.color.textSecondaryCool);
-        for (View item : goldenDockItems) {
-            if (item != null) {
-                View icon = (View) item.getTag(R.id.side_rail_icon);
-                if (icon instanceof AppCompatImageView) {
-                    ((AppCompatImageView) icon).setImageTintList(ColorStateList.valueOf(color));
-                }
-                View label = (View) item.getTag(R.id.side_rail_label);
-                if (label instanceof TextView) {
-                    ((TextView) label).setTextColor(color);
-                }
-            }
-        }
+        updateGoldenDockSelection(currentDockSelection);
     }
 
     /**
@@ -496,6 +517,7 @@ public class SideRailBuilder {
      * <p>LOG (4) kenar çubuğunda olmadığından bu indekste işlem yapılmaz.
      */
     public void setSelectionForTabIndex(int tabIndex) {
+        updateGoldenDockSelection(tabIndex);
         switch (tabIndex) {
             case 0:
                 updateMenuSelection(menuWifi, menuFileUpload, menuProfile, menuProjection, menuVehicleInfo, menuSettings, menuApps, menuDriveMode, menuTest, menuWelcomeSound);

@@ -160,7 +160,7 @@ function renderUnifiedShell(container) {
 
         <!-- ZONE 1: FIXED GOLDEN DOCK (Always visible at bottom left!) -->
         <div class="golden-dock">
-          <button class="dock-btn primary-dock" onclick="navigateTo('launcher')">
+          <button class="dock-btn ${state.activePage === 'launcher' ? 'primary-dock' : ''}" onclick="navigateTo('launcher')">
             ${icons.home}
             <span>HOME</span>
           </button>
@@ -168,11 +168,11 @@ function renderUnifiedShell(container) {
             ${icons.back}
             <span>GERİ</span>
           </button>
-          <button class="dock-btn" onclick="navigateTo('drive')">
+          <button class="dock-btn ${state.activePage === 'drive' ? 'primary-dock' : ''}" onclick="navigateTo('drive')">
             ${icons.drive}
             <span>HAFIZA</span>
           </button>
-          <button class="dock-btn" onclick="navigateTo('settings')">
+          <button class="dock-btn ${state.activePage === 'settings' ? 'primary-dock' : ''}" onclick="navigateTo('settings')">
             ${icons.settings}
             <span>AYARLAR</span>
           </button>
@@ -383,16 +383,6 @@ function renderPageContent(pageId) {
         <div class="ivi-card">
           <div class="ivi-card-title">
             <span>Arayüz & Yerleşim Ergonomisi</span>
-          </div>
-          <div class="toggle-row">
-            <div class="toggle-info">
-              <h4>Header Menü Konumu</h4>
-              <p>Sayfa başlığı ve geri düğmesi yukarıda veya aşağıda yerleşsin.</p>
-            </div>
-            <div class="sim-btn-group">
-              <button class="sim-btn ${state.headerPos === 'top' ? 'active' : ''}" onclick="state.headerPos='top'; renderScreen();">Yukarıda</button>
-              <button class="sim-btn ${state.headerPos === 'bottom' ? 'active' : ''}" onclick="state.headerPos='bottom'; renderScreen();">Aşağıda</button>
-            </div>
           </div>
           <div class="toggle-row">
             <div class="toggle-info">

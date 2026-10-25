@@ -497,17 +497,8 @@ public class MainActivity extends AppCompatActivity {
                 LinearLayout.LayoutParams.MATCH_PARENT,
                 0, 1f);
 
-        boolean headerBottom = prefs.getBoolean("header_menu_bottom", false);
-        if (topBarBuilder != null) {
-            topBarBuilder.setHeaderPosition(headerBottom);
-        }
-        if (headerBottom) {
-            mainContent.addView(tabContentArea, tabContentParams);
-            mainContent.addView(topBar, new LinearLayout.LayoutParams(-1, -2));
-        } else {
-            mainContent.addView(topBar, new LinearLayout.LayoutParams(-1, -2));
-            mainContent.addView(tabContentArea, tabContentParams);
-        }
+        mainContent.addView(topBar, new LinearLayout.LayoutParams(-1, -2));
+        mainContent.addView(tabContentArea, tabContentParams);
         mountShell(isPortraitConfiguration());
         
         // WebServerManager'ı başlat
@@ -930,7 +921,6 @@ public class MainActivity extends AppCompatActivity {
 
                     @Override
                     public void onHeaderPositionChanged(boolean isBottom) {
-                        applyHeaderPosition(isBottom);
                     }
                 });
         settingsScrollView = settingsTabBuilder.getScrollView();
@@ -1678,18 +1668,7 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void applyHeaderPosition(boolean isBottom) {
-        if (mainContent == null || topBar == null || tabContentArea == null) {
-            return;
-        }
-        if (topBarBuilder != null) {
-            topBarBuilder.setHeaderPosition(isBottom);
-        }
-        mainContent.removeView(topBar);
-        if (isBottom) {
-            mainContent.addView(topBar);
-        } else {
-            mainContent.addView(topBar, 0);
-        }
+        // Header kalıcı olarak yukarıda sabitlenmiştir
     }
 
     private void tryConsumeDeferredProjectionTargetPicker() {

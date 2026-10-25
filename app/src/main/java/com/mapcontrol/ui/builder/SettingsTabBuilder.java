@@ -93,7 +93,6 @@ public class SettingsTabBuilder {
         createLauncherModeSection(grid);
         createFloatingBackButtonSection(grid);
         createDarkModeSection(grid);
-        createHeaderPositionSection(grid);
         createBootServiceSection(grid);
         createBootUiSection(grid);
         createLanguageSection(grid);
@@ -178,25 +177,6 @@ public class SettingsTabBuilder {
                 });
     }
 
-    private void createHeaderPositionSection(FeatureGridLayout grid) {
-        boolean isBottom = prefs.getBoolean("header_menu_bottom", false);
-        UiStyles.addBinarySegmentedControl(context, grid,
-                context.getString(R.string.settings_header_position_title),
-                context.getString(R.string.settings_header_position_top),
-                context.getString(R.string.settings_header_position_bottom),
-                context.getString(R.string.settings_header_position_help_top),
-                context.getString(R.string.settings_header_position_help_bottom),
-                !isBottom,
-                topSelected -> {
-                    boolean bottom = !topSelected;
-                    if (bottom == prefs.getBoolean("header_menu_bottom", false)) {
-                        return;
-                    }
-                    prefs.edit().putBoolean("header_menu_bottom", bottom).apply();
-                    callback.log("Header Konumu: " + (bottom ? "Aşağıda" : "Yukarıda"));
-                    callback.onHeaderPositionChanged(bottom);
-                });
-    }
 
     private void createBootServiceSection(android.view.ViewGroup parent) {
         UiStyles.addBinarySegmentedControl(context, parent,

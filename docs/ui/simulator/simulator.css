@@ -697,3 +697,17 @@ body {
   border-top-right-radius: 14px;
   box-shadow: 0 -6px 20px rgba(0, 0, 0, 0.6);
 }
+
+.header-status-chips {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.header-status-chips .mini-chip {
+  cursor: pointer;
+  transition: transform 0.1s ease, background 0.15s ease;
+}
+.header-status-chips .mini-chip:hover {
+  transform: translateY(-1px);
+  background: rgba(255, 255, 255, 0.08);
+}

@@ -104,7 +104,7 @@ public class SideRailBuilder {
         sideRail.setOrientation(LinearLayout.VERTICAL);
         UiStyles.setRailPanelBackground(sideRail);
         sideRail.setPadding(0, 0, 0, 0);
-        attachStatusWidgets();
+        // Status widgets TopBar içine taşındı
 
         ScrollView menuScrollView = new ScrollView(context);
         menuScrollView.setBackgroundColor(Color.TRANSPARENT);
@@ -181,7 +181,7 @@ public class SideRailBuilder {
         sideRail = new LinearLayout(context);
         sideRail.setOrientation(LinearLayout.VERTICAL);
         UiStyles.setRailPanelBackground(sideRail);
-        attachStatusWidgets();
+        // Status widgets TopBar içine taşındı
 
         HorizontalScrollView menuScroll = new HorizontalScrollView(context);
         menuScroll.setHorizontalScrollBarEnabled(false);

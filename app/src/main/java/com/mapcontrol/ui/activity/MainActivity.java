@@ -497,7 +497,7 @@ public class MainActivity extends AppCompatActivity {
             returnToLauncherHome();
         });
         
-        sideRailBuilder.setStatusWidgets(topBarBuilder.getStatusWidgets());
+        // Status widgets TopBar içine taşındı
 
         // Tab içerik alanı (FrameLayout: launcher park ederken SurfaceView GONE olmasın)
         tabContentArea = new FrameLayout(this);
@@ -1210,6 +1210,13 @@ public class MainActivity extends AppCompatActivity {
      * 0=Wi-Fi, 1=Web, 2=Profil, 3=Yansıtma, 4=LOG, 5=Uygulamalar, 6=Hafıza, 7=Ayarlar, 8=Açılış Sesi, 9=Araç Bilgi, 11=Ekolayzer
      */
     private void switchTab(int tabIndex) {
+        // TAB_LAUNCHER asla sağ taraftaki sekme alanında açılmamalıdır; yalnızca tam ekran launcher modu olarak açılabilir.
+        if (tabIndex == TAB_LAUNCHER) {
+            if (!LauncherModeManager.isEnabled(this)) {
+                enterLauncherMode();
+            }
+            return;
+        }
         if (tabIndex >= 0 && tabIndex < tabNeedsUiModeRebuild.length && tabNeedsUiModeRebuild[tabIndex]) {
             rebuildTabForUiMode(tabIndex);
             tabNeedsUiModeRebuild[tabIndex] = false;
@@ -1405,13 +1412,8 @@ public class MainActivity extends AppCompatActivity {
 
     /** Alt sekmeden ana ekran ızgarasına döner. */
     private void returnToLauncherHome() {
-        if (currentTab != TAB_LAUNCHER) {
-            crossfadeContent(() -> {
-                switchTab(TAB_LAUNCHER);
-                if (sideRailBuilder != null) {
-                    sideRailBuilder.setSelectionForTabIndex(TAB_LAUNCHER);
-                }
-            });
+        if (LauncherModeManager.isEnabled(this)) {
+            crossfadeLauncherTransition(() -> enterLauncherMode());
         }
     }
 
@@ -1671,14 +1673,7 @@ public class MainActivity extends AppCompatActivity {
             updateLauncherBackButton(LauncherModeManager.isEnabled(this));
             return;
         }
-        if (currentTab != TAB_LAUNCHER) {
-            returnToLauncherHome();
-            return;
-        }
-        if (LauncherModeManager.isEnabled(this)) {
-            return;
-        }
-        super.onBackPressed();
+        // Kullanıcı isteği: Geri tuşuna basınca tam ekranın sağ tarafta açılması engellendi, hiçbir şey olmasın.
     }
 
     private void applyHeaderPosition(boolean isBottom) {

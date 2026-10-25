@@ -192,12 +192,6 @@ function renderUnifiedShell(container) {
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
             <span>OMODA IVI</span>
           </div>
-          <div class="deck-status-chips">
-            <span class="mini-chip">📶 Wi-Fi</span>
-            <span class="mini-chip" style="color:var(--${state.driveMode}-color); border-color:var(--${state.driveMode}-color)">
-              ${state.driveMode.toUpperCase()}
-            </span>
-          </div>
         </div>
 
         <!-- Scrollable Command Items -->
@@ -263,6 +257,23 @@ function renderUnifiedShell(container) {
           <div class="stage-title-wrap">
             <span class="stage-title">${getPageTitle(state.activePage)}</span>
           </div>
+
+          <!-- COMPACT NOTIFICATION STATUS CHIPS IN HEADER -->
+          <div class="header-status-chips">
+            <div class="mini-chip" onclick="navigateTo('wifi')" title="Wi-Fi Ayarları" style="cursor:pointer;">
+              <span>📶</span>
+              <span style="font-weight:700;">Wi-Fi</span>
+            </div>
+            <div class="mini-chip" onclick="navigateTo('drive')" style="color:var(--${state.driveMode}-color); border-color:var(--${state.driveMode}-color); cursor:pointer;" title="Sürüş Modu">
+              <span>🚗</span>
+              <span style="font-weight:700;">${state.driveMode.toUpperCase()}</span>
+            </div>
+            <div class="mini-chip" onclick="navigateTo('transfer')" title="Aktar / Telefon" style="cursor:pointer;">
+              <span>📱</span>
+              <span style="font-weight:700;">Aktar</span>
+            </div>
+          </div>
+
           <div class="stage-glance-info">
             <span>🌡️ ${state.stats.temp}</span>
             <span>⛽ ${state.stats.fuel}</span>

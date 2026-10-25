@@ -8,21 +8,27 @@ import android.os.Handler;
 import android.os.Looper;
 import android.view.Gravity;
 import android.view.View;
-import android.view.ViewGroup;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 import android.text.Spannable;
 import android.text.SpannableString;
 import android.text.style.RelativeSizeSpan;
 import android.text.style.StyleSpan;
-import com.mapcontrol.BuildConfig;
-import com.mapcontrol.ui.widget.StatusWidgetsView;
+
 import androidx.appcompat.widget.AppCompatImageButton;
+import androidx.appcompat.widget.AppCompatImageView;
+import androidx.core.graphics.ColorUtils;
+
+import com.mapcontrol.BuildConfig;
 import com.mapcontrol.R;
 import com.mapcontrol.ui.HeaderStatusSink;
 import com.mapcontrol.ui.theme.UiStyles;
+import com.mapcontrol.ui.widget.StatusWidgetsView;
+import com.mapcontrol.vehicle.DriveModeStyle;
 
-/** Page title/back and passive branding. Live status widgets are hosted separately. */
+/**
+ * Üst başlık barı: Sayfa başlığı, geri butonu, bildirim tarzı kompakt durum çipleri ve marka rozeti.
+ */
 public class TopBarBuilder implements HeaderStatusSink {
     public enum WifiState { CONNECTED, DISCONNECTED, OFF, UNKNOWN }
 
@@ -43,8 +49,22 @@ public class TopBarBuilder implements HeaderStatusSink {
     private TextView brandView;
     private AppCompatImageButton launcherBackButton;
     private View topBarDivider;
-    private HeaderRow headerRow;
-    private boolean isBottomPosition;
+    private LinearLayout headerRow;
+    private LinearLayout statusContainer;
+
+    // Bildirim tarzı kompakt durum çipleri
+    private View chipWifi;
+    private View chipDriveMode;
+    private View chipServer;
+    private View chipProjection;
+
+    private WifiState currentWifiState = WifiState.UNKNOWN;
+    private boolean currentVehicleConnected = false;
+    private int currentDriveMode = Integer.MIN_VALUE;
+    private boolean showingSelectedMode = false;
+    private boolean currentServerRunning = false;
+    private boolean currentProjectionActive = false;
+
     private final StatusWidgetsView statusWidgets;
 
     public TopBarBuilder(Context context, TopBarCallback callback) {
@@ -57,12 +77,16 @@ public class TopBarBuilder implements HeaderStatusSink {
         topBar = new LinearLayout(context);
         topBar.setTag("shared_header");
         topBar.setOrientation(LinearLayout.VERTICAL);
-        HeaderRow row = new HeaderRow();
-        row.setPadding(dp(20), dp(10), dp(20), dp(10));
-        LinearLayout titleArea = new LinearLayout(context);
-        titleArea.setGravity(Gravity.CENTER_VERTICAL);
 
+        headerRow = new LinearLayout(context);
+        headerRow.setOrientation(LinearLayout.HORIZONTAL);
+        headerRow.setGravity(Gravity.CENTER_VERTICAL);
+        headerRow.setPadding(dp(20), dp(8), dp(20), dp(8));
+
+        // 1. Sol: Title Area (Geri butonu + Sayfa Başlığı)
+        LinearLayout titleArea = new LinearLayout(context);
         titleArea.setOrientation(LinearLayout.HORIZONTAL);
+        titleArea.setGravity(Gravity.CENTER_VERTICAL);
 
         launcherBackButton = new AppCompatImageButton(context);
         launcherBackButton.setTag("header_back_button");
@@ -72,7 +96,7 @@ public class TopBarBuilder implements HeaderStatusSink {
         launcherBackButton.setImageResource(R.drawable.ic_vehicle_back);
         launcherBackButton.setFocusable(true);
         launcherBackButton.setClickable(true);
-        LinearLayout.LayoutParams backParams = new LinearLayout.LayoutParams(dp(44), dp(44));
+        LinearLayout.LayoutParams backParams = new LinearLayout.LayoutParams(dp(40), dp(40));
         backParams.setMarginEnd(dp(8));
         titleArea.addView(launcherBackButton, backParams);
 
@@ -83,34 +107,86 @@ public class TopBarBuilder implements HeaderStatusSink {
         titleView.setTypeface(null, Typeface.BOLD);
         titleView.setGravity(Gravity.CENTER_VERTICAL);
         titleView.setSingleLine(true);
-        titleView.setMinHeight(dp(48));
+        titleView.setMinHeight(dp(44));
         titleView.setClickable(true);
         titleView.setFocusable(true);
-        titleArea.addView(titleView, new LinearLayout.LayoutParams(0,
-                LinearLayout.LayoutParams.MATCH_PARENT, 1));
+        titleArea.addView(titleView, new LinearLayout.LayoutParams(0, -2, 1.0f));
 
-        row.addView(titleArea);
+        headerRow.addView(titleArea, new LinearLayout.LayoutParams(0, -2, 1.0f));
 
+        // 2. Orta/Sağ: Bildirim Tarzı Küçük Durum İkonları (Status Container)
+        statusContainer = new LinearLayout(context);
+        statusContainer.setOrientation(LinearLayout.HORIZONTAL);
+        statusContainer.setGravity(Gravity.CENTER_VERTICAL);
+
+        int chipMargin = dp(6);
+
+        chipWifi = createHeaderNotificationChip(
+                R.drawable.ic_mdi_wifi,
+                context.getString(R.string.header_wifi),
+                UiStyles.color(context, R.color.textSecondary),
+                v -> { if (callback != null) callback.onStatusSelected(0); });
+        LinearLayout.LayoutParams wifiLp = new LinearLayout.LayoutParams(-2, -2);
+        wifiLp.setMarginEnd(chipMargin);
+        statusContainer.addView(chipWifi, wifiLp);
+
+        chipDriveMode = createHeaderNotificationChip(
+                R.drawable.ic_mdi_car,
+                "ECO",
+                UiStyles.color(context, R.color.accentHighlight),
+                v -> { if (callback != null) callback.onStatusSelected(6); });
+        LinearLayout.LayoutParams modeLp = new LinearLayout.LayoutParams(-2, -2);
+        modeLp.setMarginEnd(chipMargin);
+        statusContainer.addView(chipDriveMode, modeLp);
+
+        chipServer = createHeaderNotificationChip(
+                R.drawable.ic_mdi_cellphone,
+                context.getString(R.string.header_phone),
+                UiStyles.color(context, R.color.textSecondary),
+                v -> { if (callback != null) callback.onStatusSelected(1); });
+        LinearLayout.LayoutParams serverLp = new LinearLayout.LayoutParams(-2, -2);
+        serverLp.setMarginEnd(chipMargin);
+        statusContainer.addView(chipServer, serverLp);
+
+        chipProjection = createHeaderNotificationChip(
+                R.drawable.ic_hub_monitor,
+                context.getString(R.string.header_projection),
+                UiStyles.color(context, R.color.accentHighlight),
+                v -> { if (callback != null) callback.onStatusSelected(3); });
+        chipProjection.setVisibility(View.GONE);
+        LinearLayout.LayoutParams projLp = new LinearLayout.LayoutParams(-2, -2);
+        projLp.setMarginEnd(chipMargin);
+        statusContainer.addView(chipProjection, projLp);
+
+        LinearLayout.LayoutParams statusLp = new LinearLayout.LayoutParams(-2, -2);
+        statusLp.setMarginEnd(dp(12));
+        headerRow.addView(statusContainer, statusLp);
+
+        // 3. Sağ: OEM Marka Rozeti
         brandView = new TextView(context);
         brandView.setTag("header_brand");
         SpannableString brand = new SpannableString("MapControl by vNoisy (" + BuildConfig.VERSION_NAME + ")");
         int author = brand.toString().indexOf("vNoisy");
-        brand.setSpan(new StyleSpan(Typeface.ITALIC), author, author + "vNoisy".length(),
-                Spannable.SPAN_EXCLUSIVE_EXCLUSIVE);
+        if (author >= 0) {
+            brand.setSpan(new StyleSpan(Typeface.ITALIC), author, author + "vNoisy".length(),
+                    Spannable.SPAN_EXCLUSIVE_EXCLUSIVE);
+        }
         int version = brand.toString().indexOf('(');
-        brand.setSpan(new RelativeSizeSpan(.82f), version, brand.length(),
-                Spannable.SPAN_EXCLUSIVE_EXCLUSIVE);
+        if (version >= 0) {
+            brand.setSpan(new RelativeSizeSpan(.82f), version, brand.length(),
+                    Spannable.SPAN_EXCLUSIVE_EXCLUSIVE);
+        }
         brandView.setText(brand);
-        UiStyles.setTextSize(brandView, R.dimen.text_size_normal);
+        UiStyles.setTextSize(brandView, R.dimen.text_size_small);
         brandView.setTypeface(null, Typeface.BOLD);
-        brandView.setGravity(Gravity.RIGHT | Gravity.CENTER_VERTICAL);
+        brandView.setGravity(Gravity.CENTER);
         brandView.setTextDirection(View.TEXT_DIRECTION_LTR);
         brandView.setClickable(false);
         brandView.setFocusable(false);
-        brandView.setPadding(dp(12), dp(4), dp(12), dp(4));
+        brandView.setPadding(dp(10), dp(5), dp(10), dp(5));
         UiStyles.applySolidRoundedBackgroundDp(brandView, UiStyles.color(context, R.color.surfaceCardInner), 10);
-        row.addView(brandView);
-        headerRow = row;
+        headerRow.addView(brandView, new LinearLayout.LayoutParams(-2, -2));
+
         topBarDivider = new View(context);
         topBar.addView(headerRow, new LinearLayout.LayoutParams(-1, -2));
         topBar.addView(topBarDivider, new LinearLayout.LayoutParams(-1, Math.max(1, dp(1))));
@@ -125,17 +201,181 @@ public class TopBarBuilder implements HeaderStatusSink {
                 titleClickCount = 0;
             } else titleClickHandler.postDelayed(titleClickReset, 1000);
         });
+
+        refreshAllChips();
         reapplyTheme();
         return topBar;
     }
 
+    private View createHeaderNotificationChip(int iconRes, String text, int accentColor, View.OnClickListener onClickListener) {
+        float density = context.getResources().getDisplayMetrics().density;
+        LinearLayout chip = new LinearLayout(context);
+        chip.setOrientation(LinearLayout.HORIZONTAL);
+        chip.setGravity(Gravity.CENTER_VERTICAL);
+        chip.setClickable(true);
+        chip.setFocusable(true);
+        chip.setMinimumHeight(Math.round(30 * density));
+
+        int padH = Math.round(8 * density);
+        int padV = Math.round(4 * density);
+        chip.setPadding(padH, padV, padH, padV);
+
+        AppCompatImageView icon = new AppCompatImageView(context);
+        icon.setImageResource(iconRes);
+        icon.setImageTintList(ColorStateList.valueOf(accentColor));
+        int iconSize = Math.round(15 * density);
+        LinearLayout.LayoutParams iconLp = new LinearLayout.LayoutParams(iconSize, iconSize);
+        iconLp.setMarginEnd(Math.round(5 * density));
+        chip.addView(icon, iconLp);
+
+        TextView label = new TextView(context);
+        label.setText(text);
+        label.setTextSize(android.util.TypedValue.COMPLEX_UNIT_SP, 11);
+        label.setTypeface(null, Typeface.BOLD);
+        label.setTextColor(accentColor);
+        label.setSingleLine(true);
+        chip.addView(label, new LinearLayout.LayoutParams(-2, -2));
+
+        chip.setTag(R.id.side_rail_icon, icon);
+        chip.setTag(R.id.side_rail_label, label);
+        chip.setOnClickListener(onClickListener);
+
+        applyChipBackground(chip, accentColor);
+        return chip;
+    }
+
+    private void applyChipBackground(View chip, int accentColor) {
+        int cardBg = UiStyles.color(context, R.color.surfaceCardInner);
+        int blendedBg = ColorUtils.blendARGB(cardBg, accentColor, 0.14f);
+        UiStyles.applySolidRoundedBackgroundDp(chip, blendedBg, 10);
+    }
+
+    private void refreshAllChips() {
+        updateWifiChip();
+        updateDriveModeChip();
+        updateServerChip();
+        updateProjectionChip();
+    }
+
+    private void updateWifiChip() {
+        if (chipWifi == null) return;
+        int accent;
+        String text;
+        if (currentWifiState == WifiState.CONNECTED) {
+            accent = UiStyles.color(context, R.color.statusSuccess);
+            text = context.getString(R.string.header_wifi);
+        } else if (currentWifiState == WifiState.DISCONNECTED) {
+            accent = UiStyles.color(context, R.color.statusWarning);
+            text = context.getString(R.string.header_disconnected);
+        } else if (currentWifiState == WifiState.OFF) {
+            accent = UiStyles.color(context, R.color.textSecondary);
+            text = context.getString(R.string.header_off);
+        } else {
+            accent = UiStyles.color(context, R.color.textSecondary);
+            text = context.getString(R.string.header_wifi);
+        }
+        AppCompatImageView icon = (AppCompatImageView) chipWifi.getTag(R.id.side_rail_icon);
+        if (icon != null) icon.setImageTintList(ColorStateList.valueOf(accent));
+        TextView label = (TextView) chipWifi.getTag(R.id.side_rail_label);
+        if (label != null) {
+            label.setText(text);
+            label.setTextColor(accent);
+        }
+        applyChipBackground(chipWifi, accent);
+    }
+
+    private void updateDriveModeChip() {
+        if (chipDriveMode == null) return;
+        int mode = currentDriveMode;
+        boolean isKnown = (showingSelectedMode || currentVehicleConnected) && DriveModeStyle.isThemed(mode);
+        int accent = isKnown ? DriveModeStyle.accentColor(context, mode) : UiStyles.color(context, R.color.textSecondary);
+        String text = isKnown ? DriveModeStyle.shortLabel(mode) : "MOD";
+        AppCompatImageView icon = (AppCompatImageView) chipDriveMode.getTag(R.id.side_rail_icon);
+        if (icon != null) icon.setImageTintList(ColorStateList.valueOf(accent));
+        TextView label = (TextView) chipDriveMode.getTag(R.id.side_rail_label);
+        if (label != null) {
+            label.setText(text);
+            label.setTextColor(accent);
+        }
+        applyChipBackground(chipDriveMode, accent);
+    }
+
+    private void updateServerChip() {
+        if (chipServer == null) return;
+        int accent = currentServerRunning ? UiStyles.color(context, R.color.statusSuccess) : UiStyles.color(context, R.color.textSecondary);
+        String text = currentServerRunning ? "Aktar (Açık)" : context.getString(R.string.header_phone);
+        AppCompatImageView icon = (AppCompatImageView) chipServer.getTag(R.id.side_rail_icon);
+        if (icon != null) icon.setImageTintList(ColorStateList.valueOf(accent));
+        TextView label = (TextView) chipServer.getTag(R.id.side_rail_label);
+        if (label != null) {
+            label.setText(text);
+            label.setTextColor(accent);
+        }
+        applyChipBackground(chipServer, accent);
+    }
+
+    private void updateProjectionChip() {
+        if (chipProjection == null) return;
+        if (currentProjectionActive) {
+            chipProjection.setVisibility(View.VISIBLE);
+            int accent = UiStyles.color(context, R.color.accentHighlight);
+            AppCompatImageView icon = (AppCompatImageView) chipProjection.getTag(R.id.side_rail_icon);
+            if (icon != null) icon.setImageTintList(ColorStateList.valueOf(accent));
+            TextView label = (TextView) chipProjection.getTag(R.id.side_rail_label);
+            if (label != null) {
+                label.setText(R.string.header_projection);
+                label.setTextColor(accent);
+            }
+            applyChipBackground(chipProjection, accent);
+        } else {
+            chipProjection.setVisibility(View.GONE);
+        }
+    }
+
     public StatusWidgetsView getStatusWidgets() { return statusWidgets; }
-    @Override public void setWifiState(WifiState state) { statusWidgets.setWifiState(state); }
-    @Override public void setDriveMode(boolean connected, int mode) { statusWidgets.setDriveMode(connected, mode); }
-    @Override public void setSelectedDriveMode(int mode) { statusWidgets.setSelectedDriveMode(mode); }
-    @Override public void setServerRunning(boolean running) { statusWidgets.setServerRunning(running); }
-    @Override public void setProjectionActive(boolean active) { statusWidgets.setProjectionActive(active); }
-    @Override public void setSoundBoost(boolean active, int gainMb) { statusWidgets.setSoundBoost(active, gainMb); }
+
+    @Override
+    public void setWifiState(WifiState state) {
+        currentWifiState = state;
+        updateWifiChip();
+        if (statusWidgets != null) statusWidgets.setWifiState(state);
+    }
+
+    @Override
+    public void setDriveMode(boolean connected, int mode) {
+        showingSelectedMode = false;
+        currentVehicleConnected = connected;
+        currentDriveMode = mode;
+        updateDriveModeChip();
+        if (statusWidgets != null) statusWidgets.setDriveMode(connected, mode);
+    }
+
+    @Override
+    public void setSelectedDriveMode(int mode) {
+        showingSelectedMode = true;
+        currentDriveMode = mode;
+        updateDriveModeChip();
+        if (statusWidgets != null) statusWidgets.setSelectedDriveMode(mode);
+    }
+
+    @Override
+    public void setServerRunning(boolean running) {
+        currentServerRunning = running;
+        updateServerChip();
+        if (statusWidgets != null) statusWidgets.setServerRunning(running);
+    }
+
+    @Override
+    public void setProjectionActive(boolean active) {
+        currentProjectionActive = active;
+        updateProjectionChip();
+        if (statusWidgets != null) statusWidgets.setProjectionActive(active);
+    }
+
+    @Override
+    public void setSoundBoost(boolean active, int gainMb) {
+        if (statusWidgets != null) statusWidgets.setSoundBoost(active, gainMb);
+    }
 
     public void setTitle(int titleRes) {
         if (titleView == null) return;
@@ -164,14 +404,18 @@ public class TopBarBuilder implements HeaderStatusSink {
         if (launcherBackButton != null && (launcherBackButton.getVisibility() == View.VISIBLE) != visible)
             launcherBackButton.setVisibility(visible ? View.VISIBLE : View.GONE);
     }
+
     public void setTopBarVisible(boolean visible) {
         if (topBar != null && (topBar.getVisibility() == View.VISIBLE) != visible)
             topBar.setVisibility(visible ? View.VISIBLE : View.GONE);
     }
+
     public void setLauncherBackButtonListener(View.OnClickListener listener) {
         if (launcherBackButton != null) launcherBackButton.setOnClickListener(listener);
     }
+
     public TextView getTitleView() { return titleView; }
+
     public void release() { titleClickHandler.removeCallbacksAndMessages(null); }
 
     public void reapplyTheme() {
@@ -192,51 +436,9 @@ public class TopBarBuilder implements HeaderStatusSink {
             launcherBackButton.setImageTintList(ColorStateList.valueOf(UiStyles.color(context, R.color.textPrimary)));
         }
         if (topBarDivider != null) UiStyles.setBackgroundRes(topBarDivider, R.drawable.bg_topbar_divider);
-        statusWidgets.reapplyTheme();
+        refreshAllChips();
+        if (statusWidgets != null) statusWidgets.reapplyTheme();
     }
 
     private int dp(float value) { return Math.round(value * context.getResources().getDisplayMetrics().density); }
-
-    /** Physical LHD corners stay fixed, including in RTL locales and narrow windows. */
-    private final class HeaderRow extends ViewGroup {
-        private boolean titleBelow;
-        private int titleWidth, brandWidth, topHeight;
-
-        HeaderRow() { super(context); }
-
-        @Override protected void onMeasure(int widthSpec, int heightSpec) {
-            int width = MeasureSpec.getSize(widthSpec);
-            int available = Math.max(0, width - getPaddingLeft() - getPaddingRight());
-            int gap = dp(16);
-            int half = Math.max(0, (available - gap) / 2);
-            View title = getChildAt(0), brand = getChildAt(1);
-            brand.measure(MeasureSpec.makeMeasureSpec(half, MeasureSpec.AT_MOST),
-                    MeasureSpec.makeMeasureSpec(0, MeasureSpec.UNSPECIFIED));
-            brandWidth = brand.getMeasuredWidth();
-            int middle = Math.max(0, available - brandWidth - gap);
-            titleBelow = middle < dp(360 * Math.max(1f,
-                    getResources().getConfiguration().fontScale));
-            titleWidth = titleBelow ? available : middle;
-            title.measure(MeasureSpec.makeMeasureSpec(titleWidth, MeasureSpec.EXACTLY),
-                    MeasureSpec.makeMeasureSpec(0, MeasureSpec.UNSPECIFIED));
-            topHeight = brand.getMeasuredHeight();
-            if (!titleBelow) topHeight = Math.max(topHeight, title.getMeasuredHeight());
-            int height = getPaddingTop() + topHeight + getPaddingBottom();
-            if (titleBelow) height += dp(12) + title.getMeasuredHeight();
-            setMeasuredDimension(width, resolveSize(height, heightSpec));
-        }
-
-        @Override protected void onLayout(boolean changed, int l, int t, int r, int b) {
-            int left = getPaddingLeft(), top = getPaddingTop();
-            View title = getChildAt(0), brand = getChildAt(1);
-            int brandLeft = getWidth() - getPaddingRight() - brandWidth;
-            brand.layout(brandLeft, top, brandLeft + brandWidth, top + brand.getMeasuredHeight());
-            int titleLeft = left;
-            int titleTop = titleBelow ? top + topHeight + dp(12)
-                    : top + (topHeight - title.getMeasuredHeight()) / 2;
-            title.layout(titleLeft, titleTop, titleLeft + titleWidth,
-                    titleTop + title.getMeasuredHeight());
-        }
-    }
-
 }

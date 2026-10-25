@@ -546,7 +546,7 @@ public final class LauncherDashboardBuilder implements
             }
         });
         statusWidgets.setColumnCount(2);
-        body.addView(statusWidgets, matchWidthWrap());
+        // Status widgets Header içine taşındı
 
         // Remaining shortcuts follow the live controls without duplicate destinations.
         shortcutsGrid = buildDashboardShortcutsGrid();

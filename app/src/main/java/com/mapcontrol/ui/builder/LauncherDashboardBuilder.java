@@ -183,18 +183,19 @@ public final class LauncherDashboardBuilder implements
             musicDriveLp.topMargin = cardGap / 2;
             cardsRow.addView(musicDriveCard, musicDriveLp);
         } else {
-            LinearLayout.LayoutParams quickLp = weightedLp(0.22f);
+            // Sürücü Odaklı LHD HMI Ergonomisi: Etkileşimli kartlar solda (Bölge 1 & 2), pasif görsel sahne sağda (Bölge 3 & 4)
+            LinearLayout.LayoutParams quickLp = weightedLp(0.25f);
             quickLp.setMarginEnd(cardGap / 2);
             cardsRow.addView(quickCard, quickLp);
 
-            LinearLayout.LayoutParams vehicleLp = weightedLp(0.56f);
-            vehicleLp.setMarginStart(cardGap / 2);
-            vehicleLp.setMarginEnd(cardGap / 2);
-            cardsRow.addView(vehicleCard, vehicleLp);
-
-            LinearLayout.LayoutParams musicDriveLp = weightedLp(0.22f);
+            LinearLayout.LayoutParams musicDriveLp = weightedLp(0.27f);
             musicDriveLp.setMarginStart(cardGap / 2);
+            musicDriveLp.setMarginEnd(cardGap / 2);
             cardsRow.addView(musicDriveCard, musicDriveLp);
+
+            LinearLayout.LayoutParams vehicleLp = weightedLp(0.48f);
+            vehicleLp.setMarginStart(cardGap / 2);
+            cardsRow.addView(vehicleCard, vehicleLp);
         }
 
         LinearLayout.LayoutParams cardsRowLp = new LinearLayout.LayoutParams(

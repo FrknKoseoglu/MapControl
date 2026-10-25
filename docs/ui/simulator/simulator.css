@@ -1,0 +1,645 @@
+/* ==========================================================================
+   MapControl IVI Simulator - Design Tokens & Automotive Styles
+   Based on app/src/main/res/values/colors.xml & values-night/colors.xml
+   ========================================================================== */
+
+:root {
+  --bg-window: #10141D;
+  --bg-page: #10141B;
+  --surface-rail: #121821;
+  --surface-card: #151A22;
+  --surface-card-inner: #1A212C;
+  --surface-bar: #141A24;
+  --glass-fill: rgba(24, 33, 44, 0.65);
+  --glass-stroke: rgba(115, 178, 245, 0.25);
+  --primary: #4586C5;
+  --oem-accent: #73B2F5;
+  --accent-highlight: #73B2F5;
+  --text-primary: #FFFFFF;
+  --text-secondary: #9CA3AF;
+  --text-muted: #ADBAC7;
+  --outline: #2E3848;
+  --outline-subtle: rgba(255, 255, 255, 0.08);
+  
+  --eco-color: #4ADE80;
+  --normal-color: #73B2F5;
+  --sport-color: #F07167;
+  --snow-color: #9ADFF2;
+  --mud-color: #C39673;
+  --offroad-color: #AFBE7B;
+  
+  --font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
+  --radius-card: 22px;
+  --radius-button: 16px;
+  --radius-pill: 24px;
+}
+
+[data-theme="light"] {
+  --bg-window: #E8ECF3;
+  --bg-page: #E2E8F0;
+  --surface-rail: #DCE3ED;
+  --surface-card: #FFFFFF;
+  --surface-card-inner: #F0F3F9;
+  --surface-bar: #F4F6FA;
+  --glass-fill: rgba(240, 243, 248, 0.8);
+  --glass-stroke: rgba(53, 104, 160, 0.2);
+  --primary: #3568A0;
+  --oem-accent: #3568A0;
+  --accent-highlight: #4586C5;
+  --text-primary: #171A20;
+  --text-secondary: #5C6470;
+  --text-muted: #526172;
+  --outline: #C5CEDC;
+  --outline-subtle: rgba(0, 0, 0, 0.06);
+  --eco-color: #2F9E5F;
+  --normal-color: #3568A0;
+  --sport-color: #D4453A;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  user-select: none;
+}
+
+body {
+  font-family: var(--font-family);
+  background: #080A0F;
+  color: #E2E8F0;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  overflow-x: hidden;
+}
+
+/* Simulator Master Toolbar */
+.sim-toolbar {
+  background: #11151F;
+  border-bottom: 1px solid #1E2638;
+  padding: 10px 20px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+  z-index: 1000;
+}
+
+.sim-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-weight: 700;
+  font-size: 15px;
+  color: #73B2F5;
+}
+
+.sim-brand svg {
+  width: 22px;
+  height: 22px;
+  fill: currentColor;
+}
+
+.sim-controls-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.sim-label {
+  font-size: 12px;
+  color: #7C8BA1;
+  text-transform: uppercase;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+}
+
+.sim-btn-group {
+  display: flex;
+  background: #19202E;
+  border-radius: 8px;
+  padding: 3px;
+  gap: 2px;
+  border: 1px solid #253046;
+}
+
+.sim-btn {
+  background: transparent;
+  color: #94A3B8;
+  border: none;
+  padding: 6px 12px;
+  font-size: 12px;
+  font-weight: 600;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.sim-btn:hover {
+  color: #FFFFFF;
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.sim-btn.active {
+  background: #3568A0;
+  color: #FFFFFF;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.sim-btn.heatmap-active {
+  background: #B91C1C;
+  color: #FFFFFF;
+  animation: pulse-border 2s infinite;
+}
+
+@keyframes pulse-border {
+  0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.4); }
+  70% { box-shadow: 0 0 0 6px rgba(239, 68, 68, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
+}
+
+/* Simulator Canvas Viewport Area */
+.sim-viewport-area {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: radial-gradient(circle at center, #141924 0%, #07090E 100%);
+  overflow: auto;
+  position: relative;
+}
+
+/* Physical Screen Bezel Simulation */
+.sim-bezel {
+  background: #0A0D12;
+  border: 12px solid #1C2330;
+  border-radius: 28px;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.7), 0 0 0 1px rgba(255, 255, 255, 0.08);
+  position: relative;
+  overflow: hidden;
+  transition: width 0.3s cubic-bezier(0.16, 1, 0.3, 1), height 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* Dimension Presets (Scaled down by 50% for standard desktop display, 1920x720 -> 960x360) */
+.sim-bezel[data-ratio="1920x720"] {
+  width: 960px;
+  height: 360px;
+}
+.sim-bezel[data-ratio="1920x1080"] {
+  width: 960px;
+  height: 540px;
+}
+.sim-bezel[data-ratio="1024x720"] {
+  width: 768px;
+  height: 540px;
+}
+.sim-bezel[data-ratio="1080x1920"] {
+  width: 480px;
+  height: 853px;
+}
+
+/* Full resolution 1:1 option */
+.sim-bezel.full-scale[data-ratio="1920x720"] {
+  width: 1920px;
+  height: 720px;
+}
+
+/* The Automotive Display Screen Inside Bezel */
+.ivi-screen {
+  width: 100%;
+  height: 100%;
+  background: var(--bg-window);
+  color: var(--text-primary);
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  overflow: hidden;
+  font-size: 14px;
+}
+
+/* Ergonomic Heatmap HUD Layer (1-2-3-4 Rule) */
+.heatmap-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 999;
+  pointer-events: none;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  grid-template-rows: 1fr 1fr;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.25s ease, visibility 0.25s;
+}
+
+.heatmap-overlay.show {
+  opacity: 1;
+  visibility: visible;
+}
+
+.zone-box {
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  border: 1px dashed rgba(255, 255, 255, 0.2);
+  position: relative;
+}
+
+.zone-1 { /* Sol Alt - Golden Zone */
+  grid-column: 1;
+  grid-row: 2;
+  background: rgba(34, 197, 94, 0.18);
+  border: 2px solid #22C55E;
+}
+.zone-1 .zone-badge { background: #15803D; color: #DCFCE7; }
+
+.zone-2 { /* Sol Üst - Primary Glance */
+  grid-column: 1;
+  grid-row: 1;
+  background: rgba(59, 130, 246, 0.16);
+  border: 2px solid #3B82F6;
+}
+.zone-2 .zone-badge { background: #1D4ED8; color: #DBEAFE; }
+
+.zone-3 { /* Sağ Alt - Secondary */
+  grid-column: 2;
+  grid-row: 2;
+  background: rgba(234, 179, 8, 0.14);
+  border: 2px solid #EAB308;
+}
+.zone-3 .zone-badge { background: #A16207; color: #FEF9C3; }
+
+.zone-4 { /* Sağ Üst - FORBIDDEN / Passive */
+  grid-column: 2;
+  grid-row: 1;
+  background: repeating-linear-gradient(
+    45deg,
+    rgba(239, 68, 68, 0.15),
+    rgba(239, 68, 68, 0.15) 10px,
+    rgba(239, 68, 68, 0.25) 10px,
+    rgba(239, 68, 68, 0.25) 20px
+  );
+  border: 2px solid #EF4444;
+}
+.zone-4 .zone-badge { background: #B91C1C; color: #FEE2E2; }
+
+.zone-badge {
+  font-size: 11px;
+  font-weight: 800;
+  padding: 4px 8px;
+  border-radius: 6px;
+  align-self: flex-start;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.zone-desc {
+  font-size: 11px;
+  font-weight: 600;
+  color: #FFFFFF;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.8);
+}
+
+/* ==========================================================================
+   UNIFIED SHELL: Command Deck + Ambient Stage Architecture
+   ========================================================================== */
+.unified-shell {
+  display: flex;
+  width: 100%;
+  height: 100%;
+  position: relative;
+}
+
+/* Left Driver Command Deck (Width: 38%) */
+.command-deck {
+  width: 38%;
+  height: 100%;
+  background: var(--surface-rail);
+  border-right: 1px solid var(--outline);
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  z-index: 10;
+}
+
+.deck-header {
+  padding: 12px 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid var(--outline-subtle);
+}
+
+.deck-brand-chip {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 700;
+  font-size: 14px;
+  color: var(--oem-accent);
+}
+
+.deck-status-chips {
+  display: flex;
+  gap: 6px;
+}
+
+.mini-chip {
+  background: var(--surface-card);
+  padding: 4px 8px;
+  border-radius: 8px;
+  font-size: 11px;
+  font-weight: 600;
+  border: 1px solid var(--outline-subtle);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.deck-scroll-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+/* Driver Navigation Nav Item */
+.nav-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px;
+  min-height: 48px;
+  border-radius: var(--radius-button);
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  border: 1px solid transparent;
+  transition: all 0.15s ease;
+}
+
+.nav-item:hover {
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--text-primary);
+}
+
+.nav-item.active {
+  background: linear-gradient(135deg, rgba(69, 134, 197, 0.35) 0%, rgba(69, 134, 197, 0.15) 100%);
+  border: 1px solid var(--oem-accent);
+  color: #FFFFFF;
+}
+
+.nav-item-icon {
+  width: 22px;
+  height: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* ZONE 1: FIXED GOLDEN DOCK (Sol Alt Altın Bölge) */
+.golden-dock {
+  background: #0E131C;
+  border-top: 2px solid var(--primary);
+  padding: 8px 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.4);
+}
+
+.dock-btn {
+  flex: 1;
+  min-height: 46px;
+  background: var(--surface-card);
+  border: 1px solid var(--outline);
+  color: var(--text-primary);
+  border-radius: var(--radius-button);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  cursor: pointer;
+  font-size: 10.5px;
+  font-weight: 700;
+  transition: all 0.15s ease;
+}
+
+.dock-btn:hover {
+  background: var(--surface-card-inner);
+  border-color: var(--oem-accent);
+}
+
+.dock-btn.primary-dock {
+  background: var(--primary);
+  border-color: var(--oem-accent);
+  color: #FFFFFF;
+}
+
+.dock-btn.back-dock {
+  background: rgba(239, 68, 68, 0.15);
+  border-color: rgba(239, 68, 68, 0.4);
+  color: #FCA5A5;
+}
+
+/* Right Ambient Stage (Width: 62%) */
+.ambient-stage {
+  flex: 1;
+  height: 100%;
+  background: var(--bg-page);
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  overflow: hidden;
+}
+
+.stage-top-bar {
+  padding: 10px 20px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid var(--outline-subtle);
+  background: var(--surface-bar);
+}
+
+.stage-title-wrap {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.stage-title {
+  font-size: 16px;
+  font-weight: 700;
+  letter-spacing: -0.2px;
+}
+
+.stage-glance-info {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.stage-canvas-content {
+  flex: 1;
+  padding: 16px 20px;
+  overflow-y: auto;
+  position: relative;
+}
+
+/* Card System */
+.ivi-card {
+  background: var(--surface-card);
+  border: 1px solid var(--outline);
+  border-radius: var(--radius-card);
+  padding: 16px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
+  margin-bottom: 12px;
+}
+
+.ivi-card-title {
+  font-size: 14px;
+  font-weight: 700;
+  margin-bottom: 8px;
+  color: var(--oem-accent);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+/* Vehicle Silhouette / 3D Canvas Showcase */
+.vehicle-showcase-box {
+  width: 100%;
+  height: 180px;
+  background: radial-gradient(circle at center, rgba(69, 134, 197, 0.15) 0%, transparent 70%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  border-radius: var(--radius-card);
+}
+
+.car-svg-wireframe {
+  width: 260px;
+  height: auto;
+  filter: drop-shadow(0 8px 24px rgba(69, 134, 197, 0.4));
+}
+
+.car-hud-stats {
+  position: absolute;
+  bottom: 8px;
+  left: 12px;
+  right: 12px;
+  display: flex;
+  justify-content: space-between;
+}
+
+.car-hud-chip {
+  background: rgba(16, 20, 29, 0.85);
+  backdrop-filter: blur(8px);
+  border: 1px solid var(--outline);
+  border-radius: 8px;
+  padding: 4px 8px;
+  font-size: 11px;
+}
+
+/* Drive Modes Selector Grid */
+.drive-mode-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+}
+
+.mode-tile {
+  background: var(--surface-card-inner);
+  border: 2px solid var(--outline);
+  border-radius: var(--radius-button);
+  padding: 12px;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.mode-tile.active-eco {
+  border-color: var(--eco-color);
+  background: rgba(74, 222, 128, 0.12);
+  color: var(--eco-color);
+}
+.mode-tile.active-normal {
+  border-color: var(--normal-color);
+  background: rgba(115, 178, 245, 0.12);
+  color: var(--normal-color);
+}
+.mode-tile.active-sport {
+  border-color: var(--sport-color);
+  background: rgba(240, 113, 103, 0.12);
+  color: var(--sport-color);
+}
+
+.mode-name {
+  font-size: 14px;
+  font-weight: 800;
+  letter-spacing: 0.5px;
+}
+.mode-desc {
+  font-size: 10.5px;
+  color: var(--text-secondary);
+  margin-top: 2px;
+}
+
+/* Switches and Toggles */
+.toggle-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--outline-subtle);
+}
+
+.toggle-info h4 {
+  font-size: 13px;
+  font-weight: 600;
+}
+.toggle-info p {
+  font-size: 11px;
+  color: var(--text-secondary);
+}
+
+.switch-pill {
+  width: 44px;
+  height: 24px;
+  background: #252D3D;
+  border-radius: 12px;
+  position: relative;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+.switch-pill.on {
+  background: var(--primary);
+}
+.switch-knob {
+  width: 18px;
+  height: 18px;
+  background: #FFFFFF;
+  border-radius: 50%;
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  transition: transform 0.2s;
+}
+.switch-pill.on .switch-knob {
+  transform: translateX(20px);
+}

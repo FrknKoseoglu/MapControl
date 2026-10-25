@@ -11,6 +11,12 @@
     <string name="common_close">✕</string>
     <string name="common_clear">Clear</string>
     <string name="common_em_dash">—</string>
+
+    <!-- Zone 1: Golden Dock -->
+    <string name="dock_home">Home</string>
+    <string name="dock_back">Back</string>
+    <string name="dock_drive_memory">Memory</string>
+    <string name="dock_settings">Settings</string>
     <string name="settings_language_section_title">Language / Dil</string>
     <string name="settings_language_section_desc">App interface language. The screen refreshes when changed.</string>
     <string name="settings_language_tr">Türkçe</string>

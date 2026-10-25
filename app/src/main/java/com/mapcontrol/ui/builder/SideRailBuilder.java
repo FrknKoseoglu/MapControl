@@ -30,6 +30,8 @@ public class SideRailBuilder {
         void onTabSelected(int tabIndex, String title);
         void onAppManagementRequested();
         void log(String message);
+        default void onHomeRequested() {}
+        default void onBackPressedRequested() {}
     }
 
     private static final int TAB_WIFI = 0;
@@ -41,6 +43,7 @@ public class SideRailBuilder {
     private static final int TAB_SETTINGS = 7;
     private static final int TAB_WELCOME_SOUND = 8;
     private static final int TAB_VEHICLE_INFO = 9;
+    private static final int TAB_LAUNCHER = 10;
     private static final int TAB_EQUALIZER = 11;
     private static final int TAB_CLIMATE_AUTOMATION = 12;
     private static final int TAB_FACE_RECOGNITION = 13;
@@ -157,6 +160,11 @@ public class SideRailBuilder {
                 0,
                 1.0f);
         sideRail.addView(menuScrollView, menuScrollParams);
+
+        // Zone 1: Kalıcı Altın Dock (Home, Geri, Sürüş Hafızası, Ayarlar)
+        sideRail.addView(buildGoldenDock(), new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT));
 
         updateMenuSelection(menuWifi, menuFileUpload, menuProfile, menuProjection, menuVehicleInfo, menuSettings, menuApps, menuDriveMode, menuTest, menuWelcomeSound);
         bindMenuClicks();
@@ -354,10 +362,130 @@ public class SideRailBuilder {
         if (sideRail != null) {
             UiStyles.setRailPanelBackground(sideRail);
         }
+        reapplyGoldenDockTheme();
         LinearLayout[] rows = menuRows();
         for (LinearLayout row : rows) {
             if (row != null) {
                 applyRailRowSelectedState(row, row == selectedMenuRow);
+            }
+        }
+    }
+
+    private LinearLayout goldenDockLayout;
+    private View goldenDockDivider;
+    private final java.util.List<View> goldenDockItems = new java.util.ArrayList<>();
+
+    private View buildGoldenDock() {
+        float density = context.getResources().getDisplayMetrics().density;
+        goldenDockLayout = new LinearLayout(context);
+        goldenDockLayout.setOrientation(LinearLayout.VERTICAL);
+        goldenDockLayout.setBackgroundColor(Color.TRANSPARENT);
+        goldenDockItems.clear();
+
+        goldenDockDivider = new View(context);
+        goldenDockDivider.setBackgroundColor(UiStyles.color(context, R.color.outlineSubtle));
+        goldenDockLayout.addView(goldenDockDivider, new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                Math.max(1, Math.round(1 * density))));
+
+        LinearLayout row = new LinearLayout(context);
+        row.setOrientation(LinearLayout.HORIZONTAL);
+        row.setGravity(Gravity.CENTER_VERTICAL);
+        int padH = Math.round(4 * density);
+        int padV = Math.round(4 * density);
+        row.setPadding(padH, padV, padH, padV);
+
+        View btnHome = createDockActionItem(R.drawable.ic_mdi_home, t(R.string.dock_home), v -> {
+            if (callback != null) callback.onHomeRequested();
+        });
+        View btnBack = createDockActionItem(R.drawable.ic_vehicle_back, t(R.string.dock_back), v -> {
+            if (callback != null) callback.onBackPressedRequested();
+        });
+        View btnDrive = createDockActionItem(R.drawable.ic_mdi_car, t(R.string.dock_drive_memory), v -> {
+            if (callback != null) {
+                callback.onTabSelected(TAB_DRIVE_MODE, t(R.string.side_rail_drive_mode));
+            }
+            updateMenuSelection(menuDriveMode, menuWifi, menuFileUpload, menuProfile, menuProjection, menuVehicleInfo, menuSettings, menuApps, menuTest, menuWelcomeSound);
+        });
+        View btnSettings = createDockActionItem(R.drawable.ic_mdi_cog, t(R.string.dock_settings), v -> {
+            if (callback != null) {
+                callback.onTabSelected(TAB_SETTINGS, t(R.string.side_rail_settings));
+            }
+            updateMenuSelection(menuSettings, menuWifi, menuFileUpload, menuProfile, menuProjection, menuVehicleInfo, menuApps, menuDriveMode, menuTest, menuWelcomeSound);
+        });
+
+        goldenDockItems.add(btnHome);
+        goldenDockItems.add(btnBack);
+        goldenDockItems.add(btnDrive);
+        goldenDockItems.add(btnSettings);
+
+        row.addView(btnHome, new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1.0f));
+        row.addView(btnBack, new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1.0f));
+        row.addView(btnDrive, new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1.0f));
+        row.addView(btnSettings, new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1.0f));
+
+        goldenDockLayout.addView(row, new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT));
+
+        return goldenDockLayout;
+    }
+
+    private View createDockActionItem(int iconRes, String label, View.OnClickListener onClickListener) {
+        float density = context.getResources().getDisplayMetrics().density;
+        LinearLayout item = new LinearLayout(context);
+        item.setOrientation(LinearLayout.VERTICAL);
+        item.setGravity(Gravity.CENTER);
+        item.setClickable(true);
+        item.setFocusable(true);
+        item.setMinimumHeight(Math.round(52 * density));
+        int padH = Math.round(2 * density);
+        int padV = Math.round(4 * density);
+        item.setPadding(padH, padV, padH, padV);
+
+        int iconSize = Math.round(22 * density);
+        AppCompatImageView iconView = new AppCompatImageView(context);
+        iconView.setImageResource(iconRes);
+        iconView.setScaleType(ImageView.ScaleType.FIT_CENTER);
+        iconView.setImageTintList(ColorStateList.valueOf(UiStyles.color(context, R.color.textSecondaryCool)));
+        LinearLayout.LayoutParams iconLp = new LinearLayout.LayoutParams(iconSize, iconSize);
+        item.addView(iconView, iconLp);
+
+        TextView tv = new TextView(context);
+        tv.setText(label);
+        tv.setSingleLine(true);
+        tv.setEllipsize(TextUtils.TruncateAt.END);
+        tv.setTextSize(android.util.TypedValue.COMPLEX_UNIT_SP, 11);
+        tv.setTypeface(null, Typeface.BOLD);
+        tv.setTextColor(UiStyles.color(context, R.color.textSecondaryCool));
+        tv.setGravity(Gravity.CENTER);
+        LinearLayout.LayoutParams tvLp = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.WRAP_CONTENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT);
+        tvLp.topMargin = Math.round(2 * density);
+        item.addView(tv, tvLp);
+
+        item.setTag(R.id.side_rail_icon, iconView);
+        item.setTag(R.id.side_rail_label, tv);
+        item.setOnClickListener(onClickListener);
+        return item;
+    }
+
+    private void reapplyGoldenDockTheme() {
+        if (goldenDockDivider != null) {
+            goldenDockDivider.setBackgroundColor(UiStyles.color(context, R.color.outlineSubtle));
+        }
+        int color = UiStyles.color(context, R.color.textSecondaryCool);
+        for (View item : goldenDockItems) {
+            if (item != null) {
+                View icon = (View) item.getTag(R.id.side_rail_icon);
+                if (icon instanceof AppCompatImageView) {
+                    ((AppCompatImageView) icon).setImageTintList(ColorStateList.valueOf(color));
+                }
+                View label = (View) item.getTag(R.id.side_rail_label);
+                if (label instanceof TextView) {
+                    ((TextView) label).setTextColor(color);
+                }
             }
         }
     }

@@ -429,6 +429,20 @@ public class MainActivity extends AppCompatActivity {
                     public void log(String msg) {
                         MainActivity.this.log(msg);
                     }
+
+                    @Override
+                    public void onHomeRequested() {
+                        if (LauncherModeManager.isEnabled(MainActivity.this)) {
+                            crossfadeLauncherTransition(() -> enterLauncherMode());
+                        } else {
+                            crossfadeContent(() -> switchTab(TAB_LAUNCHER));
+                        }
+                    }
+
+                    @Override
+                    public void onBackPressedRequested() {
+                        onBackPressed();
+                    }
                 });
 
         // Ana içerik alanı (yatayda sağ kolon, dikeyde şeridin altı)

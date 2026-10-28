@@ -442,10 +442,12 @@ public class MainActivity extends AppCompatActivity {
 
                     @Override
                     public void onHomeRequested() {
-                        if (LauncherModeManager.isEnabled(MainActivity.this) || currentTab == TAB_LAUNCHER) {
-                            crossfadeLauncherTransition(() -> exitLauncherMode());
+                        // A subpage can retain the launcher preference. Navigate by the visible page.
+                        // Switch directly so a full-window veil does not flash over the destination.
+                        if (currentTab == TAB_LAUNCHER) {
+                            exitLauncherMode();
                         } else {
-                            crossfadeLauncherTransition(() -> enterLauncherMode());
+                            enterLauncherMode();
                         }
                     }
 
@@ -733,6 +735,7 @@ public class MainActivity extends AppCompatActivity {
                     @Override
                     public void onModeSelected(int modeValue) {
                         savePrefInt("driveModeSetting", modeValue);
+                        if (sideRailBuilder != null) sideRailBuilder.refreshDriveMemoryColor();
                         log("Hafıza modu kaydedildi: " + modeValue);
                         if (headerStatusMonitor != null) {
                             headerStatusMonitor.refresh();
@@ -1214,8 +1217,8 @@ public class MainActivity extends AppCompatActivity {
         if (tabIndex == TAB_LAUNCHER) {
             if (!LauncherModeManager.isEnabled(this)) {
                 enterLauncherMode();
+                return;
             }
-            return;
         }
         if (tabIndex >= 0 && tabIndex < tabNeedsUiModeRebuild.length && tabNeedsUiModeRebuild[tabIndex]) {
             rebuildTabForUiMode(tabIndex);
@@ -1246,9 +1249,11 @@ public class MainActivity extends AppCompatActivity {
             lastNormalTab = tabIndex;
         }
 
-        // Launcher modu açıkken sol menü her zaman gizli; kapalıyken görünür.
-        boolean launcherMode = LauncherModeManager.isEnabled(this);
-        updateLauncherBackButton(launcherMode);
+        contentWide = false;
+        applyLauncherChrome(LauncherModeManager.isEnabled(this));
+        if (sideRailBuilder != null) {
+            sideRailBuilder.setSelectionForTabIndex(tabIndex);
+        }
 
         tabContentArea.removeAllViews();
         attachTabContent(tabIndex);
@@ -1323,7 +1328,11 @@ public class MainActivity extends AppCompatActivity {
         if (child.getParent() instanceof android.view.ViewGroup) {
             ((android.view.ViewGroup) child.getParent()).removeView(child);
         }
+        lp.gravity = Gravity.TOP | Gravity.START;
         parent.addView(child, lp);
+        if (child instanceof ScrollView) {
+            ((ScrollView) child).scrollTo(0, 0);
+        }
     }
 
     private int tabTitle(int tabIndex) {
@@ -1346,6 +1355,7 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void applyTabChrome(int tabIndex) {
+        updateNavigationDockParent();
         if (topBarBuilder != null) {
             boolean notLauncher = (tabIndex != TAB_LAUNCHER);
             topBarBuilder.setTopBarVisible(notLauncher);
@@ -1372,6 +1382,7 @@ public class MainActivity extends AppCompatActivity {
      * Launcher modu chrome'unu uygular: sol menü görünürlüğü, içerik genişliği ve TopBar geri düğmesi.
      */
     private void applyLauncherChrome(boolean active) {
+        active = active && currentTab == TAB_LAUNCHER;
         if (sideRailBuilder != null) {
             sideRailBuilder.setLauncherModeActive(active);
             sideRailBuilder.setContentWide(contentWide);
@@ -1389,8 +1400,33 @@ public class MainActivity extends AppCompatActivity {
             }
             mainContent.setLayoutParams(mainContentParams);
         }
+        updateNavigationDockParent();
         updateLauncherBackButton(active);
         ImmersiveFullscreenHelper.setImmersiveFullscreen(this, active);
+    }
+
+    private void updateNavigationDockParent() {
+        if (sideRailBuilder == null || mainRootContainer == null) return;
+        View dock = sideRailBuilder.getGoldenDock();
+        if (currentTab == TAB_LAUNCHER && launcherTabBuilder != null
+                && launcherTabBuilder.getDashboardBuilder() != null) {
+            launcherTabBuilder.getDashboardBuilder().attachNavigationDock(dock);
+        } else if (portraitShell && shellHost != null) {
+            if (dock.getParent() != shellHost) {
+                if (dock.getParent() instanceof android.view.ViewGroup) {
+                    ((android.view.ViewGroup) dock.getParent()).removeView(dock);
+                }
+                shellHost.addView(dock, new LinearLayout.LayoutParams(-1, -2));
+            }
+        } else if (dock.getParent() != mainRootContainer) {
+            if (dock.getParent() instanceof android.view.ViewGroup) {
+                ((android.view.ViewGroup) dock.getParent()).removeView(dock);
+            }
+            mainRootContainer.addView(dock, new FrameLayout.LayoutParams(
+                    portraitShell ? FrameLayout.LayoutParams.MATCH_PARENT : sidebarWidthPx,
+                    FrameLayout.LayoutParams.WRAP_CONTENT,
+                    Gravity.BOTTOM | (portraitShell ? Gravity.CENTER_HORIZONTAL : Gravity.START)));
+        }
     }
 
     private void updateLauncherBackButton(boolean active) {
@@ -1791,7 +1827,7 @@ public class MainActivity extends AppCompatActivity {
                 : new LinearLayout.LayoutParams(
                         sidebarWidthPx,
                         LinearLayout.LayoutParams.MATCH_PARENT);
-        shellHost.addView(sideRail, 0, railParams);
+        shellHost.addView(sideRail, portraitShell ? Math.min(1, shellHost.getChildCount()) : 0, railParams);
         sideRailBuilder.setLauncherModeActive(launcherActive);
         sideRailBuilder.setSelectionForTabIndex(selectTab);
     }
@@ -1843,7 +1879,11 @@ public class MainActivity extends AppCompatActivity {
                     screenWidthPx - sidebarWidthPx,
                     LinearLayout.LayoutParams.MATCH_PARENT);
         }
-        shellHost.addView(mainContent, mainContentParams);
+        if (portrait) {
+            shellHost.addView(mainContent, 0, mainContentParams);
+        } else {
+            shellHost.addView(mainContent, mainContentParams);
+        }
 
         if (sideRailBuilder != null) {
             View goldenDock = sideRailBuilder.getGoldenDock();
@@ -1859,6 +1899,7 @@ public class MainActivity extends AppCompatActivity {
                 mainRootContainer.addView(goldenDock, dockLp);
             }
         }
+        updateNavigationDockParent();
     }
 
     /** Launcher kartları yön değişince yeniden dizilir; normal sekmeler kaydırılmaya devam eder. */

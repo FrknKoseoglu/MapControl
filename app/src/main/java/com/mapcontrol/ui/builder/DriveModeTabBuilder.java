@@ -62,7 +62,7 @@ public class DriveModeTabBuilder {
         scrollView = new ScrollView(context);
         scrollView.setBackgroundColor(Color.TRANSPARENT);
         scrollView.setPadding(0, 0, 0, 0);
-        scrollView.setFillViewport(true);
+        scrollView.setFillViewport(false);
 
         LinearLayout outer = new LinearLayout(context);
         outer.setOrientation(LinearLayout.VERTICAL);
@@ -83,7 +83,18 @@ public class DriveModeTabBuilder {
         int savedMode = prefs.getInt("driveModeSetting", -1);
 
         // Dinamik temalı ve damla dalgalanma efektli sürüş modu bileşeni (Card Component)
-        driveModeComponent = new FrameLayout(context);
+        driveModeComponent = new FrameLayout(context) {
+            @Override
+            protected void onMeasure(int widthMeasureSpec, int heightMeasureSpec) {
+                // Decorative MATCH_PARENT layers must not determine the card height.
+                View content = getChildAt(getChildCount() - 1);
+                measureChildWithMargins(content, widthMeasureSpec, 0,
+                        MeasureSpec.makeMeasureSpec(0, MeasureSpec.UNSPECIFIED), 0);
+                int contentHeight = content.getMeasuredHeight() + getPaddingTop() + getPaddingBottom();
+                super.onMeasure(widthMeasureSpec,
+                        MeasureSpec.makeMeasureSpec(contentHeight, MeasureSpec.EXACTLY));
+            }
+        };
         driveModeComponent.setTag("drive_mode_component");
         driveModeComponent.setOutlineProvider(new ViewOutlineProvider() {
             @Override

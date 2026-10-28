@@ -451,28 +451,6 @@ public class Camera360TabBuilder {
         row.setOrientation(LinearLayout.HORIZONTAL);
         row.setGravity(Gravity.CENTER_VERTICAL);
 
-        LinearLayout back = new LinearLayout(context);
-        back.setOrientation(LinearLayout.HORIZONTAL);
-        back.setGravity(Gravity.CENTER_VERTICAL);
-        back.setPadding(dp(12), 0, dp(16), 0);
-        setPressableBackground(back, roundRect(themeColor(R.color.surfaceCardInner), 22), 22);
-        back.setOnClickListener(v -> enterMenu());
-        ImageView arrow = new ImageView(context);
-        arrow.setImageResource(R.drawable.ic_hub_arrow_left);
-        arrow.setColorFilter(themeColor(R.color.textPrimary));
-        back.addView(arrow, new LinearLayout.LayoutParams(dp(22), dp(22)));
-        TextView backText = new TextView(context);
-        backText.setText(R.string.camera360_title);
-        backText.setTextSize(15);
-        backText.setTypeface(null, Typeface.BOLD);
-        backText.setTextColor(themeColor(R.color.textPrimary));
-        LinearLayout.LayoutParams btp = new LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT);
-        btp.setMarginStart(dp(8));
-        back.addView(backText, btp);
-        row.addView(back, new LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.WRAP_CONTENT, dp(44)));
-
         TextView title = new TextView(context);
         title.setText(titleRes);
         title.setTextSize(20);
@@ -482,7 +460,7 @@ public class Camera360TabBuilder {
         title.setEllipsize(TextUtils.TruncateAt.END);
         LinearLayout.LayoutParams tp = new LinearLayout.LayoutParams(
                 0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f);
-        tp.setMarginStart(dp(16));
+        tp.setMarginStart(0);
         tp.setMarginEnd(dp(12));
         row.addView(title, tp);
         return row;
@@ -493,7 +471,7 @@ public class Camera360TabBuilder {
     private LinearLayout buildMenuView() {
         LinearLayout menu = new LinearLayout(context);
         menu.setOrientation(LinearLayout.VERTICAL);
-        menu.setGravity(Gravity.CENTER);
+        menu.setGravity(Gravity.TOP | Gravity.CENTER_HORIZONTAL);
         int side = dp(16);
         menu.setPadding(side, 0, side, 0);
 

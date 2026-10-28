@@ -113,6 +113,7 @@ public class SideRailBuilder {
         LinearLayout menuContainer = new LinearLayout(context);
         menuContainer.setOrientation(LinearLayout.VERTICAL);
         menuContainer.setBackgroundColor(Color.TRANSPARENT);
+        railMenuContainer = menuContainer;
 
         menuWifi = createRailMenuItemView(R.drawable.ic_mdi_wifi, t(R.string.side_rail_wifi));
         menuApps = createRailMenuItemView(R.drawable.ic_mdi_cellphone, t(R.string.side_rail_apps));
@@ -155,7 +156,7 @@ public class SideRailBuilder {
         menuContainer.addView(menuSettings);
 
         float density = context.getResources().getDisplayMetrics().density;
-        menuContainer.setPadding(0, 0, 0, Math.round(68 * density));
+        updateRailBottomInset();
         menuScrollView.addView(menuContainer, new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT,
                 LinearLayout.LayoutParams.WRAP_CONTENT));
@@ -178,6 +179,7 @@ public class SideRailBuilder {
      * Dikey ekran: sol kolon yok. Aynı sekmeler üstte yatay kaydırılan ikon + kısa etiket şeridi.
      */
     public LinearLayout buildPortrait() {
+        railMenuContainer = null;
         sideRail = new LinearLayout(context);
         sideRail.setOrientation(LinearLayout.VERTICAL);
         UiStyles.setRailPanelBackground(sideRail);
@@ -229,6 +231,10 @@ public class SideRailBuilder {
         menuContainer.addView(menuVehicleInfo);
         menuContainer.addView(menuSettings);
 
+        // Let the final destination travel all the way to the left edge.
+        menuContainer.setPaddingRelative(0, 0,
+                context.getResources().getDisplayMetrics().widthPixels, 0);
+        menuScroll.setClipToPadding(false);
         menuScroll.addView(menuContainer, new HorizontalScrollView.LayoutParams(
                 HorizontalScrollView.LayoutParams.WRAP_CONTENT,
                 HorizontalScrollView.LayoutParams.WRAP_CONTENT));
@@ -340,6 +346,7 @@ public class SideRailBuilder {
         launcherModeActive = active;
         applyRailVisibility();
         updateDockHomeButton(active);
+        applyDockPanelTheme();
         updateGoldenDockSelection(active ? TAB_LAUNCHER : currentDockSelection);
     }
 
@@ -380,9 +387,22 @@ public class SideRailBuilder {
         }
     }
 
+    private LinearLayout railMenuContainer;
     private LinearLayout goldenDockLayout;
     private View goldenDockDivider;
     private final java.util.List<View> goldenDockItems = new java.util.ArrayList<>();
+
+    private void updateRailBottomInset() {
+        if (railMenuContainer == null) return;
+        int dockHeight = goldenDockLayout != null ? goldenDockLayout.getHeight() : 0;
+        if (dockHeight <= 0) {
+            dockHeight = Math.round(80 * context.getResources().getDisplayMetrics().density);
+        }
+        int bottom = dockHeight + UiStyles.dimenPx(context, R.dimen.spacing_medium);
+        if (railMenuContainer.getPaddingBottom() != bottom) {
+            railMenuContainer.setPadding(0, 0, 0, bottom);
+        }
+    }
 
     public View buildGoldenDock() {
         if (goldenDockLayout != null) {
@@ -391,7 +411,8 @@ public class SideRailBuilder {
         float density = context.getResources().getDisplayMetrics().density;
         goldenDockLayout = new LinearLayout(context);
         goldenDockLayout.setOrientation(LinearLayout.VERTICAL);
-        UiStyles.setRailPanelBackground(goldenDockLayout);
+        goldenDockLayout.addOnLayoutChangeListener((v, l, t, r, b, ol, ot, oright, ob) -> updateRailBottomInset());
+        applyDockPanelTheme();
         goldenDockItems.clear();
 
         goldenDockDivider = new View(context);
@@ -403,8 +424,8 @@ public class SideRailBuilder {
         LinearLayout row = new LinearLayout(context);
         row.setOrientation(LinearLayout.HORIZONTAL);
         row.setGravity(Gravity.CENTER_VERTICAL);
-        int padH = Math.round(4 * density);
-        int padV = Math.round(4 * density);
+        int padH = UiStyles.dimenPx(context, R.dimen.spacing_small);
+        int padV = UiStyles.dimenPx(context, R.dimen.spacing_small);
         row.setPadding(padH, padV, padH, padV);
 
         btnHome = createDockActionItem(
@@ -473,15 +494,18 @@ public class SideRailBuilder {
         item.setGravity(Gravity.CENTER);
         item.setClickable(true);
         item.setFocusable(true);
-        item.setMinimumHeight(Math.round(52 * density));
+        item.setMinimumHeight(Math.round(64 * density));
         int padH = Math.round(2 * density);
         int padV = Math.round(4 * density);
         item.setPadding(padH, padV, padH, padV);
 
-        int iconSize = Math.round(22 * density);
+        int iconSize = Math.round(40 * density);
         AppCompatImageView iconView = new AppCompatImageView(context);
         iconView.setImageResource(iconRes);
         iconView.setScaleType(ImageView.ScaleType.FIT_CENTER);
+        int iconPadding = Math.round(9 * density);
+        iconView.setPadding(iconPadding, iconPadding, iconPadding, iconPadding);
+        iconView.setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_NO);
         iconView.setImageTintList(ColorStateList.valueOf(UiStyles.color(context, R.color.textSecondaryCool)));
         LinearLayout.LayoutParams iconLp = new LinearLayout.LayoutParams(iconSize, iconSize);
         item.addView(iconView, iconLp);
@@ -490,7 +514,7 @@ public class SideRailBuilder {
         tv.setText(label);
         tv.setSingleLine(true);
         tv.setEllipsize(TextUtils.TruncateAt.END);
-        tv.setTextSize(android.util.TypedValue.COMPLEX_UNIT_SP, 11);
+        UiStyles.setTextSize(tv, R.dimen.text_size_tiny);
         tv.setTypeface(null, Typeface.BOLD);
         tv.setTextColor(UiStyles.color(context, R.color.textSecondaryCool));
         tv.setGravity(Gravity.CENTER);
@@ -502,6 +526,11 @@ public class SideRailBuilder {
 
         item.setTag(R.id.side_rail_icon, iconView);
         item.setTag(R.id.side_rail_label, tv);
+        item.setContentDescription(label);
+        android.util.TypedValue feedback = new android.util.TypedValue();
+        if (context.getTheme().resolveAttribute(android.R.attr.selectableItemBackground, feedback, true)) {
+            item.setForeground(UiStyles.drawable(context, feedback.resourceId));
+        }
         item.setOnClickListener(onClickListener);
         return item;
     }
@@ -518,11 +547,15 @@ public class SideRailBuilder {
 
         for (int i = 0; i < goldenDockItems.size(); i++) {
             View item = goldenDockItems.get(i);
-            boolean isActive = (i == 0 && (tabIndex == TAB_LAUNCHER || launcherModeActive))
-                    || (i == 2 && tabIndex == TAB_DRIVE_MODE && !launcherModeActive)
-                    || (i == 3 && tabIndex == TAB_SETTINGS && !launcherModeActive);
+            boolean isActive = (i == 0 && tabIndex == TAB_LAUNCHER)
+                    || (i == 2 && tabIndex == TAB_DRIVE_MODE)
+                    || (i == 3 && tabIndex == TAB_SETTINGS);
 
-            int color = isActive ? activeColor : idleColor;
+            int mode = prefs.getInt("driveModeSetting", -1);
+            boolean themedMemory = i == 2 && com.mapcontrol.vehicle.DriveModeStyle.isThemed(mode);
+            int color = themedMemory
+                    ? com.mapcontrol.vehicle.DriveModeStyle.accentColor(context, mode)
+                    : (isActive ? activeColor : idleColor);
             View icon = (View) item.getTag(R.id.side_rail_icon);
             if (icon instanceof AppCompatImageView) {
                 ((AppCompatImageView) icon).setImageTintList(ColorStateList.valueOf(color));
@@ -531,18 +564,36 @@ public class SideRailBuilder {
             if (label instanceof TextView) {
                 ((TextView) label).setTextColor(color);
             }
-            if (isActive) {
-                UiStyles.applySolidRoundedBackgroundDp(item, activeBg, 12);
+            if (isActive || themedMemory) {
+                int background = themedMemory
+                        ? androidx.core.graphics.ColorUtils.setAlphaComponent(color, 45) : activeBg;
+                if (icon != null) UiStyles.applySolidRoundedBackgroundDp(icon, background, 14);
+                item.setBackgroundColor(Color.TRANSPARENT);
             } else {
-                UiStyles.applySolidRoundedBackgroundDp(item, Color.TRANSPARENT, 12);
+                if (icon != null) UiStyles.setBackgroundRes(icon, R.drawable.bg_launcher_icon_slot);
+                item.setBackgroundColor(Color.TRANSPARENT);
             }
         }
     }
 
-    private void reapplyGoldenDockTheme() {
-        if (goldenDockLayout != null) {
+    public void refreshDriveMemoryColor() {
+        updateGoldenDockSelection(currentDockSelection);
+    }
+
+    private void applyDockPanelTheme() {
+        if (goldenDockLayout == null) return;
+        if (launcherModeActive) {
+            UiStyles.setGlassCardBackground(goldenDockLayout);
+        } else {
             UiStyles.setRailPanelBackground(goldenDockLayout);
         }
+        if (goldenDockDivider != null) {
+            goldenDockDivider.setVisibility(launcherModeActive ? View.GONE : View.VISIBLE);
+        }
+    }
+
+    private void reapplyGoldenDockTheme() {
+        applyDockPanelTheme();
         if (goldenDockDivider != null) {
             goldenDockDivider.setBackgroundColor(UiStyles.color(context, R.color.outlineSubtle));
         }

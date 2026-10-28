@@ -121,10 +121,10 @@ public final class LauncherDashboardBuilder implements
     private TextView quickAppsLabelView;
 
     private LinearLayout quickAccessCard;
+    private LinearLayout navigationColumn;
     private LinearLayout vehicleCard;
     private LinearLayout musicDriveCard;
     private StatusWidgetsView statusWidgets;
-    private TextView clockCardTitle;
     private TextView quickAccessTitleView;
     private AppCompatImageButton quickAccessGearButton;
     private AppCompatImageButton quickAccessExitButton;
@@ -162,40 +162,41 @@ public final class LauncherDashboardBuilder implements
 
         LinearLayout quickCard = buildQuickAccessCard();
         quickAccessCard = quickCard;
+        navigationColumn = new LinearLayout(context);
+        navigationColumn.setOrientation(LinearLayout.VERTICAL);
+        navigationColumn.addView(quickCard, new LinearLayout.LayoutParams(-1, 0, 1f));
         vehicleCard = buildVehicleCard();
+        statusWidgets.setSingleRow(true);
+        vehicleCard.addView(statusWidgets, 0, matchWidthWrap());
         musicDriveCard = buildMusicDriveCard();
         musicDriveCard.setMinimumWidth(0);
 
         if (portrait) {
-            LinearLayout.LayoutParams quickLp = new LinearLayout.LayoutParams(
-                    LinearLayout.LayoutParams.MATCH_PARENT, 0, 0.28f);
-            quickLp.bottomMargin = cardGap / 2;
-            cardsRow.addView(quickCard, quickLp);
+            LinearLayout.LayoutParams musicDriveLp = new LinearLayout.LayoutParams(-1, 0, 0.28f);
+            musicDriveLp.bottomMargin = cardGap / 2;
+            cardsRow.addView(musicDriveCard, musicDriveLp);
 
-            LinearLayout.LayoutParams vehicleLp = new LinearLayout.LayoutParams(
-                    LinearLayout.LayoutParams.MATCH_PARENT, 0, 0.44f);
+            LinearLayout.LayoutParams vehicleLp = new LinearLayout.LayoutParams(-1, 0, 0.36f);
             vehicleLp.topMargin = cardGap / 2;
             vehicleLp.bottomMargin = cardGap / 2;
             cardsRow.addView(vehicleCard, vehicleLp);
 
-            LinearLayout.LayoutParams musicDriveLp = new LinearLayout.LayoutParams(
-                    LinearLayout.LayoutParams.MATCH_PARENT, 0, 0.28f);
-            musicDriveLp.topMargin = cardGap / 2;
-            cardsRow.addView(musicDriveCard, musicDriveLp);
+            LinearLayout.LayoutParams quickLp = new LinearLayout.LayoutParams(-1, 0, 0.36f);
+            quickLp.topMargin = cardGap / 2;
+            cardsRow.addView(navigationColumn, quickLp);
         } else {
-            // Sürücü Odaklı LHD HMI Ergonomisi: Etkileşimli kartlar solda (Bölge 1 & 2), pasif görsel sahne sağda (Bölge 3 & 4)
             LinearLayout.LayoutParams quickLp = weightedLp(0.25f);
             quickLp.setMarginEnd(cardGap / 2);
-            cardsRow.addView(quickCard, quickLp);
-
-            LinearLayout.LayoutParams musicDriveLp = weightedLp(0.27f);
-            musicDriveLp.setMarginStart(cardGap / 2);
-            musicDriveLp.setMarginEnd(cardGap / 2);
-            cardsRow.addView(musicDriveCard, musicDriveLp);
+            cardsRow.addView(navigationColumn, quickLp);
 
             LinearLayout.LayoutParams vehicleLp = weightedLp(0.48f);
             vehicleLp.setMarginStart(cardGap / 2);
+            vehicleLp.setMarginEnd(cardGap / 2);
             cardsRow.addView(vehicleCard, vehicleLp);
+
+            LinearLayout.LayoutParams musicDriveLp = weightedLp(0.27f);
+            musicDriveLp.setMarginStart(cardGap / 2);
+            cardsRow.addView(musicDriveCard, musicDriveLp);
         }
 
         LinearLayout.LayoutParams cardsRowLp = new LinearLayout.LayoutParams(
@@ -207,6 +208,16 @@ public final class LauncherDashboardBuilder implements
         applySnapshot(repository.currentSnapshot());
         applyMediaState(mediaController.currentState());
         return root;
+    }
+
+    public void attachNavigationDock(View dock) {
+        if (navigationColumn == null || dock.getParent() == navigationColumn) return;
+        if (dock.getParent() instanceof android.view.ViewGroup) {
+            ((android.view.ViewGroup) dock.getParent()).removeView(dock);
+        }
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(-1, -2);
+        lp.topMargin = UiStyles.dimenPx(context, R.dimen.launcher_dashboard_card_gap);
+        navigationColumn.addView(dock, lp);
     }
 
     public void start() {
@@ -302,7 +313,6 @@ public final class LauncherDashboardBuilder implements
             litePanelView.reapplyTheme();
         }
         if (statusWidgets != null) statusWidgets.reapplyTheme();
-        applyTextColor(clockCardTitle, R.color.textMuted);
         applySnapshot(repository.currentSnapshot());
         applyMediaState(mediaController.currentState());
     }
@@ -534,7 +544,7 @@ public final class LauncherDashboardBuilder implements
         body.setOrientation(LinearLayout.VERTICAL);
         body.setGravity(Gravity.TOP);
         float density = context.getResources().getDisplayMetrics().density;
-        body.setPadding(0, 0, 0, Math.round(72 * density));
+        body.setPadding(0, 0, 0, UiStyles.dimenPx(context, R.dimen.spacing_small));
         quickScroll.addView(body, new android.widget.FrameLayout.LayoutParams(-1, -2));
         LinearLayout.LayoutParams quickScrollLp = new LinearLayout.LayoutParams(-1, 0, 1);
         quickScrollLp.topMargin = UiStyles.dimenPx(context, R.dimen.spacing_medium);
@@ -546,7 +556,7 @@ public final class LauncherDashboardBuilder implements
             }
         });
         statusWidgets.setColumnCount(2);
-        // Status widgets Header içine taşındı
+        // Status widgets are attached above the wide information panel.
 
         // Remaining shortcuts follow the live controls without duplicate destinations.
         shortcutsGrid = buildDashboardShortcutsGrid();
@@ -1114,14 +1124,15 @@ public final class LauncherDashboardBuilder implements
     private GridLayout buildDashboardShortcutsGrid() {
         GridLayout grid = new GridLayout(context);
         grid.setTag("launcher_shortcuts_grid");
-        grid.setColumnCount(QUICK_SHORTCUT_COLUMNS);
+        boolean portrait = context.getResources().getConfiguration().orientation
+                == Configuration.ORIENTATION_PORTRAIT;
+        grid.setColumnCount(portrait ? 5 : QUICK_SHORTCUT_COLUMNS);
         grid.setUseDefaultMargins(false);
 
         DashboardShortcut[] shortcuts = dashboardShortcuts();
         for (DashboardShortcut shortcut : shortcuts) {
-            // Keep these destinations available to swipe settings, but use their status cards here.
-            if (shortcut.tabIndex == 0 || shortcut.tabIndex == 1
-                    || shortcut.tabIndex == 3 || shortcut.tabIndex == 6) continue;
+            // Projection and memory remain available through their status controls.
+            if (shortcut.tabIndex == 3 || shortcut.tabIndex == 6) continue;
             addCompactShortcutTile(grid, shortcut);
         }
         return grid;
@@ -1130,7 +1141,7 @@ public final class LauncherDashboardBuilder implements
     private DashboardShortcut[] dashboardShortcuts() {
         return new DashboardShortcut[]{
                 new DashboardShortcut(0, R.drawable.ic_mdi_wifi, context.getString(R.string.launcher_shortcut_wifi)),
-                new DashboardShortcut(1, R.drawable.ic_mdi_cellphone, context.getString(R.string.header_phone)),
+                new DashboardShortcut(1, R.drawable.ic_mdi_cellphone, context.getString(R.string.side_rail_web)),
                 // Temporarily hidden: Profile shortcut (restore line below when profile tab is re-enabled).
                 // new DashboardShortcut(2, R.drawable.ic_mdi_account, context.getString(R.string.launcher_shortcut_profile)),
                 new DashboardShortcut(3, R.drawable.ic_mdi_map, context.getString(R.string.launcher_shortcut_projection)),
@@ -1433,17 +1444,6 @@ public final class LauncherDashboardBuilder implements
 
     private LinearLayout buildVehicleCard() {
         LinearLayout card = createGlassCard();
-
-        clockCardTitle = new TextView(context);
-        clockCardTitle.setTag("launcher_clock_title");
-        clockCardTitle.setText(R.string.launcher_dashboard_card_clock);
-        UiStyles.setTextSize(clockCardTitle, R.dimen.text_size_small);
-        clockCardTitle.setTypeface(null, Typeface.BOLD);
-        clockCardTitle.setTextColor(UiStyles.color(context, R.color.textMuted));
-        clockCardTitle.setAllCaps(true);
-        clockCardTitle.setLetterSpacing(0.08f);
-        clockCardTitle.setGravity(Gravity.RIGHT | Gravity.TOP);
-        card.addView(clockCardTitle, matchWidthWrap());
 
         LinearLayout body = cardContent(card);
 

@@ -98,7 +98,7 @@ public class TopBarBuilder implements HeaderStatusSink {
         launcherBackButton.setClickable(true);
         LinearLayout.LayoutParams backParams = new LinearLayout.LayoutParams(dp(40), dp(40));
         backParams.setMarginEnd(dp(8));
-        titleArea.addView(launcherBackButton, backParams);
+        // Header navigation is provided by the shared dock.
 
         titleView = new TextView(context);
         titleView.setTag("header_title");
@@ -402,7 +402,7 @@ public class TopBarBuilder implements HeaderStatusSink {
 
     public void setLauncherBackButtonVisible(boolean visible) {
         if (launcherBackButton != null && (launcherBackButton.getVisibility() == View.VISIBLE) != visible)
-            launcherBackButton.setVisibility(visible ? View.VISIBLE : View.GONE);
+            launcherBackButton.setVisibility(View.GONE);
     }
 
     public void setTopBarVisible(boolean visible) {

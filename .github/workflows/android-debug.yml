@@ -17,6 +17,8 @@ jobs:
         with:
           distribution: temurin
           java-version: '17'
+      - name: Set up Android SDK command-line tools
+        uses: android-actions/setup-android@v4
       - name: Install project Android SDK packages
         run: sdkmanager 'platforms;android-34' 'build-tools;34.0.0'
       - name: Build and test without release credentials
